@@ -125,7 +125,12 @@ flowchart LR
 ## 8. Coding standards
 
 - **Formatting:** clang-format is the authority. **Analysis:** clang-tidy with the checks in `.clang-tidy`.
-- **Warnings:** `-Wall -Wextra -Wpedantic` (GCC, Clang) and `/W4` (MSVC); warnings are errors in CI (`BUCU_WERROR`). Do not grow the warning set without a reason.
+- **Warnings:** every BuCu target builds with the strict set, and warnings are errors in every preset and in CI (`BUCU_WERROR`, `ON` in every preset, `OFF` by default in `CMakeLists.txt` so a packager's newer compiler does not break the build).
+  - GCC and Clang: `-Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wshadow -Wold-style-cast -Wnon-virtual-dtor -Woverloaded-virtual -Wcast-align -Wnull-dereference -Wdouble-promotion -Wformat=2 -Wimplicit-fallthrough`.
+  - GCC only: `-Wduplicated-cond -Wduplicated-branches -Wlogical-op -Wuseless-cast`.
+  - MSVC: `/W4 /WX /permissive-`, with `/external:anglebrackets /external:W0` for third-party headers.
+- **Third-party code:** vendored headers (CLI11, Catch2) are included as `SYSTEM`; vendored sources (the SQLite amalgamation) build in their own target without the strict set. The strict set never weakens for BuCu's own code, tests included.
+- **Suppressions:** silence a warning only at the narrowest scope (one line or one function, never a file or target), with a comment that names the warning and why the code is correct. Do not cast just to quiet a warning.
 - **Ownership:** RAII for every resource (SQLite handles, files, processes). No owning raw pointers. `std::string_view` where ownership is not needed, and never stored past the life of its source.
 - **Hot paths:** avoid needless allocations; measure before adding caches, custom allocators, or complex structures (`docs/performance.md`).
 - **Text:** UTF-8 in `std::string` everywhere. Convert to UTF-16 only inside `src/platform/` on Windows.
