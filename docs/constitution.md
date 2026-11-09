@@ -26,8 +26,8 @@ CLI behaviour: `docs/product.md`. Stack, modules, contracts, and coding, testing
 A change is done only when all of these hold:
 
 - Each commit: the targeted tests of the task, when it has any, pass; clang-format passes for the staged C++ files (pre-commit hook).
-- Before the PR (`/pr`): the full build and every test pass with the `debug` preset, and with the `asan-ubsan` preset when C++ changed (`CLAUDE.md` Commands).
-- CI on the PR: the build and test matrix passes with warnings as errors; `sdd-gates.yml` checks each gate marked (sdd-gates).
+- Before the PR (`/pr`): the full build and every test pass with no compiler warnings with the `debug` preset, and with the `asan-ubsan` preset when C++ changed (`CLAUDE.md` Commands).
+- CI on the PR: the build and test matrix passes with the strict warning set as errors (architecture §8); `sdd-gates.yml` checks each gate marked (sdd-gates).
 - Principles 3 and 4 hold: code agrees with the spec, and every task in the Tasks part of the issue body is checked (sdd-gates) and follows principle 4.
 - Each acceptance criterion is checked with its evidence, or marked manual or after merge (sdd-gates).
 - Implement starts only when the issue has the `approved` label, set by the plan-mode approval hook (Claude Code hook).
