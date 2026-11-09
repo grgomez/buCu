@@ -1,6 +1,6 @@
 # Performance
 
-How BuCu's performance is measured and which budgets it aims for. Results live in [`benchmarks/README.md`](../benchmarks/README.md); rerun them with `scripts/bench.sh` (added by #7). When to read this document and how it changes: `CLAUDE.md`.
+How BuCu's performance is measured and which budgets it aims for. Results live in `benchmarks/README.md` (added by #7); rerun them with `scripts/bench.sh` (added by #7). When to read this document and how it changes: `CLAUDE.md`.
 
 ## 1. Rules
 
