@@ -280,5 +280,29 @@ class CommandLineTest(unittest.TestCase):
         self.assertEqual(code, 2)
 
 
+class PrTemplateTest(unittest.TestCase):
+    def filled(self):
+        text = (ROOT / ".github" / "pull_request_template.md").read_text(encoding="utf-8")
+        return text.replace("#<n>", "#34")
+
+    def test_filled_template_passes_the_body_checks(self):
+        text = self.filled()
+        self.assertEqual(sdd_check.closing_issue(text), 34)
+        self.assertEqual(sdd_check.check_living_documents([], text, body()), [])
+
+    def test_template_has_the_sections(self):
+        text = self.filled()
+        for heading in ("## Summary", "## Living documents", "## Checks"):
+            self.assertIn(heading, text)
+
+    def test_unfilled_template_fails_the_closes_check(self):
+        text = (ROOT / ".github" / "pull_request_template.md").read_text(encoding="utf-8")
+        self.assertIsNone(sdd_check.closing_issue(text))
+
+    def test_no_buku_templates_remain(self):
+        for name in ("ISSUE_TEMPLATE.md", "PULL_REQUEST_TEMPLATE.md"):
+            self.assertFalse((ROOT / ".github" / name).exists(), name)
+
+
 if __name__ == "__main__":
     unittest.main()
