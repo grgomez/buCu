@@ -96,6 +96,18 @@ class PreCommitTest(Sandbox):
         (self.repo / "src/a.cpp").write_text("BAD\n")
         self.assertEqual(self.run_hook("pre-commit").returncode, 0)
 
+    def test_checks_a_renamed_unformatted_file(self):
+        self.fake_clang_format()
+        body = "".join(f"int v{i};\n" for i in range(20))
+        self.stage("src/old.cpp", body)
+        git(self.repo, "commit", "-q", "--no-verify", "-m", "x")
+        git(self.repo, "mv", "src/old.cpp", "src/new.cpp")
+        (self.repo / "src/new.cpp").write_text(body + "BAD\n")
+        git(self.repo, "add", "src/new.cpp")
+        result = self.run_hook("pre-commit")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("src/new.cpp", result.stderr)
+
     def test_ignores_non_cpp_and_deleted_files(self):
         self.fake_clang_format()
         self.stage("README.md", "BAD\n")

@@ -1,6 +1,6 @@
 #!/bin/sh
 # pre-commit: clang-format check on the staged C++ files (constitution section 3).
-files=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(c|cc|cpp|cxx|h|hh|hpp|hxx)$')
+files=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '\.(c|cc|cpp|cxx|h|hh|hpp|hxx)$')
 [ -z "$files" ] && exit 0
 
 if ! command -v clang-format >/dev/null 2>&1; then
