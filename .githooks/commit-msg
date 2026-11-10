@@ -1,0 +1,3 @@
+#!/bin/sh
+# commit-msg: the subject must start with a task ID (tools/commit_check.py).
+exec python3 "$(dirname "$0")/../tools/commit_check.py" "$1"
