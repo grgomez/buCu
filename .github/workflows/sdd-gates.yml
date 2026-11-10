@@ -1,0 +1,28 @@
+name: sdd-gates
+
+on:
+  pull_request:
+    branches: [master]
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+
+jobs:
+  gates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check the issue body and the pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 tools/sdd_check.py pr ${{ github.event.pull_request.number }}
+
+  tools-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run the tools' unit tests
+        run: python3 -m unittest discover -s tools/tests
