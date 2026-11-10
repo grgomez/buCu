@@ -67,9 +67,10 @@ Run from the repository root.
 cmake --preset debug && cmake --build --preset debug   # build
 ctest --preset debug                                   # all tests
 ctest --preset debug -R '<test name regex>'            # targeted tests
+python3 -m unittest discover -s tools/tests            # workflow tool and hook tests
 cmake --preset asan-ubsan && cmake --build --preset asan-ubsan && ctest --preset asan-ubsan
 scripts/format.sh [--check]                            # clang-format
 python3 tools/sdd_check.py issue <n>                   # issue body parts, size, markers
 ```
 
-The CMake presets and scripts arrive with #4, and the tools with #2. Git hooks (`README.md` Setup) check each commit. CI runs the workflows in `.github/workflows/` on every PR, and each one must pass before the owner merges.
+The CMake presets and scripts arrive with #4, and the hooks with #2 and the tools with #34. Git hooks (`README.md` Setup) check each commit. CI runs the workflows in `.github/workflows/` on every PR, and each one must pass before the owner merges.

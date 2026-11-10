@@ -35,6 +35,16 @@ To get started right away, jump to the [Quickstart](#quickstart) section. `buku`
 
 `buku` is a library too! There are several related projects, including a browser plug-in.
 
+### Setup (development)
+
+To work on BuCu, turn on the repository's git hooks once per clone:
+
+```sh
+git config core.hooksPath .githooks
+```
+
+The hooks check each commit subject, the formatting of staged C++, and the branch name on push. The hooks need Python 3 as `python3`, or as `python` on Windows. C++ changes also need `clang-format`.
+
 ### Table of Contents
 
 - [Features](#features)
