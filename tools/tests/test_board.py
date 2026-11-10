@@ -74,6 +74,17 @@ class BoardTest(FakeGhCase):
         self.assertIn(".content.number == 34", listing)
         self.assertIn("--limit 1000", listing)
 
+    def test_item_lookup_filters_on_the_repository(self):
+        self.board("34", "Done")
+        listing = next(c for c in self.calls() if c.startswith("project item-list"))
+        self.assertIn('.content.repository == "grgomez/buCu"', listing)
+
+    def test_several_items_for_the_issue(self):
+        done = self.board("34", "Done", FAKE_GH_ITEM_ID="ITEM_1\nITEM_2")
+        self.assertEqual(done.returncode, 1)
+        self.assertIn("more than one", done.stderr)
+        self.assertFalse(any(c.startswith("project item-edit") for c in self.calls()))
+
     def test_unknown_status(self):
         done = self.board("34", "Someday", FAKE_GH_OPTION_ID="")
         self.assertEqual(done.returncode, 2)
