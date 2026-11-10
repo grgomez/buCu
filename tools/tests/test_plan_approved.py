@@ -68,11 +68,28 @@ class PlanApprovedTest(unittest.TestCase):
         self.assertIn("tier:2", args)
         self.assertNotIn("approved", [args[i + 1] for i, a in enumerate(args) if a == "--add-label"])
 
-    def test_plan_without_a_valid_header_is_ignored(self):
-        for text in ("# Plan only", "Issue: #2\nStage: Plan", "Issue: #2\nStage: Draft\nTier: 0",
-                     "Issue: #2\nStage: Plan\nTier: 3"):
-            (code, message), gh = self.run_hook(payload(text))
+    def test_plan_without_an_issue_line_is_ignored(self):
+        for text in ("# Plan only", "Stage: Plan\nTier: 0", ""):
+            (code, message), gh = self.run_hook(payload(text or " "))
             self.assertEqual((code, message, gh.calls), (0, "", []), text)
+
+    def test_an_issue_line_with_an_invalid_header_exits_2(self):
+        for text in ("Issue: #2\nStage: Plan", "Issue: #2\nStage: Draft\nTier: 0",
+                     "Issue: #2\nStage: Plan\nTier: 3",
+                     "Stage: Plan\nTier: 0\n# Plan\nIssue: #2"):
+            (code, message), gh = self.run_hook(payload(text))
+            self.assertEqual(code, 2, text)
+            self.assertIn("header", message)
+            self.assertEqual(gh.calls, [], text)
+
+    def test_the_header_is_read_from_the_first_three_non_empty_lines_only(self):
+        late = "Issue: #2\nStage: Plan\n\n# Plan\nTier: 0"
+        (code, _), gh = self.run_hook(payload(late))
+        self.assertEqual(code, 2)
+        self.assertEqual(gh.calls, [])
+        early = "\n\nStage: Plan\nTier: 1\nIssue: #4\n\n# Plan"
+        (code, _), gh = self.run_hook(payload(early))
+        self.assertEqual((code, gh.calls[0][2]), (0, "4"))
 
     def test_plan_is_read_from_the_file_when_the_field_is_missing(self):
         with tempfile.TemporaryDirectory() as tmp:

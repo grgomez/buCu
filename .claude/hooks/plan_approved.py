@@ -41,8 +41,9 @@ def plan_text(response):
 
 
 def parse_header(text):
-    """Return (issue, stage, tier) or None when the header is missing or invalid."""
-    issue, stage, tier = _ISSUE.search(text), _STAGE.search(text), _TIER.search(text)
+    """Return (issue, stage, tier) read from the first three non-empty lines, or None."""
+    top = "\n".join([line for line in text.splitlines() if line.strip()][:3])
+    issue, stage, tier = _ISSUE.search(top), _STAGE.search(top), _TIER.search(top)
     if not (issue and stage and tier):
         return None
     return int(issue.group(1)), stage.group(1), int(tier.group(1))
@@ -63,7 +64,11 @@ def run(raw, gh=run_gh):
                    "Ask the owner to add the labels by hand (ADR 0003).\n")
     header = parse_header(text)
     if header is None:
-        return 0, ""
+        if not _ISSUE.search(text):
+            return 0, ""  # not a plan of this workflow
+        return 2, ("plan_approved: the plan has an Issue: line but no valid header in its "
+                   "first three non-empty lines (Issue: #<n>, Stage: Spec|Plan, Tier: 0|1|2), "
+                   "so no label was added. Ask the owner to add the labels by hand (ADR 0003).\n")
     issue, stage, tier = header
     args = ["issue", "edit", str(issue), "--repo", _REPO,
             "--add-label", _LABEL[stage], "--add-label", f"tier:{tier}"]
