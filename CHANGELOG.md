@@ -8,4 +8,4 @@ All notable changes to BuCu are listed here, newest first.
 
 ## Origin
 
-BuCu is a C++ port of [Buku](https://github.com/jarun/buku) by Arun Prakash Jana. The history begins at Buku commit `c57a1ab`, where this repository forked from upstream. Buku's release history is in its [changelog](https://github.com/jarun/buku/blob/master/CHANGELOG).
+BuCu is a C++ port of [Buku](https://github.com/jarun/buku) by Arun Prakash Jana. BuCu's history diverges from Buku at upstream commit `c57a1ab`; the earlier commits are Buku's. Buku's release history is in its [changelog](https://github.com/jarun/buku/blob/master/CHANGELOG).
