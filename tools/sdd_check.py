@@ -140,3 +140,43 @@ def check_size(body):
         if _OPEN_MARKER.search(text):
             failures.append(f"the {name} part has an open [NEEDS CLARIFICATION: ...] marker")
     return failures
+
+
+_CLOSES = re.compile(r"^\s*Closes #(\d+)\b", re.M | re.I)
+_CHECKBOX = re.compile(r"^\s*- \[([ xX])\] ")
+_UNTICKED_TASK = re.compile(r"^- \[ \] (T\d{3})\b", re.M)
+_OPEN_EVIDENCE = re.compile(r"Evidence: (?:manual|after merge)")
+
+
+def closing_issue(pr_body):
+    """Return the issue number of the `Closes #<n>` line, or None."""
+    match = _CLOSES.search(pr_body)
+    return int(match.group(1)) if match else None
+
+
+def criteria_lines(body, tier):
+    """Return the acceptance criteria lines: the Spec part's, or the Scope bullets for Tier 0."""
+    if tier == 0:
+        return scope_bullets(body)
+    return [line for line in split_parts(body).get("SPEC", "").splitlines()
+            if _CRITERION.match(line)]
+
+
+def check_done(body, names):
+    """Return the done failures of constitution section 3: tasks ticked, criteria with evidence."""
+    failures = []
+    tasks = split_parts(body).get("TASKS", "")
+    for task in _UNTICKED_TASK.findall(tasks):
+        failures.append(f"task {task} is not ticked")
+    for line in criteria_lines(body, tier_of(names)):
+        label = line.strip()[:60]
+        box = _CHECKBOX.match(line)
+        if not box:
+            failures.append(f"criterion has no checkbox: {label}")
+        elif box.group(1) == " ":
+            if not _OPEN_EVIDENCE.search(line):
+                failures.append(f"unticked criterion needs `Evidence: manual` or "
+                                f"`Evidence: after merge`: {label}")
+        elif "Evidence:" not in line:
+            failures.append(f"ticked criterion has no `Evidence:`: {label}")
+    return failures

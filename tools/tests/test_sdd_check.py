@@ -122,5 +122,48 @@ class SizeTest(unittest.TestCase):
         self.assertEqual(sdd_check.check_size(text), [])
 
 
+def done_body(task="- [x] T001 x", criterion="- [x] US1-AC1: x Evidence: a_test.py: case"):
+    spec = f"<!-- SPEC:START -->\n# Spec\n### US1: a\n{criterion}\n<!-- SPEC:END -->\n"
+    tasks = f"<!-- TASKS:START -->\n# Tasks\n{task}\n<!-- TASKS:END -->\n"
+    return body(spec=spec, tasks=tasks)
+
+
+class DoneTest(unittest.TestCase):
+    def failures(self, text, tier=1):
+        return sdd_check.check_done(text, [f"tier:{tier}", "approved"])
+
+    def test_closes_line(self):
+        self.assertEqual(sdd_check.closing_issue("Text\n\nCloses #34\n"), 34)
+        self.assertIsNone(sdd_check.closing_issue("Closes #<n>"))
+        self.assertIsNone(sdd_check.closing_issue("Fixes #3"))
+
+    def test_done_body_passes(self):
+        self.assertEqual(self.failures(done_body()), [])
+
+    def test_unticked_task(self):
+        self.assertTrue(any("T001" in f for f in self.failures(done_body(task="- [ ] T001 x"))))
+
+    def test_checked_criterion_needs_evidence(self):
+        text = done_body(criterion="- [x] US1-AC1: x")
+        self.assertTrue(any("US1-AC1" in f for f in self.failures(text)))
+
+    def test_unchecked_criterion_with_manual_or_after_merge(self):
+        for evidence in ("Evidence: manual, check 1 (owner)", "Evidence: after merge (owner)"):
+            text = done_body(criterion=f"- [ ] US1-AC1: x {evidence}")
+            self.assertEqual(self.failures(text), [])
+
+    def test_unchecked_criterion_with_test_evidence(self):
+        text = done_body(criterion="- [ ] US1-AC1: x Evidence: a_test.py: case")
+        self.assertTrue(any("US1-AC1" in f for f in self.failures(text)))
+
+    def test_tier0_scope_bullets_are_the_criteria(self):
+        original = "Goal.\n\n## Scope\n\n- [x] first. Evidence: T001 Check\n- second\n"
+        tasks = "<!-- TASKS:START -->\n# Tasks\n- [x] T001 x\n<!-- TASKS:END -->\n"
+        text = body(original=original, spec="", tasks=tasks)
+        failures = self.failures(text, tier=0)
+        self.assertEqual(len(failures), 1)
+        self.assertIn("second", failures[0])
+
+
 if __name__ == "__main__":
     unittest.main()
