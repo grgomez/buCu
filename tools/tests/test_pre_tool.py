@@ -64,5 +64,35 @@ class MasterGuardTest(unittest.TestCase):
         self.assertEqual(pre_tool.run("not json", branch=lambda: "master")[0], 0)
 
 
+class ProtectedLabelTest(unittest.TestCase):
+    def blocked(self, command):
+        return pre_tool.decide(bash(command), branch=lambda: "feat/issue-2-x") is not None
+
+    def test_adding_approved_is_blocked(self):
+        for cmd in (
+            "gh issue edit 2 --add-label approved",
+            "gh issue edit 2 --repo grgomez/buCu --add-label spec-approved",
+            "gh issue edit 2 --add-label=approved",
+            'gh pr edit 3 --add-label "tier:0,approved"',
+            "gh issue edit 2 --add-label 'spec-approved'",
+        ):
+            self.assertTrue(self.blocked(cmd), cmd)
+
+    def test_api_label_call_naming_approved_is_blocked(self):
+        self.assertTrue(
+            self.blocked("gh api repos/grgomez/buCu/issues/2/labels -f 'labels[]=approved'")
+        )
+
+    def test_other_labels_and_reads_are_allowed(self):
+        for cmd in (
+            "gh issue edit 2 --add-label workflow",
+            "gh issue edit 2 --remove-label approved",
+            "gh issue view 2 --json labels",
+            "gh issue edit 2 --add-label approved-by-hand-not",
+            "gh api repos/grgomez/buCu/issues/2",
+        ):
+            self.assertFalse(self.blocked(cmd), cmd)
+
+
 if __name__ == "__main__":
     unittest.main()

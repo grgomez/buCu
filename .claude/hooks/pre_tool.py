@@ -15,6 +15,10 @@ _GIT = _START + r"git(?:\s+-[Cc]\s+\S+|\s+--\S+)*\s+"
 _COMMIT = re.compile(_GIT + r"commit\b")
 _PUSH = re.compile(_GIT + r"push\b([^;&|\n]*)")
 _MASTER_REF = re.compile(r"^\+?(?:[^:]*:)?(?:refs/heads/)?master$")
+_GH_EDIT = re.compile(_START + r"gh\s+(?:issue|pr)\s+edit\b")
+_ADD_LABEL = re.compile(r"--add-label(?:=|\s+)[\"']?([^\s\"']+)")
+_GH_API = re.compile(_START + r"gh\s+api\b")
+_PROTECTED = {"approved", "spec-approved"}
 
 
 def current_branch(cwd=None):
@@ -39,13 +43,25 @@ def check_master_guard(command, branch):
     return None
 
 
+def check_protected_labels(command):
+    """Return a reason when `command` adds a label only the hook may add."""
+    if _GH_EDIT.search(command):
+        for value in _ADD_LABEL.findall(command):
+            if _PROTECTED & {v.strip() for v in value.split(",")}:
+                return "Adding approved or spec-approved is blocked. Only plan-mode acceptance adds them."
+    if _GH_API.search(command) and "/labels" in command:
+        if re.search(r"(?<![\w-])(?:spec-)?approved(?![\w-])", command):
+            return "Adding approved or spec-approved is blocked. Only plan-mode acceptance adds them."
+    return None
+
+
 def decide(payload, branch=current_branch):
     """Return the reason to block the tool call in `payload`, or None."""
     tool = payload.get("tool_name")
     tool_input = payload.get("tool_input") or {}
     if tool == "Bash":
         command = tool_input.get("command") or ""
-        return check_master_guard(command, branch)
+        return check_master_guard(command, branch) or check_protected_labels(command)
     return None
 
 
