@@ -86,6 +86,10 @@ class ProtectedLabelTest(unittest.TestCase):
             "gh issue edit 2 --add-label=approved",
             'gh pr edit 3 --add-label "tier:0,approved"',
             "gh issue edit 2 --add-label 'spec-approved'",
+            'gh issue edit 2 --add-label "tier:0, approved"',
+            "gh issue edit 2 --add-label 'tier:0, spec-approved'",
+            'gh issue edit 2 --add-label="tier:0, approved"',
+            "gh issue edit 2 --add-label 'a b,approved'",
         ):
             self.assertTrue(self.blocked(cmd), cmd)
 

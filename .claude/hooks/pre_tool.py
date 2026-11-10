@@ -16,7 +16,7 @@ _GIT = _START + r"git(?:\s+-[Cc]\s+\S+|\s+--\S+)*\s+"
 _COMMIT = re.compile(_GIT + r"commit\b")
 _PUSH = re.compile(_GIT + r"push\b([^;&|\n]*)")
 _GH_EDIT = re.compile(_START + r"gh\s+(?:issue|pr)\s+edit\b")
-_ADD_LABEL = re.compile(r"--add-label(?:=|\s+)[\"']?([^\s\"']+)")
+_ADD_LABEL = re.compile(r"--add-label(?:=|\s+)(?:\"([^\"]*)\"|'([^']*)'|(\S+))")
 _GH_API = re.compile(_START + r"gh\s+api\b")
 _PROTECTED = {"approved", "spec-approved"}
 _BRANCH = re.compile(r"^(?:feat|fix)/issue-(\d+)-")
@@ -97,7 +97,8 @@ def check_master_guard(command, branch):
 def check_protected_labels(command):
     """Return a reason when `command` adds a label only the hook may add."""
     if _GH_EDIT.search(command):
-        for value in _ADD_LABEL.findall(command):
+        for groups in _ADD_LABEL.findall(command):
+            value = "".join(groups)
             if _PROTECTED & {v.strip() for v in value.split(",")}:
                 return "Adding approved or spec-approved is blocked. Only plan-mode acceptance adds them."
     if _GH_API.search(command) and "/labels" in command:
