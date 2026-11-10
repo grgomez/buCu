@@ -16,9 +16,9 @@ One row per third-party unknown (`/plan` Trial). Facts only. Number the rows `TR
 
 One row per decision, one short line in each column. Cite the Spec part's IDs (for example `US1-AC2`, `FR-003`); never restate them. Start the Reason of a decision that rests on a trial with its trial ID. Write a decision only when a reasonable person could choose differently.
 
-| # | Decision | Reason | Risk |
-| --- | --- | --- | --- |
-| D1 | <what> | <why this option> | <what could go wrong, and the mitigation> |
+| # | Decision | Reason | Risk | Mitigation |
+| --- | --- | --- | --- | --- |
+| D1 | <what> | <why this option> | <what could go wrong> | <how it is prevented or handled> |
 
 ## Files to change
 
