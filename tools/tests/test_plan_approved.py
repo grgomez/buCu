@@ -27,8 +27,8 @@ class Recorder:
             raise OSError("gh unavailable")
 
 
-def payload(plan=None, file_path=None):
-    response = {"isAgent": False}
+def payload(plan=None, file_path=None, is_agent=False):
+    response = {"isAgent": is_agent}
     if plan is not None:
         response["plan"] = plan
     if file_path is not None:
@@ -96,6 +96,10 @@ class PlanApprovedTest(unittest.TestCase):
         (code, message), _ = self.run_hook(payload(header()), gh=Recorder(fail=True))
         self.assertEqual(code, 2)
         self.assertIn("#2", message)
+
+    def test_a_subagent_plan_is_ignored(self):
+        (code, message), gh = self.run_hook(payload(header(), is_agent=True))
+        self.assertEqual((code, message, gh.calls), (0, "", []))
 
     def test_bad_json_is_ignored(self):
         (code, _), _ = self.run_hook("not json")

@@ -54,7 +54,10 @@ def run(raw, gh=run_gh):
         payload = json.loads(raw)
     except ValueError:
         return 0, ""
-    text = plan_text(payload.get("tool_response"))
+    response = payload.get("tool_response")
+    if isinstance(response, dict) and response.get("isAgent") is True:
+        return 0, ""  # a subagent's plan-mode exit is not the owner's acceptance
+    text = plan_text(response)
     if text is None:
         return 2, ("plan_approved: the hook input carries no plan text, so no label was added. "
                    "Ask the owner to add the labels by hand (ADR 0003).\n")
