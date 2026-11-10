@@ -149,8 +149,13 @@ def run(raw, branch=current_branch, labels=issue_labels, repo=repo_of):
     try:
         payload = json.loads(raw)
     except ValueError:
-        return 0, ""
-    reason = decide(payload, branch=branch, labels=labels, repo=repo)
+        payload = None
+    if not isinstance(payload, dict):
+        return 2, "pre_tool: the hook input is not a JSON object, so the call is blocked.\n"
+    try:
+        reason = decide(payload, branch=branch, labels=labels, repo=repo)
+    except Exception as error:  # fail closed on any failure of the checks
+        return 2, f"pre_tool: the checks failed ({error!r}), so the call is blocked.\n"
     return (2, reason + "\n") if reason else (0, "")
 
 

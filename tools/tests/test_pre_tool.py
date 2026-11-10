@@ -75,7 +75,20 @@ class MasterGuardTest(unittest.TestCase):
         payload = json.dumps(bash("git commit -m x"))
         self.assertEqual(pre_tool.run(payload, branch=lambda: "master")[0], 2)
         self.assertEqual(pre_tool.run(payload, branch=lambda: "feat/issue-1-a")[0], 0)
-        self.assertEqual(pre_tool.run("not json", branch=lambda: "master")[0], 0)
+
+    def test_unparseable_or_non_object_input_blocks_with_a_message(self):
+        for raw in ("not json", "", "[1, 2]", "null", '"text"'):
+            code, message = pre_tool.run(raw, branch=lambda: "master")
+            self.assertEqual(code, 2, raw)
+            self.assertTrue(message, raw)
+
+    def test_an_exception_while_deciding_blocks_with_a_message(self):
+        def no_git():
+            raise FileNotFoundError("git")
+
+        code, message = pre_tool.run(json.dumps(bash("git commit -m x")), branch=no_git)
+        self.assertEqual(code, 2)
+        self.assertIn("git", message)
 
 
 class ProtectedLabelTest(unittest.TestCase):
