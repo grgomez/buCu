@@ -1,6 +1,9 @@
 """Tests for tools/sdd_check.py."""
 
 import importlib.util
+import io
+import json
+import subprocess
 import unittest
 from pathlib import Path
 
@@ -207,6 +210,74 @@ class LivingDocumentsTest(unittest.TestCase):
         pr = "## Living documents\nNone.\n## Checks\ndocs/product.md\n"
         failures = sdd_check.check_living_documents(["docs/product.md"], pr, body())
         self.assertTrue(any("Living documents" in f for f in failures))
+
+
+class CommandLineTest(unittest.TestCase):
+    PR_OK = "Closes #7\n\n## Living documents\nNone.\n"
+
+    def fake_gh(self, issue_body, names, pr_body=PR_OK, files=("tools/x.py",), fail=False):
+        calls = []
+
+        def gh(args):
+            calls.append(args)
+            if fail:
+                raise subprocess.CalledProcessError(1, "gh")
+            if args[:2] == ["issue", "view"]:
+                return json.dumps({"body": issue_body, "labels": [{"name": n} for n in names]})
+            if args[:2] == ["pr", "view"]:
+                return json.dumps({"body": pr_body, "files": [{"path": p} for p in files]})
+            raise AssertionError(args)
+
+        gh.calls = calls
+        return gh
+
+    def run_main(self, argv, gh):
+        err = io.StringIO()
+        return sdd_check.main(argv, gh=gh, err=err), err.getvalue()
+
+    def test_issue_passes(self):
+        code, err = self.run_main(["issue", "7"], self.fake_gh(body(), labels(1)))
+        self.assertEqual((code, err), (0, ""))
+
+    def test_issue_reports_one_line_per_failure(self):
+        code, err = self.run_main(["issue", "7"], self.fake_gh(body(spec=""), ["tier:1"]))
+        self.assertEqual(code, 1)
+        self.assertEqual(len(err.splitlines()), 2)
+        self.assertTrue(all(line.startswith("issue #7: ") for line in err.splitlines()))
+
+    def test_pr_passes(self):
+        gh = self.fake_gh(done_body(), labels(1))
+        self.assertEqual(self.run_main(["pr", "9"], gh), (0, ""))
+        self.assertEqual(gh.calls[-1][:3], ["issue", "view", "7"])
+
+    def test_pr_without_closes(self):
+        code, err = self.run_main(["pr", "9"], self.fake_gh(done_body(), labels(1), pr_body="x"))
+        self.assertEqual(code, 1)
+        self.assertIn("Closes #", err)
+
+    def test_pr_reports_done_and_living_document_failures(self):
+        gh = self.fake_gh(body(), labels(1), files=("docs/product.md",))
+        code, err = self.run_main(["pr", "9"], gh)
+        self.assertEqual(code, 1)
+        self.assertIn("T001", err)
+        self.assertIn("US1-AC1", err)
+        self.assertIn("docs/product.md", err)
+
+    def test_usage_errors_exit_2(self):
+        gh = self.fake_gh(body(), labels(1))
+        for argv in ([], ["issue"], ["issue", "x"], ["other", "1"], ["issue", "1", "2"]):
+            code, err = self.run_main(argv, gh)
+            self.assertEqual(code, 2, argv)
+            self.assertIn("usage", err)
+
+    def test_gh_failure_exits_2(self):
+        code, err = self.run_main(["issue", "7"], self.fake_gh("", [], fail=True))
+        self.assertEqual(code, 2)
+        self.assertIn("gh", err)
+
+    def test_bad_json_exits_2(self):
+        code, _ = self.run_main(["issue", "7"], lambda args: "not json")
+        self.assertEqual(code, 2)
 
 
 if __name__ == "__main__":

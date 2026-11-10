@@ -6,7 +6,10 @@ tests replace. Exit 0 when every check passes, 1 with one line per failure, 2 on
 a usage or `gh` error.
 """
 
+import json
 import re
+import subprocess
+import sys
 
 _MARKER = re.compile(r"^<!-- (SPEC|PLAN|TASKS):(START|END) -->\s*$")
 _TIERS = ("tier:0", "tier:1", "tier:2")
@@ -217,3 +220,57 @@ def check_living_documents(changed, pr_body, body):
         if path not in plan:
             failures.append(f"{path} changed but is not named in the Plan part")
     return failures
+
+
+_REPO = "grgomez/buCu"
+_USAGE = "usage: sdd_check.py issue <n> | pr <n>\n"
+
+
+def run_gh(args):
+    """Run `gh` and return its stdout."""
+    return subprocess.run(["gh", *args], capture_output=True, text=True, check=True).stdout
+
+
+def read_issue(number, gh):
+    """Return (body, label names) of an issue."""
+    data = json.loads(gh(["issue", "view", str(number), "--repo", _REPO, "--json", "body,labels"]))
+    return data["body"] or "", [label["name"] for label in data["labels"]]
+
+
+def check_issue(number, gh):
+    """Return the `issue` failures for issue `number`."""
+    body, names = read_issue(number, gh)
+    return [f"issue #{number}: {f}" for f in check_parts(body, names) + check_size(body)]
+
+
+def check_pr(number, gh):
+    """Return the `pr` failures for pull request `number`."""
+    data = json.loads(gh(["pr", "view", str(number), "--repo", _REPO, "--json", "body,files"]))
+    pr_body = data["body"] or ""
+    issue = closing_issue(pr_body)
+    if issue is None:
+        return [f"PR #{number}: the body has no `Closes #<number>` line"]
+    body, names = read_issue(issue, gh)
+    changed = [item["path"] for item in data["files"]]
+    failures = (check_parts(body, names) + check_size(body) + check_done(body, names)
+                + check_living_documents(changed, pr_body, body))
+    return [f"PR #{number} (issue #{issue}): {f}" for f in failures]
+
+
+def main(argv, gh=run_gh, err=sys.stderr):
+    if len(argv) != 2 or argv[0] not in ("issue", "pr") or not argv[1].isdigit():
+        err.write(_USAGE)
+        return 2
+    check = check_issue if argv[0] == "issue" else check_pr
+    try:
+        failures = check(int(argv[1]), gh)
+    except (OSError, subprocess.SubprocessError, ValueError, KeyError, TypeError) as error:
+        err.write(f"sdd_check: could not read from gh ({error})\n")
+        return 2
+    for failure in failures:
+        err.write(failure + "\n")
+    return 1 if failures else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
