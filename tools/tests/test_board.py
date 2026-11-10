@@ -21,10 +21,8 @@ case "$1 $2" in
     "project item-list") echo "${FAKE_GH_ITEM_ID-ITEM_1}" ;;
     "project item-edit") [ -z "${FAKE_GH_EDIT_FAIL-}" ] || { echo "edit failed" >&2; exit 1; } ;;
     "issue view")
-        case "$*" in
-            *title*) echo "${FAKE_GH_TITLE-Add the thing}" ;;
-            *labels*) printf '%s' "${FAKE_GH_LABELS-}" ;;
-        esac ;;
+        echo "${FAKE_GH_TITLE-Add the thing}"
+        printf '%s' "${FAKE_GH_LABELS-}" ;;
     *) echo "fake gh: unexpected $*" >&2; exit 1 ;;
 esac
 '''

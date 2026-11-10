@@ -27,10 +27,10 @@ fi
 if [ -n "$branch" ]; then
     git switch -q "$branch" || fail "could not switch to $branch"
 else
-    title=$(gh issue view "$issue" --repo "$repo" --json title --jq .title) ||
-        fail "could not read issue #$issue"
-    names=$(gh issue view "$issue" --repo "$repo" --json labels --jq '.labels[].name') ||
-        fail "could not read the labels of issue #$issue"
+    info=$(gh issue view "$issue" --repo "$repo" --json title,labels \
+        --jq '.title, (.labels[].name)') || fail "could not read issue #$issue"
+    title=$(printf '%s\n' "$info" | sed -n 1p)
+    names=$(printf '%s\n' "$info" | sed -n '2,$p')
     kind=feat
     if printf '%s\n' "$names" | grep -qx -e bug -e escaped; then kind=fix; fi
     slug=$(printf '%s' "$title" | tr 'A-Z' 'a-z' | sed 's/[^a-z0-9][^a-z0-9]*/-/g; s/^-//; s/-$//')
