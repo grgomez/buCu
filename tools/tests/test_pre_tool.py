@@ -46,6 +46,17 @@ class MasterGuardTest(unittest.TestCase):
         self.assertTrue(self.blocked("git push", "master"))
         self.assertTrue(self.blocked("git push origin", "master"))
 
+    def test_head_and_at_stand_for_the_current_branch(self):
+        for cmd in (
+            "git push origin HEAD",
+            "git push -u origin @",
+            "git push origin HEAD:x",
+            "git push origin @:x",
+            "git push origin +HEAD",
+        ):
+            self.assertTrue(self.blocked(cmd, "master"), cmd)
+            self.assertFalse(self.blocked(cmd, "feat/issue-2-x"), cmd)
+
     def test_push_of_an_issue_branch_is_allowed(self):
         self.assertFalse(self.blocked("git push -u origin feat/issue-2-x", "master"))
         self.assertFalse(self.blocked("git push", "feat/issue-2-x"))

@@ -15,7 +15,6 @@ _START = r"(?:^|[;&|(\n])\s*(?:\w+=\S*\s+)*"
 _GIT = _START + r"git(?:\s+-[Cc]\s+\S+|\s+--\S+)*\s+"
 _COMMIT = re.compile(_GIT + r"commit\b")
 _PUSH = re.compile(_GIT + r"push\b([^;&|\n]*)")
-_MASTER_REF = re.compile(r"^\+?(?:[^:]*:)?(?:refs/heads/)?master$")
 _GH_EDIT = re.compile(_START + r"gh\s+(?:issue|pr)\s+edit\b")
 _ADD_LABEL = re.compile(r"--add-label(?:=|\s+)[\"']?([^\s\"']+)")
 _GH_API = re.compile(_START + r"gh\s+api\b")
@@ -83,8 +82,13 @@ def check_master_guard(command, branch):
     for match in _PUSH.finditer(command):
         words = [w for w in match.group(1).split() if not w.startswith("-")]
         refspecs = words[1:]
-        if any(_MASTER_REF.match(r) for r in refspecs):
-            return "git push to master is blocked. The owner merges pull requests."
+        for refspec in refspecs:
+            source, _, target = refspec.lstrip("+").partition(":")
+            for name in (source, target or source):
+                if name in ("HEAD", "@"):
+                    name = branch()
+                if name.removeprefix("refs/heads/") == "master":
+                    return "git push to master is blocked. The owner merges pull requests."
         if not refspecs and branch() == "master":
             return "git push from master is blocked. The owner merges pull requests."
     return None
