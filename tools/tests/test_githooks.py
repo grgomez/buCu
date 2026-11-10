@@ -52,7 +52,7 @@ class PreCommitTest(Sandbox):
         script.write_text(
             '#!/bin/sh\n'
             'for a in "$@"; do case "$a" in --assume-filename=*) echo "${a#*=}" >> "$0.log";; esac; done\n'
-            '! grep -q BAD\n'
+            'if grep -q BAD; then echo "fake-clang-format: diagnostic" >&2; exit 1; fi\n'
         )
         script.chmod(0o755)
 
@@ -95,6 +95,18 @@ class PreCommitTest(Sandbox):
         self.stage("src/a.cpp", "int a;\n")
         (self.repo / "src/a.cpp").write_text("BAD\n")
         self.assertEqual(self.run_hook("pre-commit").returncode, 0)
+
+    def test_checks_a_file_with_a_non_ascii_name(self):
+        self.fake_clang_format()
+        self.stage("src/caf\u00e9.cpp", "BAD\n")
+        result = self.run_hook("pre-commit")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("src/caf\u00e9.cpp", result.stderr)
+
+    def test_shows_the_clang_format_diagnostics(self):
+        self.fake_clang_format()
+        self.stage("src/bad.cpp", "BAD\n")
+        self.assertIn("fake-clang-format: diagnostic", self.run_hook("pre-commit").stderr)
 
     def test_checks_a_renamed_unformatted_file(self):
         self.fake_clang_format()

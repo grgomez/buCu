@@ -1,6 +1,6 @@
 #!/bin/sh
 # pre-commit: clang-format check on the staged C++ files (constitution section 3).
-files=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '\.(c|cc|cpp|cxx|h|hh|hpp|hxx)$')
+files=$(git -c core.quotePath=false diff --cached --name-only --diff-filter=ACMR | grep -E '\.(c|cc|cpp|cxx|h|hh|hpp|hxx)$')
 [ -z "$files" ] && exit 0
 
 if ! command -v clang-format >/dev/null 2>&1; then
@@ -10,7 +10,10 @@ fi
 
 status=0
 while IFS= read -r file; do
-    if ! git show ":$file" | clang-format --assume-filename="$file" --dry-run --Werror >/dev/null 2>&1; then
+    if ! git cat-file -e ":$file" 2>/dev/null; then
+        echo "pre-commit: cannot read the staged $file." >&2
+        status=1
+    elif ! git show ":$file" | clang-format --assume-filename="$file" --dry-run --Werror >/dev/null; then
         echo "pre-commit: $file is not formatted. Run scripts/format.sh and stage it again." >&2
         status=1
     fi
