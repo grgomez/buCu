@@ -165,5 +165,49 @@ class DoneTest(unittest.TestCase):
         self.assertIn("second", failures[0])
 
 
+class LivingDocumentsTest(unittest.TestCase):
+    PR = "Closes #1\n\n## Living documents\n\n{}\n\n## Checks\n- [x] done\n"
+
+    def failures(self, changed, section, plan_text=""):
+        plan = f"<!-- PLAN:START -->\n# Plan\n{plan_text}\n<!-- PLAN:END -->\n"
+        return sdd_check.check_living_documents(
+            changed, self.PR.format(section), body(plan=plan))
+
+    def test_which_paths_are_living_documents(self):
+        living = sdd_check.is_living_document
+        for path in ("CLAUDE.md", "README.md", "docs/adr/0004-x.md", "docs/product.md",
+                     ".claude/skills/pr/SKILL.md", ".claude/agents/builder.md"):
+            self.assertTrue(living(path), path)
+        for path in ("tools/sdd_check.py", ".github/pull_request_template.md", "src/main.cpp",
+                     ".claude/hooks/pre_tool.py", "CHANGELOG.md"):
+            self.assertFalse(living(path), path)
+
+    def test_no_living_document_changed(self):
+        self.assertEqual(self.failures(["tools/x.py"], "None."), [])
+
+    def test_changed_document_listed_in_both(self):
+        self.assertEqual(self.failures(["docs/product.md"], "- `docs/product.md`: x",
+                                       "- `docs/product.md`: new rule"), [])
+
+    def test_missing_from_pr_section(self):
+        failures = self.failures(["docs/product.md"], "None.", "docs/product.md")
+        self.assertEqual(len(failures), 1)
+        self.assertIn("Living documents", failures[0])
+
+    def test_missing_from_plan(self):
+        failures = self.failures(["docs/product.md"], "docs/product.md", "nothing")
+        self.assertEqual(len(failures), 1)
+        self.assertIn("Plan", failures[0])
+
+    def test_section_required(self):
+        failures = sdd_check.check_living_documents([], "Closes #1\n", body())
+        self.assertTrue(any("Living documents" in f for f in failures))
+
+    def test_section_ends_at_the_next_heading(self):
+        pr = "## Living documents\nNone.\n## Checks\ndocs/product.md\n"
+        failures = sdd_check.check_living_documents(["docs/product.md"], pr, body())
+        self.assertTrue(any("Living documents" in f for f in failures))
+
+
 if __name__ == "__main__":
     unittest.main()

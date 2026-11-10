@@ -180,3 +180,40 @@ def check_done(body, names):
         elif "Evidence:" not in line:
             failures.append(f"ticked criterion has no `Evidence:`: {label}")
     return failures
+
+
+_LIVING_FILES = ("CLAUDE.md", "README.md")
+_LIVING_DIRS = ("docs/", ".claude/skills/", ".claude/agents/")
+
+
+def is_living_document(path):
+    """True when `path` is a living document (`CLAUDE.md` Documentation map)."""
+    return path in _LIVING_FILES or path.startswith(_LIVING_DIRS)
+
+
+def living_documents_section(pr_body):
+    """Return the text under `## Living documents` up to the next `## ` heading, or None."""
+    lines, section, inside = pr_body.splitlines(), [], False
+    for line in lines:
+        if line.startswith("## "):
+            if inside:
+                break
+            inside = line.strip().lower() == "## living documents"
+        elif inside:
+            section.append(line)
+    return "\n".join(section) if inside else None
+
+
+def check_living_documents(changed, pr_body, body):
+    """Return the failures for the PR's Living documents section and each changed document."""
+    section = living_documents_section(pr_body)
+    if section is None:
+        return ["the PR body has no `## Living documents` section"]
+    plan = split_parts(body).get("PLAN", "")
+    failures = []
+    for path in (p for p in changed if is_living_document(p)):
+        if path not in section:
+            failures.append(f"{path} changed but is not in the PR's Living documents section")
+        if path not in plan:
+            failures.append(f"{path} changed but is not named in the Plan part")
+    return failures
