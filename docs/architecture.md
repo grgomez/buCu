@@ -83,6 +83,8 @@ scripts/                # format, bench, update-deps
 docs/                   # living documents
 docs/adr/, docs/contracts/
 tools/                  # SDD workflow tools (CLAUDE.md Commands); not part of BuCu
+.claude/                # agent skills and hooks (SDD workflow); not part of BuCu
+.githooks/              # git hooks, enabled with core.hooksPath; not part of BuCu
 .github/workflows/      # CI
 ```
 
