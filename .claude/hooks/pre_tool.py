@@ -5,6 +5,7 @@ Reads the hook JSON from stdin. Exit 2 with a reason on stderr blocks the call.
 """
 
 import json
+import os
 import re
 import subprocess
 import sys
@@ -19,6 +20,9 @@ _GH_EDIT = re.compile(_START + r"gh\s+(?:issue|pr)\s+edit\b")
 _ADD_LABEL = re.compile(r"--add-label(?:=|\s+)[\"']?([^\s\"']+)")
 _GH_API = re.compile(_START + r"gh\s+api\b")
 _PROTECTED = {"approved", "spec-approved"}
+_BRANCH = re.compile(r"^(?:feat|fix)/issue-(\d+)-")
+_GATED_DIRS = {"src", "include", "tests", "benchmarks", "third_party"}
+_REPO = "grgomez/buCu"
 
 
 def current_branch(cwd=None):
@@ -27,6 +31,49 @@ def current_branch(cwd=None):
         capture_output=True, text=True, cwd=cwd, check=False,
     )
     return out.stdout.strip()
+
+
+def issue_labels(issue):
+    """Return the label names of issue `issue`; raise when gh fails."""
+    out = subprocess.run(
+        ["gh", "issue", "view", str(issue), "--repo", _REPO,
+         "--json", "labels", "-q", ".labels[].name"],
+        capture_output=True, text=True, check=True,
+    )
+    return out.stdout.split()
+
+
+def project_root():
+    return os.environ.get("CLAUDE_PROJECT_DIR") or os.getcwd()
+
+
+def _is_gated(path, root):
+    """True when `path` is under a protected path of the repository `root`."""
+    rel = os.path.relpath(os.path.join(root, path), root)
+    parts = rel.split(os.sep)
+    if parts[0] == "..":
+        return False
+    return parts == ["CMakeLists.txt"] or (len(parts) > 1 and parts[0] in _GATED_DIRS)
+
+
+def check_approval_gate(tool_input, branch, labels, root):
+    """Return a reason when an edit needs the approved label and lacks it."""
+    path = tool_input.get("file_path") or tool_input.get("notebook_path")
+    if not path or not _is_gated(path, root):
+        return None
+    match = _BRANCH.match(branch())
+    if not match:
+        return ("Editing code is blocked: the branch name has no issue number "
+                "(feat|fix/issue-<n>-<slug>), so the approved label cannot be checked.")
+    issue = int(match.group(1))
+    try:
+        names = labels(issue)
+    except (OSError, subprocess.SubprocessError):
+        return (f"Editing code is blocked: could not read the labels of issue #{issue} "
+                "(gh failed or is offline), and the gate fails closed.")
+    if "approved" not in names:
+        return f"Editing code is blocked: issue #{issue} has no approved label. Run /plan {issue}."
+    return None
 
 
 def check_master_guard(command, branch):
@@ -55,23 +102,25 @@ def check_protected_labels(command):
     return None
 
 
-def decide(payload, branch=current_branch):
+def decide(payload, branch=current_branch, labels=issue_labels, root=None):
     """Return the reason to block the tool call in `payload`, or None."""
     tool = payload.get("tool_name")
     tool_input = payload.get("tool_input") or {}
     if tool == "Bash":
         command = tool_input.get("command") or ""
         return check_master_guard(command, branch) or check_protected_labels(command)
+    if tool in ("Edit", "Write", "NotebookEdit"):
+        return check_approval_gate(tool_input, branch, labels, root or project_root())
     return None
 
 
-def run(raw, branch=current_branch):
+def run(raw, branch=current_branch, labels=issue_labels, root=None):
     """Return (exit code, stderr text) for the hook input `raw`."""
     try:
         payload = json.loads(raw)
     except ValueError:
         return 0, ""
-    reason = decide(payload, branch=branch)
+    reason = decide(payload, branch=branch, labels=labels, root=root)
     return (2, reason + "\n") if reason else (0, "")
 
 
