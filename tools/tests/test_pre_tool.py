@@ -2,6 +2,9 @@
 
 import importlib.util
 import json
+import os
+import subprocess
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -136,9 +139,10 @@ def failing_labels(issue):
 
 
 class ApprovalGateTest(unittest.TestCase):
-    def reason(self, payload, branch="feat/issue-2-x", labels=labels_of("approved")):
+    def reason(self, payload, branch="feat/issue-2-x", labels=labels_of("approved"), repo=None):
         return pre_tool.decide(
-            payload, branch=lambda: branch, labels=labels, root=ROOT_DIR
+            payload, branch=lambda: "master", labels=labels,
+            repo=repo or (lambda path: (ROOT_DIR, branch)),
         )
 
     def test_protected_paths_need_approval(self):
@@ -156,7 +160,8 @@ class ApprovalGateTest(unittest.TestCase):
                 self.assertIsNone(self.reason(payload), path)
 
     def test_relative_paths_are_checked_too(self):
-        self.assertIsNotNone(self.reason(edit("src/a.cpp"), labels=labels_of()))
+        repo = lambda path: (os.getcwd(), "feat/issue-2-x")
+        self.assertIsNotNone(self.reason(edit("src/a.cpp"), labels=labels_of(), repo=repo))
 
     def test_other_paths_are_not_gated(self):
         for path in (
@@ -183,6 +188,27 @@ class ApprovalGateTest(unittest.TestCase):
         payload = edit(ROOT_DIR + "/src/a.cpp")
         self.assertIsNotNone(self.reason(payload, labels=labels_of("spec-approved")))
 
+    def test_root_and_branch_come_from_the_repository_of_the_file(self):
+        worktree = ROOT_DIR + "/.claude/worktrees/w"
+        seen = []
+
+        def repo(path):
+            seen.append(path)
+            return worktree, "feat/issue-5-w"
+
+        payload = edit(worktree + "/src/a.cpp")
+        self.assertIsNotNone(self.reason(payload, labels=labels_of(), repo=repo))
+        self.assertEqual(seen, [worktree + "/src/a.cpp"])
+
+    def test_fails_closed_when_the_repository_cannot_be_found(self):
+        def repo(path):
+            raise OSError("git missing")
+
+        inside = edit(os.path.join(os.getcwd(), "docs", "a.md"))
+        self.assertIsNotNone(self.reason(inside, repo=repo))
+        outside = edit("/elsewhere/notes.md")
+        self.assertIsNone(self.reason(outside, repo=repo))
+
     def test_issue_number_comes_from_the_branch(self):
         seen = []
 
@@ -192,6 +218,23 @@ class ApprovalGateTest(unittest.TestCase):
 
         self.reason(edit(ROOT_DIR + "/src/a.cpp"), branch="fix/issue-17-bug", labels=labels)
         self.assertEqual(seen, [17])
+
+
+class RepoOfTest(unittest.TestCase):
+    def test_finds_the_top_level_and_branch_for_a_file_in_a_new_directory(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            top = os.path.realpath(tmp)
+            subprocess.run(["git", "-C", top, "init", "-q", "-b", "feat/issue-3-x"], check=True)
+            root, branch = pre_tool.repo_of(os.path.join(top, "src", "new", "a.cpp"))
+            self.assertEqual((os.path.realpath(root), branch), (top, "feat/issue-3-x"))
+
+    def test_raises_outside_a_repository(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            probe = subprocess.run(["git", "-C", tmp, "rev-parse"], capture_output=True)
+            if probe.returncode == 0:
+                self.skipTest("temporary directory is inside a repository")
+            with self.assertRaises(subprocess.SubprocessError):
+                pre_tool.repo_of(os.path.join(tmp, "src", "a.cpp"))
 
 
 if __name__ == "__main__":

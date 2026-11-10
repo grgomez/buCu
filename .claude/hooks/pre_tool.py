@@ -42,25 +42,50 @@ def issue_labels(issue):
     return out.stdout.split()
 
 
-def project_root():
-    return os.environ.get("CLAUDE_PROJECT_DIR") or os.getcwd()
+def repo_of(path):
+    """Return (top-level directory, branch) of the repository holding `path`.
+
+    Uses the nearest existing directory of the path, so a file in a worktree or in a
+    directory not yet created resolves correctly. Raises when git fails.
+    """
+    directory = os.path.dirname(os.path.abspath(path))
+    while not os.path.isdir(directory):
+        directory = os.path.dirname(directory)
+
+    def git(*args):
+        out = subprocess.run(["git", "-C", directory, *args],
+                             capture_output=True, text=True, check=True)
+        return out.stdout.strip()
+
+    return git("rev-parse", "--show-toplevel"), git("branch", "--show-current")
 
 
 def _is_gated(path, root):
     """True when `path` is under a protected path of the repository `root`."""
-    rel = os.path.relpath(os.path.join(root, path), root)
+    rel = os.path.relpath(path, root)
     parts = rel.split(os.sep)
     if parts[0] == "..":
         return False
     return parts == ["CMakeLists.txt"] or (len(parts) > 1 and parts[0] in _GATED_DIRS)
 
 
-def check_approval_gate(tool_input, branch, labels, root):
+def check_approval_gate(tool_input, repo, labels):
     """Return a reason when an edit needs the approved label and lacks it."""
     path = tool_input.get("file_path") or tool_input.get("notebook_path")
-    if not path or not _is_gated(path, root):
+    if not path:
         return None
-    match = _BRANCH.match(branch())
+    path = os.path.abspath(path)
+    try:
+        root, branch = repo(path)
+    except (OSError, subprocess.SubprocessError):
+        # Fail closed for any file inside the project; a file outside it is not ours.
+        if os.path.relpath(path, os.getcwd()).split(os.sep)[0] == "..":
+            return None
+        return ("Editing code is blocked: could not find the git repository of "
+                f"{path}, and the gate fails closed.")
+    if not _is_gated(path, os.path.realpath(root)) and not _is_gated(path, root):
+        return None
+    match = _BRANCH.match(branch)
     if not match:
         return ("Editing code is blocked: the branch name has no issue number "
                 "(feat|fix/issue-<n>-<slug>), so the approved label cannot be checked.")
@@ -107,7 +132,7 @@ def check_protected_labels(command):
     return None
 
 
-def decide(payload, branch=current_branch, labels=issue_labels, root=None):
+def decide(payload, branch=current_branch, labels=issue_labels, repo=repo_of):
     """Return the reason to block the tool call in `payload`, or None."""
     tool = payload.get("tool_name")
     tool_input = payload.get("tool_input") or {}
@@ -115,17 +140,17 @@ def decide(payload, branch=current_branch, labels=issue_labels, root=None):
         command = tool_input.get("command") or ""
         return check_master_guard(command, branch) or check_protected_labels(command)
     if tool in ("Edit", "Write", "NotebookEdit"):
-        return check_approval_gate(tool_input, branch, labels, root or project_root())
+        return check_approval_gate(tool_input, repo, labels)
     return None
 
 
-def run(raw, branch=current_branch, labels=issue_labels, root=None):
+def run(raw, branch=current_branch, labels=issue_labels, repo=repo_of):
     """Return (exit code, stderr text) for the hook input `raw`."""
     try:
         payload = json.loads(raw)
     except ValueError:
         return 0, ""
-    reason = decide(payload, branch=branch, labels=labels, root=root)
+    reason = decide(payload, branch=branch, labels=labels, repo=repo)
     return (2, reason + "\n") if reason else (0, "")
 
 
