@@ -1,6 +1,7 @@
 """Tests for tools/commit_check.py and the commit-msg hook."""
 
 import importlib.util
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -67,6 +68,30 @@ class CommitMsgHookTest(unittest.TestCase):
         result = self.run_hook("fix stuff\n")
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("T<NNN>", result.stderr)
+
+    def run_hook_with_path(self, tools):
+        """Run the hook with a PATH holding only symlinks: {name: real program}."""
+        with tempfile.TemporaryDirectory() as tmp:
+            bin_dir = Path(tmp) / "bin"
+            bin_dir.mkdir()
+            for name, target in tools.items():
+                (bin_dir / name).symlink_to(target)
+            message = Path(tmp) / "msg"
+            message.write_text("T001 Do it\n")
+            return subprocess.run(
+                [shutil.which("sh"), str(ROOT / ".githooks" / "commit-msg"), str(message)],
+                capture_output=True, text=True, check=False, env={"PATH": str(bin_dir)},
+            )
+
+    def test_hook_falls_back_to_python_when_python3_is_missing(self):
+        python = shutil.which("python3")
+        result = self.run_hook_with_path({"python": python, "dirname": shutil.which("dirname")})
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_hook_says_python_3_is_required_when_neither_exists(self):
+        result = self.run_hook_with_path({"dirname": shutil.which("dirname")})
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Python 3 is required", result.stderr)
 
 
 if __name__ == "__main__":

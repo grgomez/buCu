@@ -43,7 +43,7 @@ To work on BuCu, turn on the repository's git hooks once per clone:
 git config core.hooksPath .githooks
 ```
 
-The hooks check each commit subject, the formatting of staged C++, and the branch name on push. They need Python 3 and, for C++ changes, `clang-format`.
+The hooks check each commit subject, the formatting of staged C++, and the branch name on push. The hooks need Python 3 as `python3`, or as `python` on Windows. C++ changes also need `clang-format`.
 
 ### Table of Contents
 
