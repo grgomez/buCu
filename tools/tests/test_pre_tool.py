@@ -93,6 +93,16 @@ class ProtectedLabelTest(unittest.TestCase):
         ):
             self.assertTrue(self.blocked(cmd), cmd)
 
+    def test_gh_create_with_the_label_flag_is_blocked(self):
+        for cmd in (
+            "gh issue create --title t --label approved",
+            "gh issue create -l approved",
+            'gh pr create --label "tier:0, spec-approved"',
+            "gh issue create --label=approved",
+        ):
+            self.assertTrue(self.blocked(cmd), cmd)
+        self.assertFalse(self.blocked("gh issue create --label workflow"))
+
     def test_api_label_call_naming_approved_is_blocked(self):
         self.assertTrue(
             self.blocked("gh api repos/grgomez/buCu/issues/2/labels -f 'labels[]=approved'")
