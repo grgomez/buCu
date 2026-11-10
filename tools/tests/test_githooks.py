@@ -160,6 +160,9 @@ class PrePushTest(Sandbox):
     def test_allows_deleting_a_non_master_branch(self):
         self.assertEqual(self.push("refs/heads/old-name", local_sha=ZERO).returncode, 0)
 
+    def test_allows_deleting_a_branch_with_a_longer_zero_id(self):
+        self.assertEqual(self.push("refs/heads/old-name", local_sha="0" * 64).returncode, 0)
+
     def test_checks_every_ref_in_one_push(self):
         stdin = (f"refs/heads/a {SHA} refs/heads/feat/issue-2-a {ZERO}\n"
                  f"refs/heads/b {SHA} refs/heads/bad {ZERO}\n")
