@@ -6,7 +6,7 @@ Buku's Python source stays available in this repository's git history and at the
 
 ## Licence and attribution
 
-BuCu is free software under the GNU General Public License, version 3 or (at your option) any later version (GPL-3.0-or-later). The full text is in [`LICENSE`](LICENSE). Copyright © 2015-2026 Arun Prakash Jana and the Buku contributors; see [`NOTICE`](NOTICE) for the notice BuCu preserves.
+BuCu is free software under the GNU General Public License, version 3 or (at your option) any later version (GPL-3.0-or-later). The full text is in [`LICENSE`](LICENSE). Buku is copyright Arun Prakash Jana and the Buku contributors; see [`NOTICE`](NOTICE) for the full notice.
 
 ## Build
 
