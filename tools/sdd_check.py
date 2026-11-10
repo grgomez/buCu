@@ -88,3 +88,55 @@ def check_parts(body, names):
         if last.strip() != "---":
             failures.append("a `---` line must come right before the first part marker")
     return failures
+
+
+_LIMITS = (("user stories", 3), ("criteria", 12), ("tasks", 12))
+_STORY = re.compile(r"^#{2,3} US\d+\b", re.M)
+_CRITERION = re.compile(r"^- \[[ xX]\] US\d+-AC\d+:", re.M)
+_TASK = re.compile(r"^- \[[ xX]\] T\d{3}\b", re.M)
+_OPEN_MARKER = re.compile(r"\[NEEDS CLARIFICATION:")
+
+
+def original_text(body):
+    """Return the owner's text: everything before the `---` line and the first marker."""
+    lines = body.splitlines()
+    marks = find_markers(body)
+    if not marks:
+        return body
+    head = lines[:marks[0][0]]
+    while head and not head[-1].strip():
+        head.pop()
+    if head and head[-1].strip() == "---":
+        head.pop()
+    return "\n".join(head)
+
+
+def scope_bullets(body):
+    """Return the bullet lines under `## Scope` in the owner's text."""
+    bullets, inside = [], False
+    for line in original_text(body).splitlines():
+        if line.startswith("## "):
+            inside = line.strip() == "## Scope"
+        elif inside and re.match(r"\s*- ", line):
+            bullets.append(line)
+    return bullets
+
+
+def check_size(body):
+    """Return the failures of the size limit and of leftover clarification markers.
+
+    Without a Spec part (Tier 0), the criteria are the Scope bullets and the user
+    stories are the `## US<n>` headings of the Tasks part.
+    """
+    parts = split_parts(body)
+    if "SPEC" in parts:
+        counts = (len(_STORY.findall(parts["SPEC"])), len(_CRITERION.findall(parts["SPEC"])))
+    else:
+        counts = (len(_STORY.findall(parts.get("TASKS", ""))), len(scope_bullets(body)))
+    counts += (len(_TASK.findall(parts.get("TASKS", ""))),)
+    failures = [f"{count} {name}, the limit is {limit}"
+                for (name, limit), count in zip(_LIMITS, counts) if count > limit]
+    for name, text in parts.items():
+        if _OPEN_MARKER.search(text):
+            failures.append(f"the {name} part has an open [NEEDS CLARIFICATION: ...] marker")
+    return failures

@@ -71,5 +71,56 @@ class PartsTest(unittest.TestCase):
         self.assertTrue(any("empty" in f for f in self.check(text, labels(1))))
 
 
+class SizeTest(unittest.TestCase):
+    def stories(self, n):
+        return "".join(f"### US{i}: s\n" for i in range(1, n + 1))
+
+    def criteria(self, n):
+        return "".join(f"- [ ] US1-AC{i}: c\n" for i in range(1, n + 1))
+
+    def tasks(self, n):
+        return "".join(f"- [ ] T{i:03d} t\n" for i in range(1, n + 1))
+
+    def wrap(self, name, text):
+        return f"<!-- {name}:START -->\n# {name}\n{text}<!-- {name}:END -->\n"
+
+    def test_limits_pass(self):
+        text = body(spec=self.wrap("SPEC", self.stories(3) + self.criteria(12)),
+                    tasks=self.wrap("TASKS", self.tasks(12)))
+        self.assertEqual(sdd_check.check_size(text), [])
+
+    def test_four_stories(self):
+        text = body(spec=self.wrap("SPEC", self.stories(4)))
+        self.assertTrue(any("user stories" in f for f in sdd_check.check_size(text)))
+
+    def test_thirteen_criteria(self):
+        text = body(spec=self.wrap("SPEC", self.stories(1) + self.criteria(13)))
+        self.assertTrue(any("criteria" in f for f in sdd_check.check_size(text)))
+
+    def test_thirteen_tasks(self):
+        text = body(tasks=self.wrap("TASKS", self.tasks(13)))
+        self.assertTrue(any("tasks" in f for f in sdd_check.check_size(text)))
+
+    def test_tier0_counts_scope_bullets_and_task_stories(self):
+        scope = "## Scope\n\n" + "".join(f"- item {i}\n" for i in range(13)) + "\n## Out of scope\n"
+        text = body(original="Goal.\n\n" + scope, spec="",
+                    tasks=self.wrap("TASKS", self.stories(4).replace("###", "##")))
+        failures = sdd_check.check_size(text)
+        self.assertTrue(any("criteria" in f for f in failures))
+        self.assertTrue(any("user stories" in f for f in failures))
+
+    def test_open_marker_in_a_part(self):
+        text = body(plan=self.wrap("PLAN", "[NEEDS CLARIFICATION: which?]\n"))
+        self.assertTrue(any("NEEDS CLARIFICATION" in f for f in sdd_check.check_size(text)))
+
+    def test_marker_without_colon_is_prose(self):
+        text = body(plan=self.wrap("PLAN", "leftover `[NEEDS CLARIFICATION` markers\n"))
+        self.assertEqual(sdd_check.check_size(text), [])
+
+    def test_marker_in_the_original_text_is_ignored(self):
+        text = body(original="[NEEDS CLARIFICATION: owner note]\n")
+        self.assertEqual(sdd_check.check_size(text), [])
+
+
 if __name__ == "__main__":
     unittest.main()
