@@ -62,7 +62,7 @@ class StartTest(test_board.FakeGhCase):
 
     def test_moves_the_board_item_to_in_progress(self):
         self.start("34")
-        listing = next(c for c in self.calls() if c.startswith("project field-list") and '.options' in c)
+        listing = next(c for c in self.calls() if c.startswith("project field-list"))
         self.assertIn('"In progress"', listing)
         self.assertTrue(self.calls()[-1].startswith("project item-edit"))
 

@@ -16,10 +16,8 @@ echo "$*" >> "$FAKE_GH_LOG"
 case "$1 $2" in
     "project view") echo "${FAKE_GH_PROJECT_ID-PVT_1}" ;;
     "project field-list")
-        case "$*" in
-            *.options*) echo "${FAKE_GH_OPTION_ID-OPT_1}" ;;
-            *) echo "${FAKE_GH_FIELD_ID-FLD_1}" ;;
-        esac ;;
+        echo "${FAKE_GH_FIELD_ID-FLD_1}"
+        [ -z "${FAKE_GH_OPTION_ID-OPT_1}" ] || echo "${FAKE_GH_OPTION_ID-OPT_1}" ;;
     "project item-list") echo "${FAKE_GH_ITEM_ID-ITEM_1}" ;;
     "project item-edit") [ -z "${FAKE_GH_EDIT_FAIL-}" ] || { echo "edit failed" >&2; exit 1; } ;;
     "issue view")

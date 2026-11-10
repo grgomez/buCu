@@ -16,12 +16,12 @@ case $status in '' | *[!A-Za-z' ']*) echo "board.sh: unknown status '$status'" >
 
 project_id=$(gh project view "$project" --owner "$owner" --format json --jq .id) ||
     fail "could not read project $project"
-field_id=$(gh project field-list "$project" --owner "$owner" --format json \
-    --jq '.fields[] | select(.name == "Status") | .id') ||
+# One call, so both IDs come from the same snapshot: the Status field ID, then the option ID.
+ids=$(gh project field-list "$project" --owner "$owner" --format json \
+    --jq ".fields[] | select(.name == \"Status\") | .id, (.options[] | select(.name == \"$status\") | .id)") ||
     fail "could not read the fields of project $project"
-option_id=$(gh project field-list "$project" --owner "$owner" --format json \
-    --jq ".fields[] | select(.name == \"Status\") | .options[] | select(.name == \"$status\") | .id") ||
-    fail "could not read the Status options of project $project"
+field_id=$(printf '%s\n' "$ids" | sed -n 1p)
+option_id=$(printf '%s\n' "$ids" | sed -n 2p)
 [ -n "$field_id" ] || fail "project $project has no Status field"
 if [ -z "$option_id" ]; then
     echo "board.sh: unknown status '$status'; use a Status option of project $project" >&2
