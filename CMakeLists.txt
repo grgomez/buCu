@@ -25,3 +25,11 @@ add_subdirectory(third_party)
 if(WIN32)
     set(BUCU_WINDOWS_MANIFEST "${CMAKE_CURRENT_SOURCE_DIR}/src/platform/windows/bucu.manifest")
 endif()
+
+enable_testing()
+add_subdirectory(src/cli)
+add_subdirectory(tests)
+
+add_executable(bucu src/cli/main.cpp ${BUCU_WINDOWS_MANIFEST})
+target_link_libraries(bucu PRIVATE bucu_cli)
+bucu_apply_warnings(bucu)
