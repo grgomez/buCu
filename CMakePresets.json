@@ -1,0 +1,152 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 25,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "BUCU_WERROR": "ON"
+      }
+    },
+    {
+      "name": "debug",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "release",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
+      "name": "relwithdebinfo",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo"
+      }
+    },
+    {
+      "name": "asan-ubsan",
+      "inherits": "base",
+      "condition": {
+        "type": "notEquals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "CMAKE_C_FLAGS": "-fsanitize=address,undefined -fno-omit-frame-pointer",
+        "CMAKE_CXX_FLAGS": "-fsanitize=address,undefined -fno-omit-frame-pointer",
+        "CMAKE_EXE_LINKER_FLAGS": "-fsanitize=address,undefined",
+        "CMAKE_SHARED_LINKER_FLAGS": "-fsanitize=address,undefined"
+      }
+    },
+    {
+      "name": "tsan",
+      "inherits": "base",
+      "condition": {
+        "type": "notEquals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "CMAKE_C_FLAGS": "-fsanitize=thread -fno-omit-frame-pointer",
+        "CMAKE_CXX_FLAGS": "-fsanitize=thread -fno-omit-frame-pointer",
+        "CMAKE_EXE_LINKER_FLAGS": "-fsanitize=thread",
+        "CMAKE_SHARED_LINKER_FLAGS": "-fsanitize=thread"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "debug",
+      "configurePreset": "debug"
+    },
+    {
+      "name": "release",
+      "configurePreset": "release"
+    },
+    {
+      "name": "relwithdebinfo",
+      "configurePreset": "relwithdebinfo"
+    },
+    {
+      "name": "asan-ubsan",
+      "configurePreset": "asan-ubsan",
+      "condition": {
+        "type": "notEquals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      }
+    },
+    {
+      "name": "tsan",
+      "configurePreset": "tsan",
+      "condition": {
+        "type": "notEquals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      }
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "debug",
+      "configurePreset": "debug",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "release",
+      "configurePreset": "release",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "relwithdebinfo",
+      "configurePreset": "relwithdebinfo",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "asan-ubsan",
+      "configurePreset": "asan-ubsan",
+      "condition": {
+        "type": "notEquals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      },
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "tsan",
+      "configurePreset": "tsan",
+      "condition": {
+        "type": "notEquals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      },
+      "output": {
+        "outputOnFailure": true
+      }
+    }
+  ]
+}
