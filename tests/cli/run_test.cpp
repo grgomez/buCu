@@ -1,8 +1,10 @@
 #include "cli/run.hpp"
 
+#include <algorithm>
 #include <fstream>
 #include <sstream>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "catch_amalgamated.hpp"
@@ -67,4 +69,19 @@ TEST_CASE("a bare call prints the help text to standard error and exits 2 (produ
     CHECK(result.out.empty());
     CHECK(result.err == read_golden("help.txt"));
     CHECK(result.code == 2);
+}
+
+TEST_CASE("a usage error prints one line and exits 2 (product section 6)", "[cli]") {
+    for (const auto& [argument, named] : {std::pair<const char*, const char*>{"--bogus", "--bogus"},
+                                          {"extra", "extra"},
+                                          {"--version=x", "--version"}}) {
+        CAPTURE(argument);
+        const Result result = invoke({argument});
+        CHECK(result.out.empty());
+        CHECK(result.code == 2);
+        CHECK(result.err.starts_with("bucu: "));
+        CHECK(result.err.find(named) != std::string::npos);
+        CHECK(result.err.ends_with(". Run 'bucu --help' for usage.\n"));
+        CHECK(std::count(result.err.begin(), result.err.end(), '\n') == 1);
+    }
 }

@@ -51,8 +51,13 @@ int run(const std::vector<std::string>& args, std::ostream& out, std::ostream& e
     std::vector<std::string> reversed(args.rbegin(), args.rend());
     try {
         app.parse(reversed);
+    } catch (const CLI::CallForHelp& help) {
+        return app.exit(help, out, err);
+    } catch (const CLI::CallForVersion& version) {
+        return app.exit(version, out, err);
     } catch (const CLI::ParseError& error) {
-        return app.exit(error, out, err);
+        err << "bucu: " << error.what() << ". Run 'bucu --help' for usage.\n";
+        return 2;
     }
     return 0;
 }
