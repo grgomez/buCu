@@ -32,4 +32,5 @@ add_subdirectory(tests)
 
 add_executable(bucu src/cli/main.cpp ${BUCU_WINDOWS_MANIFEST})
 target_link_libraries(bucu PRIVATE bucu_cli)
+target_include_directories(bucu PRIVATE "${PROJECT_SOURCE_DIR}/src")
 bucu_apply_warnings(bucu)

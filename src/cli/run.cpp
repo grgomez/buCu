@@ -35,6 +35,7 @@ public:
 };
 
 // Returns `code`, or 1 with a message when writing to `out` failed (product section 6).
+// NOLINTNEXTLINE(bugprone-easily-swappable-parameters): out and err are distinct streams by design
 int finish(int code, std::ostream& out, std::ostream& err) {
     out.flush();
     if (!out) {
@@ -46,6 +47,7 @@ int finish(int code, std::ostream& out, std::ostream& err) {
 
 }  // namespace
 
+// NOLINTNEXTLINE(bugprone-easily-swappable-parameters): out and err are distinct streams by design
 int run(const std::vector<std::string>& args, std::ostream& out, std::ostream& err) {
     // A lone "--" has nothing after it to run, so it counts as a bare call.
     if (args.empty() || (args.size() == 1 && args[0] == "--")) {
@@ -67,7 +69,11 @@ int run(const std::vector<std::string>& args, std::ostream& out, std::ostream& e
     } catch (const CLI::CallForVersion& version) {
         return finish(app.exit(version, out, err), out, err);
     } catch (const CLI::ParseError& error) {
-        err << "bucu: " << error.what() << ". Run 'bucu --help' for usage.\n";
+        std::string what = error.what();
+        if (what.ends_with('.')) {
+            what.pop_back();
+        }
+        err << "bucu: " << what << ". Run 'bucu --help' for usage.\n";
         return 2;
     }
     return finish(0, out, err);

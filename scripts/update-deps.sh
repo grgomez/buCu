@@ -26,10 +26,19 @@ cli11_licence_url=https://raw.githubusercontent.com/CLIUtils/CLI11/v$cli11_versi
 cli11_hpp_sha=ffa9a30da295c5858fb5f91f9f45771bab09471d7010a34c7c68c857a330dd76
 cli11_licence_sha=cfc76368aef8f51868fa1cda6bcfa26e583406a4cf8e48e725e7624df24d8855
 
+# sha256 <file>: print the SHA256 (GNU sha256sum, or shasum on macOS).
+sha256() {
+    if command -v sha256sum >/dev/null 2>&1; then
+        sha256sum "$1" | cut -d ' ' -f 1
+    else
+        shasum -a 256 "$1" | cut -d ' ' -f 1
+    fi
+}
+
 # fetch <url> <sha256> <name>: download to $tmp/<name> and verify the hash.
 fetch() {
     curl -fsSL --retry 2 -o "$tmp/$3" "$1"
-    actual=$(sha256sum "$tmp/$3" | cut -d ' ' -f 1)
+    actual=$(sha256 "$tmp/$3")
     if [ "$actual" != "$2" ]; then
         echo "update-deps: SHA256 mismatch for $3 ($1)" >&2
         echo "  expected $2" >&2
