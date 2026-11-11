@@ -47,7 +47,8 @@ int finish(int code, std::ostream& out, std::ostream& err) {
 }  // namespace
 
 int run(const std::vector<std::string>& args, std::ostream& out, std::ostream& err) {
-    if (args.empty()) {
+    // A lone "--" has nothing after it to run, so it counts as a bare call.
+    if (args.empty() || (args.size() == 1 && args[0] == "--")) {
         err << kHelpText;
         return 2;
     }

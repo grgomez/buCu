@@ -108,3 +108,10 @@ TEST_CASE("--version wins over other arguments (product section 6)", "[cli]") {
         CHECK(result.code == 0);
     }
 }
+
+TEST_CASE("a bare -- is a bare call (product section 6)", "[cli]") {
+    const Result result = invoke({"--"});
+    CHECK(result.out.empty());
+    CHECK(result.err == read_golden("help.txt"));
+    CHECK(result.code == 2);
+}
