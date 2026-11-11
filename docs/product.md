@@ -65,7 +65,7 @@ completion <shell>         print a shell completion script (#19)
 - Errors go to standard error, start with `bucu: `, and say what failed and what to do. Normal output goes to standard output.
 - Exit codes: `0` success, `1` a runtime failure, `2` a usage error. Further codes (for example "not found"): settled by #10.
 - A bare `bucu`, or `bucu --` with nothing after it, prints the help text to standard error and exits `2`.
-- `--help` and `-h` print the help text, and `--version` prints the version, whichever other arguments are given; both exit `0`.
+- `--help` and `-h` print the help text, and `--version` prints the version, whichever other arguments are given; both exit `0`. When both are given, the help text wins, in either order.
 - A usage error prints one line, `bucu: <what failed>. Run 'bucu --help' for usage.`, to standard error, nothing to standard output, and exits `2`.
 - When writing standard output fails, `bucu` prints `bucu: cannot write to standard output` to standard error and exits `1`.
 

@@ -115,3 +115,14 @@ TEST_CASE("a bare -- is a bare call (product section 6)", "[cli]") {
     CHECK(result.err == read_golden("help.txt"));
     CHECK(result.code == 2);
 }
+
+TEST_CASE("help wins over --version in either order (product section 6)", "[cli]") {
+    const std::string help = read_golden("help.txt");
+    for (const std::vector<std::string>& args :
+         {std::vector<std::string>{"--version", "--help"}, {"--help", "--version"}}) {
+        const Result result = invoke(args);
+        CHECK(result.out == help);
+        CHECK(result.err.empty());
+        CHECK(result.code == 0);
+    }
+}
