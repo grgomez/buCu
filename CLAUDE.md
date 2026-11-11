@@ -73,4 +73,4 @@ scripts/format.sh [--check]                            # clang-format
 python3 tools/sdd_check.py issue <n>                   # issue body parts, size, markers
 ```
 
-The CMake presets and scripts arrive with #4, and the hooks with #2 and the tools with #34. Git hooks (`README.md` Setup) check each commit. CI runs the workflows in `.github/workflows/` on every PR, and each one must pass before the owner merges.
+The hooks arrive with #2 and the tools with #34. Git hooks (`README.md` Setup) check each commit. CI runs the workflows in `.github/workflows/` on every PR, and each one must pass before the owner merges.
