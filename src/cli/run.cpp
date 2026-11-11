@@ -37,6 +37,11 @@ public:
 }  // namespace
 
 int run(const std::vector<std::string>& args, std::ostream& out, std::ostream& err) {
+    if (args.empty()) {
+        err << kHelpText;
+        return 2;
+    }
+
     // An empty name keeps CLI11 from prefixing its messages with the program name.
     CLI::App app{"", ""};
     app.formatter(std::make_shared<HelpFormatter>());

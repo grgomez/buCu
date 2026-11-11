@@ -60,3 +60,11 @@ TEST_CASE("help wins when other arguments are given (product section 5)", "[cli]
         CHECK(result.code == 0);
     }
 }
+
+TEST_CASE("a bare call prints the help text to standard error and exits 2 (product section 6)",
+          "[cli]") {
+    const Result result = invoke({});
+    CHECK(result.out.empty());
+    CHECK(result.err == read_golden("help.txt"));
+    CHECK(result.code == 2);
+}
