@@ -97,3 +97,14 @@ TEST_CASE("a failed write to standard output reports it and exits 1 (product sec
         CHECK(code == 1);
     }
 }
+
+TEST_CASE("--version wins over other arguments (product section 6)", "[cli]") {
+    for (const std::vector<std::string>& args : {std::vector<std::string>{"--version", "extra"},
+                                                 {"extra", "--version"},
+                                                 {"--bogus", "--version"}}) {
+        const Result result = invoke(args);
+        CHECK(result.out == "bucu 0.1.0\n");
+        CHECK(result.err.empty());
+        CHECK(result.code == 0);
+    }
+}
