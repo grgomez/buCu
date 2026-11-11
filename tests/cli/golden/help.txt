@@ -1,0 +1,13 @@
+bucu - a command-line bookmark manager
+
+Usage:
+  bucu [options]
+
+Options:
+  -h, --help     Print this help text and exit.
+      --version  Print the version and exit.
+
+Exit codes:
+  0  success
+  1  a runtime failure
+  2  a usage error
