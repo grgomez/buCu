@@ -34,6 +34,16 @@ public:
     }
 };
 
+// Returns `code`, or 1 with a message when writing to `out` failed (product section 6).
+int finish(int code, std::ostream& out, std::ostream& err) {
+    out.flush();
+    if (!out) {
+        err << "bucu: cannot write to standard output\n";
+        return 1;
+    }
+    return code;
+}
+
 }  // namespace
 
 int run(const std::vector<std::string>& args, std::ostream& out, std::ostream& err) {
@@ -52,14 +62,14 @@ int run(const std::vector<std::string>& args, std::ostream& out, std::ostream& e
     try {
         app.parse(reversed);
     } catch (const CLI::CallForHelp& help) {
-        return app.exit(help, out, err);
+        return finish(app.exit(help, out, err), out, err);
     } catch (const CLI::CallForVersion& version) {
-        return app.exit(version, out, err);
+        return finish(app.exit(version, out, err), out, err);
     } catch (const CLI::ParseError& error) {
         err << "bucu: " << error.what() << ". Run 'bucu --help' for usage.\n";
         return 2;
     }
-    return 0;
+    return finish(0, out, err);
 }
 
 }  // namespace bucu::cli

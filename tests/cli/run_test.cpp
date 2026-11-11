@@ -85,3 +85,15 @@ TEST_CASE("a usage error prints one line and exits 2 (product section 6)", "[cli
         CHECK(std::count(result.err.begin(), result.err.end(), '\n') == 1);
     }
 }
+
+TEST_CASE("a failed write to standard output reports it and exits 1 (product section 6)", "[cli]") {
+    for (const char* flag : {"--version", "--help"}) {
+        CAPTURE(flag);
+        std::ostringstream out;
+        out.setstate(std::ios::badbit);
+        std::ostringstream err;
+        const int code = bucu::cli::run({flag}, out, err);
+        CHECK(err.str() == "bucu: cannot write to standard output\n");
+        CHECK(code == 1);
+    }
+}
