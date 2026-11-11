@@ -19,3 +19,9 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 include(BucuWarnings)
 
 add_subdirectory(third_party)
+
+# Windows: the executable runs with the UTF-8 active code page (constitution principle 12).
+# The bucu target adds this file to its sources.
+if(WIN32)
+    set(BUCU_WINDOWS_MANIFEST "${CMAKE_CURRENT_SOURCE_DIR}/src/platform/windows/bucu.manifest")
+endif()
