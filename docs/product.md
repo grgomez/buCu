@@ -41,7 +41,7 @@ The MVP command interface. Each command's options, output, and errors are settle
 
 ```text
 bucu [--db <path>] [--color auto|always|never] [--offline] <command> [args]
-bucu --version | --help
+bucu --version | -h | --help
 
 add <url> [tags...]        add a bookmark; prompts or opens the editor when asked (#10, #14, #16)
 list                       list bookmarks, paginated (#11)
@@ -60,10 +60,14 @@ completion <shell>         print a shell completion script (#19)
 - Output to a non-terminal MUST be plain text with no colour and no pager, so it works in pipes and scripts.
 - A command that would prompt in an interactive run MUST NOT wait for input in a non-interactive run; it fails with a message that names the option to use instead (for example `--yes`).
 
-## 6. Messages and exit codes (added by #4, #10)
+## 6. Messages and exit codes (added by #10)
 
 - Errors go to standard error, start with `bucu: `, and say what failed and what to do. Normal output goes to standard output.
 - Exit codes: `0` success, `1` a runtime failure, `2` a usage error. Further codes (for example "not found"): settled by #10.
+- A bare `bucu`, or `bucu --` with nothing after it, prints the help text to standard error and exits `2`.
+- `--help` and `-h` print the help text, and `--version` prints the version, whichever other arguments are given; both exit `0`. When both are given, the help text wins, in either order.
+- A usage error prints one line, `bucu: <what failed>. Run 'bucu --help' for usage.`, to standard error, nothing to standard output, and exits `2`.
+- When writing standard output fails, `bucu` prints `bucu: cannot write to standard output` to standard error and exits `1`.
 
 ## 7. Import and export formats (added by #17, #18)
 

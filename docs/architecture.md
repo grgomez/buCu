@@ -14,7 +14,7 @@ Sections marked "(added by #N)" describe a part that issue #N builds. Until that
 
 | Dependency | Role | Licence | Why |
 | --- | --- | --- | --- |
-| C++20 (C++23 only where it improves clarity or portability on every CI compiler) | Language | — | Native speed and startup; mature on GCC, Clang, and MSVC |
+| C++23; minimum compilers GCC 13 and Clang 19 (Apple Clang and MSVC minimums settled by #5) | Language | — | Native speed and startup; `std::expected` for typed errors (§7) |
 | CMake ≥ 3.25 with `CMakePresets.json` | Build | — | The common denominator for the three toolchains; presets give one command per build type |
 | SQLite amalgamation, vendored in `third_party/sqlite/` (FTS5 on) | Storage | Public domain | One known version and feature set on every platform. `BUCU_USE_SYSTEM_SQLITE=ON` links the system library instead, for distribution packagers ([ADR 0004](adr/0004-vendored-dependencies.md)) |
 | CLI11, vendored | Argument parsing with subcommands | BSD-3-Clause | Header-only, subcommand support, generated help, no other dependency |
@@ -57,7 +57,7 @@ flowchart TD
 
 ## 4. Module responsibilities
 
-Each module is a CMake library target under `src/<module>/`, with its public headers in `include/bucu/<module>/`. The target graph enforces the direction in §3.
+Each module is a CMake library target under `src/<module>/`, with its public headers in `include/bucu/<module>/`. The target graph enforces the direction in §3. A module's target is created with its first source file.
 
 | Module | Owns | MUST NOT |
 | --- | --- | --- |
@@ -117,7 +117,7 @@ flowchart LR
 
 ## 7. Error handling
 
-- Expected failures (invalid input, a missing bookmark, a malformed import file, a constraint violation) MUST return a typed error (`std::expected`-style result or a specific exception type, settled by #4) that `cli` maps to a message and an exit code (product §6).
+- Expected failures (invalid input, a missing bookmark, a malformed import file, a constraint violation) MUST return a typed error (`std::expected`) that `cli` maps to a message and an exit code (product §6).
 - An import validates as it streams, inside one transaction; a failed import changes no data.
 - Writes that change more than one table run in one transaction.
 - Do not catch `...` or `std::exception` without handling it. Broad silent handlers are prohibited.
@@ -137,7 +137,7 @@ flowchart LR
 - **Hot paths:** avoid needless allocations; measure before adding caches, custom allocators, or complex structures (`docs/performance.md`).
 - **Text:** UTF-8 in `std::string` everywhere. Convert to UTF-16 only inside `src/platform/` on Windows.
 - **Platform code:** `#ifdef` on the operating system only in `src/platform/` (constitution principle 9).
-- **Naming:** `snake_case` functions and variables, `PascalCase` types, `kPascalCase` constants, namespaces `bucu::<module>`. Settled in `.clang-tidy` by #4.
+- **Naming:** `snake_case` functions and variables, `PascalCase` types, `kPascalCase` constants, namespaces `bucu::<module>`. `.clang-tidy` enforces them.
 - **Comments:** when a code comment or test name cites a source, it cites an issue, a living-document section, or an ADR, never a task or criterion ID from an issue body.
 
 ---

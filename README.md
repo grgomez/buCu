@@ -10,7 +10,7 @@ BuCu is free software under the GNU General Public License, version 3 or (at you
 
 ## Build
 
-BuCu needs a C++ compiler and the libraries listed in [architecture §2](docs/architecture.md#2-stack). The build commands arrive with [#4](https://github.com/grgomez/buCu/issues/4).
+BuCu needs CMake 3.25 or newer, Ninja, GCC 13 or Clang 19 (or newer), and the libraries listed in [architecture §2](docs/architecture.md#2-stack); the dependencies it needs are vendored. Development also needs `clang-format` and `clang-tidy`. The build and test commands are in [`CLAUDE.md` Commands](CLAUDE.md#commands).
 
 ## Roadmap
 

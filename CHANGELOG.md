@@ -4,6 +4,8 @@ All notable changes to BuCu are listed here, newest first.
 
 ## Unreleased
 
+- Build skeleton: CMake presets, vendored SQLite, Catch2, and CLI11, and the strict warning set.
+- `bucu --version` and `bucu --help` (also `-h`), with exit codes `0`, `1`, and `2` as in the product rules.
 - Repository converted from the Buku fork into BuCu: the Python implementation is removed, and `NOTICE` and `README.md` state the origin and licence.
 
 ## Origin
