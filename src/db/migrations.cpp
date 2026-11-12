@@ -57,6 +57,14 @@ std::expected<int, Error> user_version(sqlite3* connection) {
 }
 
 std::expected<void, Error> migrate(sqlite3* connection, std::span<const std::string_view> steps) {
+    // No lock while nothing is pending: a reopen must not wait for another writer.
+    const auto current = user_version(connection);
+    if (!current) {
+        return std::unexpected(failed(current.error().message));
+    }
+    if (static_cast<std::size_t>(*current) >= steps.size()) {
+        return {};
+    }
     for (;;) {
         auto transaction = Transaction::begin(connection, true);
         if (!transaction) {

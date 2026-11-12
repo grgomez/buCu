@@ -194,3 +194,21 @@ TEST_CASE("a runner whose lock wait runs out returns kMigrationFailed and change
     CHECK(runner.version() == 0);
     CHECK(runner.table_count() == 0);
 }
+
+TEST_CASE("a runner on an up-to-date database does not wait for another writer", "[db]") {
+    const TempDir dir;
+    const auto path = dir.path() / "shared.db";
+    {
+        auto created = Database::open(path);
+        REQUIRE(created.has_value());
+    }
+    const Connection other(path);
+    const Connection runner(path);
+    sqlite3_busy_timeout(runner.handle, 50);
+    other.exec("BEGIN IMMEDIATE");
+
+    const auto result = bucu::db::migrate(runner.handle, bucu::db::migrations());
+
+    CHECK(result.has_value());
+    other.exec("ROLLBACK");
+}
