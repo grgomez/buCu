@@ -28,6 +28,7 @@ endif()
 
 enable_testing()
 add_subdirectory(src/cli)
+add_subdirectory(src/db)
 add_subdirectory(tests)
 
 add_executable(bucu src/cli/main.cpp ${BUCU_WINDOWS_MANIFEST})
