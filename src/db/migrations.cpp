@@ -18,7 +18,7 @@ namespace {
 constexpr std::string_view kVersion1 = R"sql(
 CREATE TABLE bookmark (
     id          INTEGER PRIMARY KEY,
-    url         TEXT NOT NULL,
+    url         TEXT NOT NULL UNIQUE,
     title       TEXT NOT NULL DEFAULT '',
     description TEXT NOT NULL DEFAULT '',
     flags       INTEGER NOT NULL DEFAULT 0,
@@ -27,13 +27,14 @@ CREATE TABLE bookmark (
 );
 CREATE TABLE tag (
     id   INTEGER PRIMARY KEY,
-    name TEXT NOT NULL
+    name TEXT NOT NULL UNIQUE
 );
 CREATE TABLE bookmark_tag (
-    bookmark_id INTEGER NOT NULL,
-    tag_id      INTEGER NOT NULL,
+    bookmark_id INTEGER NOT NULL REFERENCES bookmark (id) ON DELETE CASCADE,
+    tag_id      INTEGER NOT NULL REFERENCES tag (id) ON DELETE CASCADE,
     PRIMARY KEY (bookmark_id, tag_id)
 ) WITHOUT ROWID;
+CREATE INDEX bookmark_tag_tag_id ON bookmark_tag (tag_id);
 )sql";
 
 constexpr std::array<std::string_view, 1> kMigrations{kVersion1};
