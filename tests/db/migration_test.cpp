@@ -1,10 +1,13 @@
 #include <sqlite3.h>
 
+#include <chrono>
 #include <cstdint>
+#include <expected>
 #include <filesystem>
 #include <fstream>
 #include <map>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include "bucu/db/database.hpp"
@@ -44,6 +47,33 @@ std::vector<std::string> columns_of(Database& database, const std::string& table
     }
     return names;
 }
+
+// A plain connection to `path` for the second-process scenarios, closed at the end of the scope.
+struct Connection {
+    sqlite3* handle = nullptr;
+    explicit Connection(const std::filesystem::path& path) {
+        REQUIRE(sqlite3_open(path.string().c_str(), &handle) == SQLITE_OK);
+    }
+    Connection(const Connection&) = delete;
+    Connection& operator=(const Connection&) = delete;
+    ~Connection() { sqlite3_close(handle); }
+
+    void exec(const std::string& sql) const {
+        REQUIRE(sqlite3_exec(handle, sql.c_str(), nullptr, nullptr, nullptr) == SQLITE_OK);
+    }
+    std::int64_t table_count() const {
+        auto statement = Statement::prepare(handle, "SELECT count(*) FROM sqlite_master");
+        REQUIRE(statement.has_value());
+        REQUIRE(statement->step().value());
+        return statement->column_int(0);
+    }
+    int version() const {
+        auto statement = Statement::prepare(handle, "PRAGMA user_version");
+        REQUIRE(statement.has_value());
+        REQUIRE(statement->step().value());
+        return static_cast<int>(statement->column_int(0));
+    }
+};
 
 }  // namespace
 
@@ -123,4 +153,44 @@ TEST_CASE("a step that fails part-way rolls back to the version and rows from be
     CHECK(scalar(*database, "PRAGMA user_version") == 1);
     CHECK(scalar(*database, "SELECT count(*) FROM sqlite_master WHERE name = 'extra'") == 0);
     CHECK(scalar(*database, "SELECT count(*) FROM tag WHERE name = 'kept'") == 1);
+}
+
+TEST_CASE("a runner that waited for the lock finds version 1 and applies no step", "[db]") {
+    const TempDir dir;
+    const auto path = dir.path() / "shared.db";
+    const Connection other(path);
+    const Connection runner(path);
+    sqlite3_busy_timeout(runner.handle, 10000);
+    other.exec("BEGIN IMMEDIATE");
+    other.exec(std::string(bucu::db::migrations()[0]));
+    other.exec("PRAGMA user_version = 1");
+
+    std::expected<void, bucu::db::Error> result;
+    std::thread waiting([&] { result = bucu::db::migrate(runner.handle, bucu::db::migrations()); });
+    // Gives the runner time to start waiting; the outcome is the same if it starts later.
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    other.exec("COMMIT");
+    waiting.join();
+
+    // Running step 1 again would fail on the tables the other connection created.
+    CHECK(result.has_value());
+    CHECK(runner.version() == 1);
+}
+
+TEST_CASE("a runner whose lock wait runs out returns kMigrationFailed and changes nothing",
+          "[db]") {
+    const TempDir dir;
+    const auto path = dir.path() / "shared.db";
+    const Connection other(path);
+    const Connection runner(path);
+    sqlite3_busy_timeout(runner.handle, 50);
+    other.exec("BEGIN IMMEDIATE");
+
+    const auto result = bucu::db::migrate(runner.handle, bucu::db::migrations());
+
+    REQUIRE_FALSE(result.has_value());
+    CHECK(result.error().code == ErrorCode::kMigrationFailed);
+    other.exec("ROLLBACK");
+    CHECK(runner.version() == 0);
+    CHECK(runner.table_count() == 0);
 }
