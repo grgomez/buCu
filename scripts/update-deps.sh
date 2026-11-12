@@ -64,14 +64,14 @@ SQLite is in the public domain. The authors have dedicated all copyright
 interest in the source code to the public domain.
 See https://www.sqlite.org/copyright.html
 LICENCE
-echo "$sqlite_version" > "$root/third_party/sqlite/VERSION"
+echo "$sqlite_version" > "$root/third_party/sqlite/VERSION.txt"
 
 cp "$tmp/catch_amalgamated.hpp" "$tmp/catch_amalgamated.cpp" "$root/third_party/catch2/"
 cp "$tmp/catch2_LICENSE.txt" "$root/third_party/catch2/LICENSE.txt"
-echo "$catch2_version" > "$root/third_party/catch2/VERSION"
+echo "$catch2_version" > "$root/third_party/catch2/VERSION.txt"
 
 cp "$tmp/CLI11.hpp" "$root/third_party/cli11/"
 cp "$tmp/cli11_LICENSE" "$root/third_party/cli11/LICENSE"
-echo "$cli11_version" > "$root/third_party/cli11/VERSION"
+echo "$cli11_version" > "$root/third_party/cli11/VERSION.txt"
 
 echo "update-deps: SQLite $sqlite_version, Catch2 $catch2_version, CLI11 $cli11_version verified"
