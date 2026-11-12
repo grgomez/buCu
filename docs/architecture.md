@@ -14,7 +14,7 @@ Sections marked "(added by #N)" describe a part that issue #N builds. Until that
 
 | Dependency | Role | Licence | Why |
 | --- | --- | --- | --- |
-| C++23; minimum compilers GCC 13 and Clang 19 (Apple Clang and MSVC minimums settled by #5) | Language | — | Native speed and startup; `std::expected` for typed errors (§7) |
+| C++23; minimum compilers GCC 13 and Clang 19 (Apple Clang 17 from Xcode 16.4, MSVC 19.51) | Language | — | Native speed and startup; `std::expected` for typed errors (§7) |
 | CMake ≥ 3.25 with `CMakePresets.json` | Build | — | The common denominator for the three toolchains; presets give one command per build type |
 | SQLite amalgamation, vendored in `third_party/sqlite/` (FTS5 on) | Storage | Public domain | One known version and feature set on every platform. `BUCU_USE_SYSTEM_SQLITE=ON` links the system library instead, for distribution packagers ([ADR 0004](adr/0004-vendored-dependencies.md)) |
 | CLI11, vendored | Argument parsing with subcommands | BSD-3-Clause | Header-only, subcommand support, generated help, no other dependency |
@@ -27,13 +27,14 @@ Test and quality tools:
 | Catch2 v3, vendored amalgamated | Unit, integration, and golden-file tests; micro-benchmarks | Two files to vendor; sections, generators, and matchers; built-in benchmarking. Chosen over doctest (fewer matchers, no benchmarks) and GoogleTest (heavier to vendor) |
 | ctest | Test runner across platforms | Ships with CMake |
 | clang-format | Formatting authority (`.clang-format`) | |
+| ccache | Compiler cache in CI only; not linked into BuCu | Keeps the matrix fast; local builds stay free of it |
 | clang-tidy | Static analysis (`.clang-tidy`), focused checks only | |
 | AddressSanitizer, UndefinedBehaviorSanitizer, ThreadSanitizer | Memory, undefined-behaviour, and data-race checks | Presets `asan-ubsan` and `tsan`, where the compiler supports them |
 | hyperfine (optional) | Command-line benchmarks | `scripts/bench.sh` falls back to a portable timer |
 
-Each vendored dependency lives in `third_party/<name>/` with its licence file and a `VERSION` file, and `scripts/update-deps.sh` refreshes it. No other dependency is allowed without a plan decision (constitution §4). The choice of this stack: [ADR 0001](adr/0001-cpp20-cmake-sqlite.md).
+Each vendored dependency lives in `third_party/<name>/` with its licence file and a `VERSION.txt` file, and `scripts/update-deps.sh` refreshes it. No other dependency is allowed without a plan decision (constitution §4). The choice of this stack: [ADR 0001](adr/0001-cpp20-cmake-sqlite.md).
 
-Platforms: Linux x86-64 (GCC, Clang), macOS ARM64 (Apple Clang), Windows x86-64 (MSVC). BSD is a goal (#30). The CI matrix: `.github/workflows/` (added by #5).
+Platforms: Linux x86-64 (GCC, Clang), macOS ARM64 (Apple Clang), Windows x86-64 (MSVC). BSD is a goal (#30). The CI matrix: `.github/workflows/ci.yml`. The issue that adds the first thread adds the `tsan` entry.
 
 ---
 

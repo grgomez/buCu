@@ -17,7 +17,7 @@ BuCu builds with GCC, Clang, and MSVC, and must build without an internet connec
 
 ## Decision
 
-We will vendor SQLite (amalgamation), CLI11, and Catch2 (amalgamated) in `third_party/<name>/`, each with its licence and a `VERSION` file, refreshed by `scripts/update-deps.sh`. `BUCU_USE_SYSTEM_SQLITE=ON` builds against the system SQLite for distribution packagers. libcurl is the exception: it is too large to vendor, and its source per platform is settled by #16 ([ADR 0005](0005-libcurl-networking.md)).
+We will vendor SQLite (amalgamation), CLI11, and Catch2 (amalgamated) in `third_party/<name>/`, each with its licence and a `VERSION.txt` file (renamed by #5: macOS case-insensitive include clash), refreshed by `scripts/update-deps.sh`. `BUCU_USE_SYSTEM_SQLITE=ON` builds against the system SQLite for distribution packagers. libcurl is the exception: it is too large to vendor, and its source per platform is settled by #16 ([ADR 0005](0005-libcurl-networking.md)).
 
 ## Consequences
 

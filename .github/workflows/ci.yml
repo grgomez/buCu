@@ -1,0 +1,98 @@
+name: ci
+
+on:
+  pull_request:
+    branches: [master]
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: ubuntu-gcc-13-debug
+            os: ubuntu-24.04
+            preset: debug
+            cc: gcc-13
+            cxx: g++-13
+          - name: ubuntu-gcc-13-release
+            os: ubuntu-24.04
+            preset: release
+            cc: gcc-13
+            cxx: g++-13
+          - name: ubuntu-clang-19-debug
+            os: ubuntu-24.04
+            preset: debug
+            cc: clang-19
+            cxx: clang++-19
+            install: clang-19
+          - name: ubuntu-clang-19-release
+            os: ubuntu-24.04
+            preset: release
+            cc: clang-19
+            cxx: clang++-19
+            install: clang-19
+          - name: macos-15-apple-clang-debug
+            os: macos-15
+            preset: debug
+            cc: clang
+            cxx: clang++
+          - name: windows-msvc-debug
+            os: windows-latest
+            preset: debug
+            cc: cl
+            cxx: cl
+            extra: -DCMAKE_MSVC_DEBUG_INFORMATION_FORMAT=Embedded
+          - name: ubuntu-clang-19-asan-ubsan
+            os: ubuntu-24.04
+            preset: asan-ubsan
+            cc: clang-19
+            cxx: clang++-19
+            install: clang-19
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install tools (Ubuntu)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y ninja-build ${{ matrix.install }}
+      - name: Install tools (macOS)
+        if: runner.os == 'macOS'
+        run: brew install ninja
+      - name: Set up MSVC (Windows)
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+      - uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: ${{ matrix.name }}
+      - name: Configure
+        run: >
+          cmake --preset ${{ matrix.preset }}
+          -DCMAKE_C_COMPILER=${{ matrix.cc }}
+          -DCMAKE_CXX_COMPILER=${{ matrix.cxx }}
+          -DCMAKE_C_COMPILER_LAUNCHER=ccache
+          -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+          ${{ matrix.extra }}
+      - name: Build
+        run: cmake --build --preset ${{ matrix.preset }}
+      - name: Test
+        run: ctest --preset ${{ matrix.preset }}
+
+  format:
+    name: format
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check formatting
+        run: scripts/format.sh --check
