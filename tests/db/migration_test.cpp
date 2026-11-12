@@ -236,18 +236,21 @@ TEST_CASE("open fails with kMigrationFailed when a step fails, and changes nothi
     CHECK(scalar(*reopened, "SELECT count(*) FROM tag WHERE name = 'kept'") == 1);
 }
 
-TEST_CASE("a failed first open removes the file it created and its WAL files", "[db]") {
+TEST_CASE("a failed first open keeps the empty file it created, and the next open upgrades it",
+          "[db]") {
     const TempDir dir;
     const auto path = dir.path() / "new.db";
     const std::vector<std::string_view> steps{
         "CREATE TABLE extra (a); INSERT INTO nope VALUES (1);"};
 
-    const auto connection = bucu::db::detail::open_connection(path, steps);
+    const auto failed = bucu::db::detail::open_connection(path, steps);
 
-    REQUIRE_FALSE(connection.has_value());
-    CHECK_FALSE(std::filesystem::exists(path));
-    CHECK_FALSE(std::filesystem::exists(dir.path() / "new.db-wal"));
-    CHECK_FALSE(std::filesystem::exists(dir.path() / "new.db-shm"));
+    REQUIRE_FALSE(failed.has_value());
+    CHECK(std::filesystem::exists(path));
+    auto next = Database::open(path);
+    REQUIRE(next.has_value());
+    CHECK(next->schema_version() == 1);
+    CHECK(scalar(*next, "SELECT count(*) FROM sqlite_master WHERE name = 'extra'") == 0);
 }
 
 TEST_CASE("a failed open keeps a file that existed before", "[db]") {

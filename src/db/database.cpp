@@ -68,12 +68,12 @@ namespace detail {
 
 void ConnectionCloser::operator()(sqlite3* connection) const noexcept { sqlite3_close(connection); }
 
-namespace {
-
 using Connection = std::unique_ptr<sqlite3, ConnectionCloser>;
 
-std::expected<Connection, Error> open_checked(const std::filesystem::path& path,
-                                              std::span<const std::string_view> steps) {
+// A failed first open keeps the file it created: an empty version 0 database that the next open
+// upgrades. BuCu never deletes a database file (docs/database-schema.md section 2).
+std::expected<Connection, Error> open_connection(const std::filesystem::path& path,
+                                                 std::span<const std::string_view> steps) {
     std::error_code status;
     const bool present = std::filesystem::exists(path, status);
     if (status) {
@@ -138,23 +138,6 @@ std::expected<Connection, Error> open_checked(const std::filesystem::path& path,
     }
     if (auto result = migrate(raw, steps); !result) {
         return std::unexpected(std::move(result.error()));
-    }
-    return connection;
-}
-
-}  // namespace
-
-std::expected<Connection, Error> open_connection(const std::filesystem::path& path,
-                                                 std::span<const std::string_view> steps) {
-    std::error_code ignored;
-    const bool existed = std::filesystem::exists(path, ignored);
-    auto connection = open_checked(path, steps);
-    if (!connection && !existed) {
-        // The failed open already closed the connection. Do not leave the file it created, or
-        // its WAL files, behind.
-        std::filesystem::remove(path, ignored);
-        std::filesystem::remove(std::filesystem::path(path) += "-wal", ignored);
-        std::filesystem::remove(std::filesystem::path(path) += "-shm", ignored);
     }
     return connection;
 }
