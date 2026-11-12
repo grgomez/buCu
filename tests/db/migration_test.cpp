@@ -10,12 +10,14 @@
 #include "bucu/db/database.hpp"
 #include "catch_amalgamated.hpp"
 #include "db/handle.hpp"
+#include "db/migrations.hpp"
 #include "db/statement.hpp"
 #include "temp_dir.hpp"
 
 namespace {
 
 using bucu::db::Database;
+using bucu::db::ErrorCode;
 using bucu::db::Statement;
 using bucu::db::test::TempDir;
 
@@ -99,4 +101,26 @@ TEST_CASE("reopening a version 1 database keeps every row", "[db]") {
     CHECK(scalar(*database, "SELECT updated_at FROM bookmark WHERE id = 7") == 200);
     CHECK(scalar(*database, "SELECT count(*) FROM tag WHERE id = 3 AND name = 'news'") == 1);
     CHECK(scalar(*database, "SELECT count(*) FROM bookmark_tag") == 1);
+}
+
+TEST_CASE("a step that fails part-way rolls back to the version and rows from before", "[db]") {
+    const TempDir dir;
+    auto database = Database::open(dir.path() / "bookmarks.db");
+    REQUIRE(database.has_value());
+    run(*database, "INSERT INTO tag (id, name) VALUES (1, 'kept')");
+    // The second step creates a table, then fails on a missing one.
+    const std::string_view failing =
+        "CREATE TABLE extra (a); INSERT INTO no_such_table VALUES (1);";
+    std::vector<std::string_view> steps(bucu::db::migrations().begin(),
+                                        bucu::db::migrations().end());
+    steps.push_back(failing);
+
+    const auto result = bucu::db::migrate(bucu::db::detail::handle(*database), steps);
+
+    REQUIRE_FALSE(result.has_value());
+    CHECK(result.error().code == ErrorCode::kMigrationFailed);
+    CHECK(result.error().message.find("no_such_table") != std::string::npos);
+    CHECK(scalar(*database, "PRAGMA user_version") == 1);
+    CHECK(scalar(*database, "SELECT count(*) FROM sqlite_master WHERE name = 'extra'") == 0);
+    CHECK(scalar(*database, "SELECT count(*) FROM tag WHERE name = 'kept'") == 1);
 }
