@@ -15,6 +15,7 @@ Normative words (MUST, SHOULD, MAY): [constitution §6](constitution.md#6-normat
 
 - The schema version is `PRAGMA user_version`. Version 0 is an empty file.
 - Opening a path with no file creates the database at the newest version. A version 0 file that already has tables is another program's database: BuCu MUST refuse it and change nothing.
+- A first open that fails after creating the file (for example, its lock wait runs out) may leave an empty version 0 file, which the next open upgrades to version 1. BuCu never deletes a database file.
 - Migrations are forward-only: each one moves version n to n+1, inside a transaction, and never drops user data.
 - BuCu MUST refuse to open a database whose version is newer than it knows, and say both the file's schema version and the newest version it supports.
 - Each version change has a `db-NNN` record and a migration test from every earlier version.
