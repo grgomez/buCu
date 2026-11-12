@@ -1,6 +1,6 @@
 *.py[co]
 *.sw[po]
 .history
-.vscode/launch.json
+/.vscode/
 /bookmarks.db
 /build/
