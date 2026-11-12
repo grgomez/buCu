@@ -2,7 +2,7 @@
 
 - Kind: Module
 - Version: 1 (from 0)
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-11-11
 - Issue: #6
 - Previous record: none
