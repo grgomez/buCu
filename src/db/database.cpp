@@ -70,6 +70,18 @@ std::expected<Database, Error> Database::open(const std::filesystem::path& path)
         return std::unexpected(std::move(result.error()));
     }
     sqlite3_busy_timeout(raw, kBusyTimeoutMs);
+    // Every check that can refuse comes before the first write, so a refusal leaves the file's
+    // bytes unchanged (docs/database-schema.md section 2). Setting WAL writes the header.
+    const auto found = user_version(raw);
+    if (!found) {
+        return std::unexpected(found.error());
+    }
+    if (*found > kSchemaVersion) {
+        return std::unexpected(Error{ErrorCode::kNewerSchema,
+                                     "the database has schema version " + std::to_string(*found) +
+                                         ", newer than version " + std::to_string(kSchemaVersion) +
+                                         ", the newest this BuCu supports"});
+    }
     if (auto result = enable_wal(raw); !result) {
         return std::unexpected(std::move(result.error()));
     }

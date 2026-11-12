@@ -3,6 +3,8 @@
 #include <sqlite3.h>
 
 #include <filesystem>
+#include <fstream>
+#include <iterator>
 #include <string>
 
 #include "catch_amalgamated.hpp"
@@ -25,6 +27,19 @@ std::string query_text(Database& database, const char* sql) {
     std::string value(text == nullptr ? "" : reinterpret_cast<const char*>(text));
     sqlite3_finalize(statement);
     return value;
+}
+
+std::string read_bytes(const std::filesystem::path& path) {
+    std::ifstream file(path, std::ios::binary);
+    return std::string(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>());
+}
+
+// Makes a file with a plain SQLite connection, without BuCu's code, in the default journal mode.
+void make_file(const std::filesystem::path& path, const char* sql) {
+    sqlite3* connection = nullptr;
+    REQUIRE(sqlite3_open(path.string().c_str(), &connection) == SQLITE_OK);
+    REQUIRE(sqlite3_exec(connection, sql, nullptr, nullptr, nullptr) == SQLITE_OK);
+    REQUIRE(sqlite3_close(connection) == SQLITE_OK);
 }
 
 }  // namespace
@@ -69,4 +84,20 @@ TEST_CASE("open returns an error naming the cause instead of ending the program"
     REQUIRE_FALSE(database.has_value());
     CHECK(database.error().code == ErrorCode::kCannotOpen);
     CHECK_FALSE(database.error().message.empty());
+}
+
+TEST_CASE("open refuses a newer schema, names both versions, and leaves the file alone", "[db]") {
+    const TempDir dir;
+    const auto path = dir.path() / "newer.db";
+    make_file(path, "CREATE TABLE future (a); PRAGMA user_version = 99");
+    const std::string before = read_bytes(path);
+
+    auto database = Database::open(path);
+
+    REQUIRE_FALSE(database.has_value());
+    CHECK(database.error().code == ErrorCode::kNewerSchema);
+    CHECK(database.error().message.find("99") != std::string::npos);
+    CHECK(database.error().message.find(std::to_string(bucu::db::kSchemaVersion)) !=
+          std::string::npos);
+    CHECK(read_bytes(path) == before);
 }
