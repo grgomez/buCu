@@ -1,4 +1,4 @@
-add_executable(bucu_db_tests database_test.cpp)
+add_executable(bucu_db_tests database_test.cpp statement_test.cpp)
 target_link_libraries(bucu_db_tests PRIVATE bucu_db bucu::sqlite bucu::catch2)
 target_include_directories(bucu_db_tests PRIVATE "${PROJECT_SOURCE_DIR}/src")
 bucu_apply_warnings(bucu_db_tests)

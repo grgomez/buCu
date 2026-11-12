@@ -1,6 +1,6 @@
 # The db module: connection setup, migrations, prepared statements, and transactions
 # (architecture section 4). Callers see only the headers in include/bucu/db/.
-add_library(bucu_db STATIC database.cpp)
+add_library(bucu_db STATIC database.cpp statement.cpp transaction.cpp)
 target_include_directories(bucu_db
     PUBLIC "${PROJECT_SOURCE_DIR}/include"
     PRIVATE "${PROJECT_SOURCE_DIR}/src")
