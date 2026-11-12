@@ -4,6 +4,7 @@
 
 #include <cstdint>
 #include <string>
+#include <utility>
 
 #include "bucu/db/database.hpp"
 #include "catch_amalgamated.hpp"

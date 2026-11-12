@@ -1,5 +1,7 @@
 #include <cstdint>
+#include <expected>
 #include <string>
+#include <utility>
 
 #include "bucu/db/database.hpp"
 #include "catch_amalgamated.hpp"

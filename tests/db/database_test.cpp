@@ -39,7 +39,7 @@ std::string read_bytes(const std::filesystem::path& path) {
 // Makes a file with a plain SQLite connection, without BuCu's code, in the default journal mode.
 void make_file(const std::filesystem::path& path, const char* sql) {
     sqlite3* connection = nullptr;
-    REQUIRE(sqlite3_open(path.string().c_str(), &connection) == SQLITE_OK);
+    REQUIRE(sqlite3_open(bucu::db::test::utf8_path(path).c_str(), &connection) == SQLITE_OK);
     REQUIRE(sqlite3_exec(connection, sql, nullptr, nullptr, nullptr) == SQLITE_OK);
     REQUIRE(sqlite3_close(connection) == SQLITE_OK);
 }

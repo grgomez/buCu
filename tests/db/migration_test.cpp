@@ -52,7 +52,7 @@ std::vector<std::string> columns_of(Database& database, const std::string& table
 struct Connection {
     sqlite3* handle = nullptr;
     explicit Connection(const std::filesystem::path& path) {
-        REQUIRE(sqlite3_open(path.string().c_str(), &handle) == SQLITE_OK);
+        REQUIRE(sqlite3_open(bucu::db::test::utf8_path(path).c_str(), &handle) == SQLITE_OK);
     }
     Connection(const Connection&) = delete;
     Connection& operator=(const Connection&) = delete;

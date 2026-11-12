@@ -13,7 +13,7 @@ namespace bucu::db {
 class Database;
 
 namespace detail {
-class Access;  // db module internals reach the connection through it (src/db/handle.hpp)
+sqlite3* handle(Database& database);  // for the db module only (src/db/handle.hpp)
 }  // namespace detail
 
 // One open connection to a BuCu database file. Closes the connection when destroyed.
@@ -38,7 +38,7 @@ private:
 
     explicit Database(sqlite3* connection) : connection_(connection) {}
 
-    friend class detail::Access;
+    friend sqlite3* detail::handle(Database& database);
 
     std::unique_ptr<sqlite3, Closer> connection_;
     int schema_version_ = 0;
