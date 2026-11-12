@@ -43,11 +43,19 @@ jobs:
             cc: clang-19
             cxx: clang++-19
             install: clang-19
+          - name: macos-15-apple-clang-debug
+            os: macos-15
+            preset: debug
+            cc: clang
+            cxx: clang++
     steps:
       - uses: actions/checkout@v4
       - name: Install tools (Ubuntu)
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y ninja-build ${{ matrix.install }}
+      - name: Install tools (macOS)
+        if: runner.os == 'macOS'
+        run: brew install ninja
       - uses: hendrikmuhs/ccache-action@v1.2
         with:
           key: ${{ matrix.name }}
