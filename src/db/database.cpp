@@ -100,6 +100,12 @@ std::expected<Database, Error> Database::open(const std::filesystem::path& path)
         }
         return std::unexpected(found.error());
     }
+    if (*found < 0) {
+        return std::unexpected(
+            Error{ErrorCode::kNotBucuDatabase, "the file has an invalid schema version (" +
+                                                   std::to_string(*found) +
+                                                   "), so it is not a BuCu database"});
+    }
     if (*found > kSchemaVersion) {
         return std::unexpected(Error{ErrorCode::kNewerSchema,
                                      "the database has schema version " + std::to_string(*found) +

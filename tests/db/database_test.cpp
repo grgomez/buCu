@@ -165,3 +165,17 @@ TEST_CASE("open refuses a write-protected version 1 database and leaves it alone
     CHECK_FALSE(database.error().message.empty());
     CHECK(read_bytes(path) == before);
 }
+
+TEST_CASE("open refuses a negative schema version and leaves the file alone", "[db]") {
+    const TempDir dir;
+    const auto path = dir.path() / "negative.db";
+    make_file(path, "CREATE TABLE other (a); PRAGMA user_version = -1");
+    const std::string before = read_bytes(path);
+
+    auto database = Database::open(path);
+
+    REQUIRE_FALSE(database.has_value());
+    CHECK(database.error().code == ErrorCode::kNotBucuDatabase);
+    CHECK(database.error().message.find("invalid schema version") != std::string::npos);
+    CHECK(read_bytes(path) == before);
+}
