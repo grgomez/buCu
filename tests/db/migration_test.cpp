@@ -212,3 +212,26 @@ TEST_CASE("a runner on an up-to-date database does not wait for another writer",
     CHECK(result.has_value());
     other.exec("ROLLBACK");
 }
+
+TEST_CASE("open fails with kMigrationFailed when a step fails, and changes nothing", "[db]") {
+    const TempDir dir;
+    const auto path = dir.path() / "bookmarks.db";
+    {
+        auto created = Database::open(path);
+        REQUIRE(created.has_value());
+        run(*created, "INSERT INTO tag (id, name) VALUES (1, 'kept')");
+    }
+    std::vector<std::string_view> steps(bucu::db::migrations().begin(),
+                                        bucu::db::migrations().end());
+    steps.push_back("CREATE TABLE extra (a); INSERT INTO no_such_table VALUES (1);");
+
+    const auto connection = bucu::db::detail::open_connection(path, steps);
+
+    REQUIRE_FALSE(connection.has_value());
+    CHECK(connection.error().code == ErrorCode::kMigrationFailed);
+    auto reopened = Database::open(path);
+    REQUIRE(reopened.has_value());
+    CHECK(scalar(*reopened, "PRAGMA user_version") == 1);
+    CHECK(scalar(*reopened, "SELECT count(*) FROM sqlite_master WHERE name = 'extra'") == 0);
+    CHECK(scalar(*reopened, "SELECT count(*) FROM tag WHERE name = 'kept'") == 1);
+}

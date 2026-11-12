@@ -6,6 +6,7 @@
 #include <system_error>
 #include <utility>
 
+#include "db/handle.hpp"
 #include "db/migrations.hpp"
 #include "db/statement.hpp"
 
@@ -63,7 +64,12 @@ std::expected<bool, Error> has_tables(sqlite3* connection) {
 
 void Database::Closer::operator()(sqlite3* connection) const noexcept { sqlite3_close(connection); }
 
-std::expected<Database, Error> Database::open(const std::filesystem::path& path) {
+namespace detail {
+
+void ConnectionCloser::operator()(sqlite3* connection) const noexcept { sqlite3_close(connection); }
+
+std::expected<std::unique_ptr<sqlite3, ConnectionCloser>, Error> open_connection(
+    const std::filesystem::path& path, std::span<const std::string_view> steps) {
     std::error_code status;
     const bool present = std::filesystem::exists(path, status);
     if (status) {
@@ -75,7 +81,7 @@ std::expected<Database, Error> Database::open(const std::filesystem::path& path)
     const int flags = SQLITE_OPEN_READWRITE | (present ? 0 : SQLITE_OPEN_CREATE);
     sqlite3* raw = nullptr;
     const int code = sqlite3_open_v2(name.c_str(), &raw, flags, nullptr);
-    Database database(raw);  // closes the connection on every return below
+    std::unique_ptr<sqlite3, ConnectionCloser> connection(raw);  // closed on every return below
     if (code != SQLITE_OK) {
         return std::unexpected(Error{ErrorCode::kCannotOpen, message_of(raw, code)});
     }
@@ -126,10 +132,21 @@ std::expected<Database, Error> Database::open(const std::filesystem::path& path)
     if (auto result = enable_wal(raw); !result) {
         return std::unexpected(std::move(result.error()));
     }
-    if (auto result = migrate(raw, migrations()); !result) {
+    if (auto result = migrate(raw, steps); !result) {
         return std::unexpected(std::move(result.error()));
     }
-    const auto version = user_version(raw);
+    return connection;
+}
+
+}  // namespace detail
+
+std::expected<Database, Error> Database::open(const std::filesystem::path& path) {
+    auto connection = detail::open_connection(path, migrations());
+    if (!connection) {
+        return std::unexpected(std::move(connection.error()));
+    }
+    Database database(connection->release());
+    const auto version = user_version(detail::handle(database));
     if (!version) {
         return std::unexpected(version.error());
     }
