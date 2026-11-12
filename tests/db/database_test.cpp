@@ -4,7 +4,7 @@
 
 #include <filesystem>
 #include <fstream>
-#include <iterator>
+#include <sstream>
 #include <string>
 
 #include "catch_amalgamated.hpp"
@@ -31,7 +31,9 @@ std::string query_text(Database& database, const char* sql) {
 
 std::string read_bytes(const std::filesystem::path& path) {
     std::ifstream file(path, std::ios::binary);
-    return std::string(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>());
+    std::ostringstream content;
+    content << file.rdbuf();
+    return content.str();
 }
 
 // Makes a file with a plain SQLite connection, without BuCu's code, in the default journal mode.
