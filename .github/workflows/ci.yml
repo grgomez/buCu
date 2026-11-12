@@ -54,6 +54,12 @@ jobs:
             cc: cl
             cxx: cl
             extra: -DCMAKE_MSVC_DEBUG_INFORMATION_FORMAT=Embedded
+          - name: ubuntu-clang-19-asan-ubsan
+            os: ubuntu-24.04
+            preset: asan-ubsan
+            cc: clang-19
+            cxx: clang++-19
+            install: clang-19
     steps:
       - uses: actions/checkout@v4
       - name: Install tools (Ubuntu)
