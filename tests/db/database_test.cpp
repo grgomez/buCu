@@ -101,3 +101,65 @@ TEST_CASE("open refuses a newer schema, names both versions, and leaves the file
           std::string::npos);
     CHECK(read_bytes(path) == before);
 }
+
+TEST_CASE("open refuses a version 0 file that has tables and leaves it alone", "[db]") {
+    const TempDir dir;
+    const auto path = dir.path() / "other.db";
+    make_file(path, "CREATE TABLE bookmarks (id INTEGER PRIMARY KEY, url TEXT)");
+    const std::string before = read_bytes(path);
+
+    auto database = Database::open(path);
+
+    REQUIRE_FALSE(database.has_value());
+    CHECK(database.error().code == ErrorCode::kNotBucuDatabase);
+    CHECK(database.error().message.find("not a BuCu database") != std::string::npos);
+    CHECK(read_bytes(path) == before);
+}
+
+TEST_CASE("open refuses a file that is not a SQLite database and leaves it alone", "[db]") {
+    const TempDir dir;
+    const auto path = dir.path() / "notes.txt";
+    {
+        std::ofstream file(path, std::ios::binary);
+        file << std::string(300, 'x') << "\nthis is plain text, not a database\n";
+    }
+    const std::string before = read_bytes(path);
+
+    auto database = Database::open(path);
+
+    REQUIRE_FALSE(database.has_value());
+    CHECK(database.error().code == ErrorCode::kNotADatabase);
+    CHECK(database.error().message.find("not a SQLite database") != std::string::npos);
+    CHECK(read_bytes(path) == before);
+}
+
+TEST_CASE("open refuses a write-protected version 1 database and leaves it alone", "[db]") {
+    namespace fs = std::filesystem;
+    const TempDir dir;
+    const auto path = dir.path() / "protected.db";
+    {
+        auto created = Database::open(path);
+        REQUIRE(created.has_value());
+    }
+    const std::string before = read_bytes(path);
+    // Restores write access at the end so the directory can be removed on every platform.
+    struct Restore {
+        const fs::path& file;
+        ~Restore() {
+            std::error_code ignored;
+            fs::permissions(file, fs::perms::owner_write, fs::perm_options::add, ignored);
+        }
+    } restore{path};
+    fs::permissions(path, fs::perms::owner_write | fs::perms::group_write | fs::perms::others_write,
+                    fs::perm_options::remove);
+    if (std::ofstream(path, std::ios::binary | std::ios::app).is_open()) {
+        SKIP("the file is still writable (running as the superuser), so it cannot be protected");
+    }
+
+    auto database = Database::open(path);
+
+    REQUIRE_FALSE(database.has_value());
+    CHECK(database.error().code == ErrorCode::kCannotOpen);
+    CHECK_FALSE(database.error().message.empty());
+    CHECK(read_bytes(path) == before);
+}
