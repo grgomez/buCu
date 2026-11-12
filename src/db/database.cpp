@@ -6,6 +6,8 @@
 #include <system_error>
 #include <utility>
 
+#include "db/migrations.hpp"
+
 namespace bucu::db {
 
 namespace {
@@ -71,6 +73,14 @@ std::expected<Database, Error> Database::open(const std::filesystem::path& path)
     if (auto result = enable_wal(raw); !result) {
         return std::unexpected(std::move(result.error()));
     }
+    if (auto result = migrate(raw, migrations()); !result) {
+        return std::unexpected(std::move(result.error()));
+    }
+    const auto version = user_version(raw);
+    if (!version) {
+        return std::unexpected(version.error());
+    }
+    database.schema_version_ = *version;
     return database;
 }
 

@@ -28,6 +28,9 @@ public:
     Database& operator=(const Database&) = delete;
     ~Database() = default;
 
+    // The schema version of the open database: `kSchemaVersion` after a successful `open`.
+    int schema_version() const noexcept { return schema_version_; }
+
 private:
     struct Closer {
         void operator()(sqlite3* connection) const noexcept;
@@ -38,6 +41,7 @@ private:
     friend class detail::Access;
 
     std::unique_ptr<sqlite3, Closer> connection_;
+    int schema_version_ = 0;
 };
 
 }  // namespace bucu::db
