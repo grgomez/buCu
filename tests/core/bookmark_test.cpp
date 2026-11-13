@@ -59,8 +59,8 @@ using bucu::core::TagSet;
 }  // namespace
 
 TEST_CASE("make_bookmark normalizes the URL and keeps the text as given", "[core][bookmark]") {
-    const auto result = make_bookmark("HTTPS://Example.ORG:443", " A Title\n", "line 1\nline 2\n",
-                                      TagSet{"a", "b"});
+    const auto result =
+        make_bookmark("HTTPS://Example.ORG:443", " A Title\n", "line 1\nline 2\n", " B, a,,A");
     REQUIRE(result.has_value());
     CHECK(result->url == "https://example.org/");
     CHECK(result->title == " A Title\n");
@@ -110,4 +110,34 @@ TEST_CASE("make_bookmark reports the URL before the title and description", "[co
     const auto result = make_bookmark("", "\xFF", "\xFF");
     REQUIRE_FALSE(result.has_value());
     CHECK(result.error().field == Field::kUrl);
+}
+
+TEST_CASE("make_bookmark parses the raw tag text", "[core][bookmark]") {
+    const auto result = make_bookmark("about:blank", "t", "d", "Linux, cli   tools,,LINUX");
+    REQUIRE(result.has_value());
+    CHECK(result->tags == TagSet{"cli tools", "linux"});
+}
+
+TEST_CASE("make_bookmark returns the tag error", "[core][bookmark]") {
+    const auto control = make_bookmark("about:blank", "t", "d",
+                                       "ok,a\x01"
+                                       "b");
+    REQUIRE_FALSE(control.has_value());
+    CHECK(control.error().field == Field::kTag);
+    CHECK(control.error().reason == Reason::kControlCharacter);
+
+    const auto too_long = make_bookmark("about:blank", "t", "d", std::string(129, 'a'));
+    REQUIRE_FALSE(too_long.has_value());
+    CHECK(too_long.error().field == Field::kTag);
+    CHECK(too_long.error().reason == Reason::kTooLong);
+
+    const auto bad_utf8 = make_bookmark("about:blank", "t", "d", "\xFF");
+    REQUIRE_FALSE(bad_utf8.has_value());
+    CHECK(bad_utf8.error().reason == Reason::kInvalidUtf8);
+}
+
+TEST_CASE("make_bookmark reports the title and description before the tags", "[core][bookmark]") {
+    const auto result = make_bookmark("about:blank", "\xFF", "d", "\xFF");
+    REQUIRE_FALSE(result.has_value());
+    CHECK(result.error().field == Field::kTitle);
 }

@@ -29,7 +29,8 @@ std::int64_t clear_flag(std::int64_t flags, std::int64_t flag) {
 }
 
 std::expected<Bookmark, ValidationError> make_bookmark(std::string_view url, std::string_view title,
-                                                       std::string_view description, TagSet tags) {
+                                                       std::string_view description,
+                                                       std::string_view tags) {
     auto normalized = normalize_url(url);
     if (!normalized) {
         return std::unexpected(std::move(normalized.error()));
@@ -42,8 +43,12 @@ std::expected<Bookmark, ValidationError> make_bookmark(std::string_view url, std
         return std::unexpected(
             ValidationError{Field::kDescription, Reason::kInvalidUtf8, std::string(description)});
     }
+    auto parsed_tags = parse_tags(tags);
+    if (!parsed_tags) {
+        return std::unexpected(std::move(parsed_tags.error()));
+    }
     return Bookmark{std::move(*normalized), std::string(title), std::string(description),
-                    std::move(tags), 0};
+                    std::move(*parsed_tags), 0};
 }
 
 }  // namespace bucu::core

@@ -31,9 +31,11 @@ std::int64_t set_flag(std::int64_t flags, std::int64_t flag);
 std::int64_t clear_flag(std::int64_t flags, std::int64_t flag);
 
 // A new bookmark with no flag set. The URL is validated and normalized (product section 4); the
-// title and description must be valid UTF-8 and are stored as given. `tags` come from parse_tags.
+// title and description must be valid UTF-8 and are stored as given. `tags` is the raw tag text,
+// parsed with parse_tags, so a Bookmark holds only valid tags. The first broken rule is returned,
+// checked in the order URL, title, description, tags.
 std::expected<Bookmark, ValidationError> make_bookmark(std::string_view url, std::string_view title,
                                                        std::string_view description,
-                                                       TagSet tags = {});
+                                                       std::string_view tags = {});
 
 }  // namespace bucu::core
