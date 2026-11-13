@@ -4,31 +4,33 @@ The rules for BuCu's SQLite database: tables, versioning, migrations, and how it
 
 Normative words (MUST, SHOULD, MAY): [constitution §6](constitution.md#6-normative-language).
 
-## 1. Connection rules (added by #6)
+## 1. Connection rules
 
 - `PRAGMA foreign_keys = ON` on every connection.
 - WAL journal mode where the file system supports it; otherwise the default rollback journal.
-- A busy timeout, so a second process waits briefly instead of failing at once.
+- A busy timeout of 5 seconds, so a second process waits briefly instead of failing at once.
 - Every repeated statement is prepared once per command; bulk writes run in one transaction.
 
-## 2. Versioning and migrations (added by #6)
+## 2. Versioning and migrations
 
 - The schema version is `PRAGMA user_version`. Version 0 is an empty file.
+- Opening a path with no file creates the database at the newest version. A version 0 file that already has tables is another program's database: BuCu MUST refuse it and change nothing.
+- A first open that fails after creating the file (for example, its lock wait runs out) may leave an empty version 0 file, which the next open upgrades to version 1. BuCu never deletes a database file.
 - Migrations are forward-only: each one moves version n to n+1, inside a transaction, and never drops user data.
-- BuCu MUST refuse to open a database whose version is newer than it knows, and say which BuCu version is needed.
+- BuCu MUST refuse to open a database whose version is newer than it knows, and say both the file's schema version and the newest version it supports.
 - Each version change has a `db-NNN` record and a migration test from every earlier version.
 
-## 3. Schema version 1 (draft; settled by #6)
+## 3. Schema version 1
 
 ```text
 bookmark
-  id           INTEGER PRIMARY KEY
+  id           INTEGER PRIMARY KEY       -- no AUTOINCREMENT; the reuse rule is #13
   url          TEXT NOT NULL UNIQUE      -- normalized (product §4)
   title        TEXT NOT NULL DEFAULT ''
   description  TEXT NOT NULL DEFAULT ''
   flags        INTEGER NOT NULL DEFAULT 0
-  created_at   INTEGER NOT NULL          -- storage form settled by #6
-  updated_at   INTEGER NOT NULL
+  created_at   INTEGER NOT NULL          -- Unix seconds, UTC
+  updated_at   INTEGER NOT NULL          -- Unix seconds, UTC
 
 tag
   id    INTEGER PRIMARY KEY
@@ -38,8 +40,10 @@ bookmark_tag                              -- WITHOUT ROWID
   bookmark_id  INTEGER NOT NULL REFERENCES bookmark(id) ON DELETE CASCADE
   tag_id       INTEGER NOT NULL REFERENCES tag(id) ON DELETE CASCADE
   PRIMARY KEY (bookmark_id, tag_id)
-  INDEX on (tag_id)
+  INDEX bookmark_tag_tag_id on (tag_id)
 ```
+
+Bookmarks carry no UUID; #31 adds one with a migration.
 
 ## 4. Differences from Buku
 

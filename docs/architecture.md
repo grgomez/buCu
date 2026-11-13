@@ -97,7 +97,7 @@ Each contract has three parts: its rules (linked below); one record for each ver
 
 | Contract | Rules | Records | Exact shape |
 | --- | --- | --- | --- |
-| Database schema | [`docs/database-schema.md`](database-schema.md) | `db-NNN` (number = `PRAGMA user_version`) | The migration sources in `src/db/` (added by #6) |
+| Database schema | [`docs/database-schema.md`](database-schema.md) | `db-NNN` (number = `PRAGMA user_version`) | `src/db/migrations.cpp` |
 | Export formats | product §7 | `export-NNN` | One sample file per format version, read by the import tests (added by #17) |
 | Module contracts | §4 | `module-NNN` | The headers in `include/bucu/` and the tests that lock them |
 
