@@ -17,4 +17,11 @@ using TagSet = std::set<std::string>;
 // empty tags, lowercase, and deduplicate; or return the rule a tag broke.
 std::expected<TagSet, ValidationError> parse_tags(std::string_view input);
 
+// The union of `tags` and `added`.
+TagSet add_tags(TagSet tags, const TagSet& added);
+
+// `tags` without the members of `removed`. A tag that is not in `tags` is ignored. Replacing
+// the tags is assigning a new set, which may be empty.
+TagSet remove_tags(TagSet tags, const TagSet& removed);
+
 }  // namespace bucu::core

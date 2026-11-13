@@ -73,4 +73,16 @@ std::expected<TagSet, ValidationError> parse_tags(std::string_view input) {
     return tags;
 }
 
+TagSet add_tags(TagSet tags, const TagSet& added) {
+    tags.insert(added.begin(), added.end());
+    return tags;
+}
+
+TagSet remove_tags(TagSet tags, const TagSet& removed) {
+    for (const std::string& tag : removed) {
+        tags.erase(tag);
+    }
+    return tags;
+}
+
 }  // namespace bucu::core

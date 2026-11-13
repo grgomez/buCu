@@ -142,3 +142,33 @@ TEST_CASE("Spaces inside a tag count toward the limit after collapsing", "[core]
     const std::string over = std::string(64, 'a') + "     " + std::string(64, 'b');
     check_tag_refused(over, Reason::kTooLong, std::string(64, 'a') + " " + std::string(64, 'b'));
 }
+
+TEST_CASE("Adding tags is a union", "[core][tags]") {
+    using bucu::core::add_tags;
+    CHECK(add_tags(parsed("a,b"), parsed("b,c")) == parsed("a,b,c"));
+    CHECK(add_tags(parsed("a"), parsed("")) == parsed("a"));
+    CHECK(add_tags(parsed(""), parsed("x")) == parsed("x"));
+    CHECK(add_tags(parsed(""), parsed("")).empty());
+}
+
+TEST_CASE("Removing tags is a difference and an absent tag is not an error", "[core][tags]") {
+    using bucu::core::remove_tags;
+    CHECK(remove_tags(parsed("a,b,c"), parsed("a,z")) == parsed("b,c"));
+    CHECK(remove_tags(parsed("a,b"), parsed("a,b")).empty());
+    CHECK(remove_tags(parsed("a"), parsed("z")) == parsed("a"));
+    CHECK(remove_tags(parsed(""), parsed("a")).empty());
+}
+
+TEST_CASE("Replacing tags is assigning a parsed set, which may be empty", "[core][tags]") {
+    TagSet tags = parsed("a,b");
+    tags = parsed("x");
+    CHECK(tags == TagSet{"x"});
+    tags = parsed("");
+    CHECK(tags.empty());
+}
+
+TEST_CASE("Tag operations keep the set sorted", "[core][tags]") {
+    using bucu::core::add_tags;
+    const TagSet result = add_tags(parsed("b"), parsed("c,a"));
+    CHECK(Tags(result.begin(), result.end()) == Tags{"a", "b", "c"});
+}
