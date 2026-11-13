@@ -1,6 +1,6 @@
 # The core module: domain rules with no SQLite or operating-system dependency (architecture
 # section 4). Callers see only the headers in include/bucu/core/.
-add_library(bucu_core STATIC utf8.cpp unicode_lower.cpp url.cpp tags.cpp)
+add_library(bucu_core STATIC utf8.cpp unicode_lower.cpp url.cpp tags.cpp bookmark.cpp)
 target_include_directories(bucu_core
     PUBLIC "${PROJECT_SOURCE_DIR}/include"
     PRIVATE "${PROJECT_SOURCE_DIR}/src")
