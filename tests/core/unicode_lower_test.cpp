@@ -13,8 +13,8 @@ using bucu::core::is_control;
 using bucu::core::is_white_space;
 using bucu::core::to_lower;
 
-// Build UTF-8 from code point escapes, so the tests do not depend on the compiler's source or
-// execution character set (constitution principle 12).
+// Build UTF-8 from char32_t literals. The build compiles every target as UTF-8 (`/utf-8` on MSVC,
+// architecture section 8), so the literals mean the same on every compiler.
 std::string utf8(std::u32string_view code_points) {
     std::string out;
     for (const char32_t cp : code_points) {
