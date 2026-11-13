@@ -74,3 +74,71 @@ TEST_CASE("Tags are in ascending byte order", "[core][tags]") {
     CHECK(listed(utf8(U"é,z,Z,1")) == Tags{"1", "z", utf8(U"é")});
     CHECK(listed("a b,a,ab") == Tags{"a", "a b", "ab"});
 }
+
+namespace {
+
+using bucu::core::Field;
+using bucu::core::Reason;
+
+void check_tag_refused(std::string_view input, Reason reason, std::string_view value) {
+    INFO("input: " << input);
+    const auto result = parse_tags(input);
+    REQUIRE_FALSE(result.has_value());
+    CHECK(result.error().field == Field::kTag);
+    CHECK(result.error().reason == reason);
+    CHECK(result.error().value == value);
+}
+
+std::string repeat(std::u32string_view unit, int times) {
+    std::string out;
+    for (int i = 0; i < times; ++i) {
+        out += utf8(unit);
+    }
+    return out;
+}
+
+}  // namespace
+
+TEST_CASE("Tag parsing refuses a control character and names the tag", "[core][tags]") {
+    check_tag_refused(
+        "ok,a\x01"
+        "b",
+        Reason::kControlCharacter,
+        "a\x01"
+        "b");
+    check_tag_refused("a\x7F", Reason::kControlCharacter, "a\x7F");
+    check_tag_refused(utf8(U"a\u0090"), Reason::kControlCharacter, utf8(U"a\u0090"));
+    check_tag_refused(std::string("a\0b", 3), Reason::kControlCharacter, std::string("a\0b", 3));
+}
+
+TEST_CASE("Tag parsing refuses invalid UTF-8 and names the tag", "[core][tags]") {
+    check_tag_refused("ok,bad\xC3", Reason::kInvalidUtf8, "bad\xC3");
+    check_tag_refused("\xFF", Reason::kInvalidUtf8, "\xFF");
+    check_tag_refused("a\xC0\xAF,b", Reason::kInvalidUtf8, "a\xC0\xAF");
+}
+
+TEST_CASE("A tag may have 128 code points and no more", "[core][tags]") {
+    const std::string at_limit(128, 'a');
+    CHECK(parsed(at_limit) == TagSet{at_limit});
+    const std::string too_long(129, 'a');
+    check_tag_refused(too_long, Reason::kTooLong, too_long);
+    // The limit counts code points, not bytes.
+    CHECK(parsed(repeat(U"ñ", 128)).size() == 1);
+    check_tag_refused(repeat(U"ñ", 129), Reason::kTooLong, repeat(U"ñ", 129));
+}
+
+TEST_CASE("The tag limit counts code points after lowercasing", "[core][tags]") {
+    // U+0130 lowercases to two code points: 64 of them make 128, 65 make 130.
+    CHECK(parsed(repeat(U"İ", 64)).size() == 1);
+    check_tag_refused(repeat(U"İ", 65), Reason::kTooLong, repeat(U"i̇", 65));
+    // U+023A grows from two bytes to three but stays one code point.
+    CHECK(parsed(repeat(U"Ⱥ", 128)).size() == 1);
+    check_tag_refused(repeat(U"Ⱥ", 129), Reason::kTooLong, repeat(U"ⱥ", 129));
+}
+
+TEST_CASE("Spaces inside a tag count toward the limit after collapsing", "[core][tags]") {
+    const std::string spaced = std::string(64, 'a') + "     " + std::string(63, 'b');
+    CHECK(parsed(spaced).size() == 1);  // 64 + 1 + 63 = 128
+    const std::string over = std::string(64, 'a') + "     " + std::string(64, 'b');
+    check_tag_refused(over, Reason::kTooLong, std::string(64, 'a') + " " + std::string(64, 'b'));
+}
