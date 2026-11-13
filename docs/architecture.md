@@ -18,6 +18,7 @@ Sections marked "(added by #N)" describe a part that issue #N builds. Until that
 | CMake ≥ 3.25 with `CMakePresets.json` | Build | — | The common denominator for the three toolchains; presets give one command per build type |
 | SQLite amalgamation, vendored in `third_party/sqlite/` (FTS5 on) | Storage | Public domain | One known version and feature set on every platform. `BUCU_USE_SYSTEM_SQLITE=ON` links the system library instead, for distribution packagers ([ADR 0004](adr/0004-vendored-dependencies.md)) |
 | CLI11, vendored | Argument parsing with subcommands | BSD-3-Clause | Header-only, subcommand support, generated help, no other dependency |
+| Unicode Character Database casing tables, generated into `third_party/unicode/` | Tag lowercasing in `core` without ICU | Unicode License V3 | Buku lowercases tags with Python's `str.lower()`; a generated table gives the same result on every platform with no dependency. `scripts/update-deps.sh` pins the source and generated files by SHA256 |
 | libcurl, system library; Windows source settled by #16 | Optional title and description fetch (`src/net/`) | curl (MIT-style) | The portable HTTP and TLS client with timeouts and size limits; behind `BUCU_WITH_NET` ([ADR 0005](adr/0005-libcurl-networking.md)) |
 
 Test and quality tools:
