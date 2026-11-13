@@ -2,7 +2,7 @@
 
 - Kind: Module
 - Version: 2 (from 1)
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-11-12
 - Issue: #9
 - Previous record: [`module-001`](module-001-db-database.md)
