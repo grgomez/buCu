@@ -85,8 +85,8 @@ TEST_CASE("URL validation refuses an empty host", "[core][url]") {
     check_refused("https://:8080/x", Reason::kEmptyHost);
     check_refused("http://user@/x", Reason::kEmptyHost);
     check_refused("https://?q=1", Reason::kEmptyHost);
-    check_accepted("file://");
-    check_accepted("FILE:///x");
+    CHECK(normalize_url("file://").has_value());
+    CHECK(normalize_url("FILE:///x").has_value());
 }
 
 TEST_CASE("URL validation refuses whitespace and control characters inside", "[core][url]") {
@@ -115,4 +115,86 @@ TEST_CASE("URL validation refuses invalid UTF-8", "[core][url]") {
 
 TEST_CASE("URL validation accepts non-ASCII text", "[core][url]") {
     check_accepted(utf8(U"https://a.org/\u00F1and\u00FA"));
+}
+
+namespace {
+
+std::string normalized(std::string_view url) {
+    const auto result = normalize_url(url);
+    REQUIRE(result.has_value());
+    return *result;
+}
+
+}  // namespace
+
+TEST_CASE("URL normalization gives one form for the same address", "[core][url]") {
+    CHECK(normalized("HTTPS://Example.ORG") == "https://example.org/");
+    CHECK(normalized("https://example.org:443") == "https://example.org/");
+    CHECK(normalized("https://example.org/") == "https://example.org/");
+    CHECK(normalized(" https://EXAMPLE.org:443/ ") == "https://example.org/");
+}
+
+TEST_CASE("URL normalization keeps a trailing slash and the case of path, query, and fragment",
+          "[core][url]") {
+    CHECK(normalized("https://example.org/docs") == "https://example.org/docs");
+    CHECK(normalized("https://example.org/docs/") == "https://example.org/docs/");
+    CHECK(normalized("https://Example.org/Docs/A?Q=B#Frag") ==
+          "https://example.org/Docs/A?Q=B#Frag");
+    CHECK(normalized("https://example.org/a//b/../c/./d") == "https://example.org/a//b/../c/./d");
+    CHECK(normalized("https://example.org/%7euser/%7Euser") ==
+          "https://example.org/%7euser/%7Euser");
+}
+
+TEST_CASE("URL normalization drops only the default port of the scheme", "[core][url]") {
+    CHECK(normalized("http://a.org:80/x") == "http://a.org/x");
+    CHECK(normalized("ftp://a.org:21/x") == "ftp://a.org/x");
+    CHECK(normalized("https://a.org:8443") == "https://a.org:8443/");
+    CHECK(normalized("http://a.org:443/") == "http://a.org:443/");
+    CHECK(normalized("https://a.org:80/") == "https://a.org:80/");
+    CHECK(normalized("ssh://a.org:80/") == "ssh://a.org:80/");
+    CHECK(normalized("http://a.org:080/") == "http://a.org:080/");
+    CHECK(normalized("http://a.org:abc/") == "http://a.org:abc/");
+    CHECK(normalized("http://a.org:/") == "http://a.org:/");
+}
+
+TEST_CASE("URL normalization puts the empty-path slash before a query or fragment", "[core][url]") {
+    CHECK(normalized("https://example.org?q=1") == "https://example.org/?q=1");
+    CHECK(normalized("https://example.org#top") == "https://example.org/#top");
+    CHECK(normalized("https://example.org:443?q=1#top") == "https://example.org/?q=1#top");
+    CHECK(normalized("https://example.org/?q=1") == "https://example.org/?q=1");
+}
+
+TEST_CASE("URL normalization lowercases a non-ASCII host with the Unicode mapping", "[core][url]") {
+    CHECK(normalized(utf8(U"https://ÉXAMPLE.org")) == utf8(U"https://éxample.org/"));
+    CHECK(normalized(utf8(U"https://example.org/É")) == utf8(U"https://example.org/É"));
+}
+
+TEST_CASE("URL normalization handles an IPv6 host", "[core][url]") {
+    CHECK(normalized("http://[2001:DB8::1]:80") == "http://[2001:db8::1]/");
+    CHECK(normalized("http://[2001:DB8::1]:8080/x") == "http://[2001:db8::1]:8080/x");
+    CHECK(normalized("http://[::1]/x") == "http://[::1]/x");
+}
+
+TEST_CASE("URL normalization keeps user information as typed", "[core][url]") {
+    CHECK(normalized("ftp://User@Example.org") == "ftp://User@example.org/");
+    CHECK(normalized("https://User:Pa55@Example.org:443/x") == "https://User:Pa55@example.org/x");
+    CHECK(normalized("https://a@b@Example.org/") == "https://a@b@example.org/");
+}
+
+TEST_CASE("URL normalization changes only the scheme when there is no authority", "[core][url]") {
+    CHECK(normalized("MAILTO:A@Example.ORG") == "mailto:A@Example.ORG");
+    CHECK(normalized("About:Blank") == "about:Blank");
+    CHECK(normalized("file:///Home/A.html") == "file:///Home/A.html");
+    CHECK(normalized("FILE://Host/A") == "file://host/A");
+    CHECK(normalized("FILE:///x") == "file:///x");
+    CHECK(normalized("file://") == "file:///");
+}
+
+TEST_CASE("URL normalization is idempotent", "[core][url]") {
+    for (const std::string_view url :
+         {"HTTPS://Example.ORG:443", "http://[2001:DB8::1]:80", "https://a.org?q#f",
+          "ftp://U@A.org:21/P", "about:blank", "http://a.org:/"}) {
+        const std::string once = normalized(url);
+        CHECK(normalized(once) == once);
+    }
 }

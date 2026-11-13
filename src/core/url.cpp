@@ -75,6 +75,7 @@ struct Parts {
     bool has_authority = false;
     std::string_view user_info;  // with the trailing '@', or empty
     std::string_view host;
+    bool has_port = false;  // a ':' follows the host, even with no digits
     std::string_view port;  // without ':', or empty
     std::string_view rest;  // path, query, and fragment as typed
 };
@@ -103,11 +104,51 @@ Parts split(std::string_view url, std::size_t colon) {
     const std::size_t port_colon = authority.rfind(':');
     if (port_colon != std::string_view::npos &&
         (close == std::string_view::npos || port_colon > close)) {
+        parts.has_port = true;
         parts.port = authority.substr(port_colon + 1);
         authority = authority.substr(0, port_colon);
     }
     parts.host = authority;
     return parts;
+}
+
+std::string lower_ascii(std::string_view text) {
+    std::string out(text);
+    for (char& c : out) {
+        if (c >= 'A' && c <= 'Z') {
+            c = static_cast<char>(c - 'A' + 'a');
+        }
+    }
+    return out;
+}
+
+// D6: only a port whose digits equal the scheme's default is dropped.
+bool is_default_port(std::string_view scheme, std::string_view port) {
+    return (scheme == "http" && port == "80") || (scheme == "https" && port == "443") ||
+           (scheme == "ftp" && port == "21");
+}
+
+// FR-003 and FR-004: lowercase the scheme and host, drop a default port, and give an empty path
+// `/`; every other part stays as typed.
+std::string rebuild(const Parts& parts) {
+    const std::string scheme = lower_ascii(parts.scheme);
+    std::string out = scheme + ":";
+    if (!parts.has_authority) {
+        out += parts.rest;
+        return out;
+    }
+    out += "//";
+    out += parts.user_info;
+    out += to_lower(parts.host);
+    if (parts.has_port && !is_default_port(scheme, parts.port)) {
+        out += ':';
+        out += parts.port;
+    }
+    if (parts.rest.empty() || parts.rest.front() == '?' || parts.rest.front() == '#') {
+        out += '/';
+    }
+    out += parts.rest;
+    return out;
 }
 
 }  // namespace
@@ -141,7 +182,7 @@ std::expected<std::string, ValidationError> normalize_url(std::string_view input
         !equals_ignoring_ascii_case(parts.scheme, "file")) {
         return std::unexpected(refuse(Reason::kEmptyHost, input));
     }
-    return url;
+    return rebuild(parts);
 }
 
 }  // namespace bucu::core
