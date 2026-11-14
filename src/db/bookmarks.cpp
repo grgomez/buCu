@@ -44,7 +44,8 @@ std::expected<void, Error> run(Statement& statement, const Values&... values) {
         return bound;
     }
     const auto row = statement.step();
-    statement.reset();
+    // reset() only makes the statement ready again; the result of step() is the one that counts.
+    static_cast<void>(statement.reset());
     if (!row) {
         return std::unexpected(std::move(row.error()));
     }
