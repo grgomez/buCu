@@ -29,8 +29,16 @@ void remove_partial_copy(const std::filesystem::path& destination) {
     std::error_code ignored;
     std::filesystem::remove(destination, ignored);
     for (const char* suffix : {"-journal", "-wal", "-shm"}) {
-        std::filesystem::remove(destination.string() + suffix, ignored);
+        std::filesystem::path side = destination;
+        side += suffix;
+        std::filesystem::remove(side, ignored);
     }
+}
+
+// The path as UTF-8, which is what SQLite takes and what messages hold (constitution principle 12).
+std::string utf8_text(const std::filesystem::path& path) {
+    const std::u8string utf8 = path.u8string();
+    return std::string(reinterpret_cast<const char*>(utf8.data()), utf8.size());
 }
 
 std::string message_of(sqlite3* connection, int code) {
@@ -92,12 +100,11 @@ std::expected<void, Error> backup(Database& database, const std::filesystem::pat
     const std::filesystem::path parent = destination.parent_path();
     if (!parent.empty() && !std::filesystem::is_directory(parent, status)) {
         return std::unexpected(Error{ErrorCode::kCannotOpen,
-                                     "the directory " + parent.string() + " does not exist",
+                                     "the directory " + utf8_text(parent) + " does not exist",
                                      std::nullopt});
     }
 
-    const std::u8string utf8 = destination.u8string();
-    const std::string name(reinterpret_cast<const char*>(utf8.data()), utf8.size());
+    const std::string name = utf8_text(destination);
     sqlite3* raw = nullptr;
     const int opened =
         sqlite3_open_v2(name.c_str(), &raw, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE, nullptr);
