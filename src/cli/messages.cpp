@@ -95,8 +95,8 @@ std::string validation_error_message(const core::ValidationError& error) {
     return line + ": " + std::string(reason_text(error.reason)) + ".";
 }
 
-std::string duplicate_url_message(std::string_view url, std::int64_t id) {
-    const std::string number = std::to_string(id);
+std::string duplicate_url_message(std::string_view url, core::BookmarkId id) {
+    const std::string number = std::to_string(id.value());
     return "bucu: " + std::string(url) + " is already bookmarked as " + number +
            ". Use 'bucu update " + number + "' to change it.";
 }

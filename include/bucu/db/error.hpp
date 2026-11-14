@@ -4,6 +4,8 @@
 #include <optional>
 #include <string>
 
+#include "bucu/core/bookmark_id.hpp"
+
 namespace bucu::db {
 
 // The newest schema version this BuCu supports (docs/database-schema.md section 2).
@@ -24,7 +26,7 @@ enum class ErrorCode {
 struct Error {
     ErrorCode code;
     std::string message;
-    std::optional<std::int64_t> bookmark_id;  // kDuplicateUrl: the ID that holds the URL
+    std::optional<core::BookmarkId> bookmark_id;  // kDuplicateUrl: the ID that holds the URL
 };
 
 }  // namespace bucu::db

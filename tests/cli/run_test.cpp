@@ -1,6 +1,7 @@
 #include "cli/run.hpp"
 
 #include <algorithm>
+#include <chrono>
 #include <fstream>
 #include <sstream>
 #include <string>
@@ -20,7 +21,8 @@ struct Result {
 
 // A context with no variables and a fixed clock, so no test depends on the machine.
 const bucu::platform::test::FakeEnvironment kEnvironment;
-const bucu::cli::Context kContext{bucu::platform::Os::kLinuxOrBsd, kEnvironment, 1700000000};
+const bucu::cli::Context kContext{bucu::platform::Os::kLinuxOrBsd, kEnvironment,
+                                  std::chrono::sys_seconds{std::chrono::seconds{1700000000}}};
 
 Result invoke(const std::vector<std::string>& args) {
     std::ostringstream out;

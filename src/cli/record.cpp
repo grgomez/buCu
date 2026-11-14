@@ -35,8 +35,8 @@ void append_field(std::string& out, std::string_view label, std::string_view val
 
 }  // namespace
 
-std::string format_record(std::int64_t id, const core::Bookmark& bookmark) {
-    std::string out = std::to_string(id);
+std::string format_record(core::BookmarkId id, const core::Bookmark& bookmark) {
+    std::string out = std::to_string(id.value());
     if (!bookmark.title.empty()) {
         out.append("  ");
         append_value(out, bookmark.title);

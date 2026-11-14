@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <chrono>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
@@ -22,7 +23,7 @@ struct Result {
     std::string err;
 };
 
-constexpr std::int64_t kNow = 1700000000;
+constexpr std::chrono::sys_seconds kNow{std::chrono::seconds{1700000000}};
 
 // A database file in a fresh directory, and `bucu` runs against it with a fixed clock.
 struct Fixture {

@@ -15,8 +15,8 @@ namespace bucu::db {
 namespace {
 
 // The ID that holds `url`, or no value when the URL is not stored.
-std::expected<std::optional<std::int64_t>, Error> find_by_url(sqlite3* connection,
-                                                              const std::string& url) {
+std::expected<std::optional<core::BookmarkId>, Error> find_by_url(sqlite3* connection,
+                                                                  const std::string& url) {
     auto statement = Statement::prepare(connection, "SELECT id FROM bookmark WHERE url = ?");
     if (!statement) {
         return std::unexpected(std::move(statement.error()));
@@ -31,7 +31,7 @@ std::expected<std::optional<std::int64_t>, Error> find_by_url(sqlite3* connectio
     if (!*row) {
         return std::nullopt;
     }
-    return statement->column_int(0);
+    return core::BookmarkId(statement->column_int(0));
 }
 
 // Runs a prepared statement that returns no row, after binding `values` to parameters 1, 2, ...
@@ -60,9 +60,10 @@ std::expected<void, Error> run(Statement& statement, const Values&... values) {
 
 }  // namespace
 
-std::expected<std::int64_t, Error> insert_bookmark(Database& database,
-                                                   const core::Bookmark& bookmark,
-                                                   std::int64_t now) {
+std::expected<core::BookmarkId, Error> insert_bookmark(Database& database,
+                                                       const core::Bookmark& bookmark,
+                                                       std::chrono::sys_seconds now) {
+    const std::int64_t stored_time = now.time_since_epoch().count();  // Unix seconds
     sqlite3* const connection = detail::handle(database);
     auto transaction = Transaction::begin(connection, /*immediate=*/true);
     if (!transaction) {
@@ -74,9 +75,10 @@ std::expected<std::int64_t, Error> insert_bookmark(Database& database,
         return std::unexpected(std::move(existing.error()));
     }
     if (existing->has_value()) {
-        return std::unexpected(Error{
-            ErrorCode::kDuplicateUrl,
-            "the URL is already stored as bookmark " + std::to_string(**existing), *existing});
+        return std::unexpected(
+            Error{ErrorCode::kDuplicateUrl,
+                  "the URL is already stored as bookmark " + std::to_string((*existing)->value()),
+                  *existing});
     }
 
     auto insert = Statement::prepare(connection,
@@ -87,11 +89,11 @@ std::expected<std::int64_t, Error> insert_bookmark(Database& database,
         return std::unexpected(std::move(insert.error()));
     }
     if (auto done = run(*insert, bookmark.url, bookmark.title, bookmark.description, bookmark.flags,
-                        now, now);
+                        stored_time, stored_time);
         !done) {
         return std::unexpected(std::move(done.error()));
     }
-    const std::int64_t id = sqlite3_last_insert_rowid(connection);
+    const core::BookmarkId id(sqlite3_last_insert_rowid(connection));
 
     auto add_tag = Statement::prepare(connection, "INSERT OR IGNORE INTO tag (name) VALUES (?)");
     auto link = Statement::prepare(connection,
@@ -107,7 +109,7 @@ std::expected<std::int64_t, Error> insert_bookmark(Database& database,
         if (auto done = run(*add_tag, name); !done) {
             return std::unexpected(std::move(done.error()));
         }
-        if (auto done = run(*link, id, name); !done) {
+        if (auto done = run(*link, id.value(), name); !done) {
             return std::unexpected(std::move(done.error()));
         }
     }

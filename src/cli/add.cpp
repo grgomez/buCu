@@ -47,7 +47,7 @@ int run_add(const AddArgs& args, const Globals& globals, const Context& context,
     }
     const auto id = db::insert_bookmark(*database, *bookmark, context.now);
     if (!id && id.error().code == db::ErrorCode::kDuplicateUrl) {
-        err << duplicate_url_message(bookmark->url, id.error().bookmark_id.value_or(0)) << '\n';
+        err << duplicate_url_message(bookmark->url, *id.error().bookmark_id) << '\n';
         return kExitConflict;
     }
     if (!id) {

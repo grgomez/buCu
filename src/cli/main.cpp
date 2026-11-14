@@ -15,10 +15,8 @@ int main(int argc, char** argv) {
     try {
         const std::vector<std::string> args(argv + 1, argv + argc);
         const bucu::platform::SystemEnvironment environment;
-        const auto now =
-            std::chrono::time_point_cast<std::chrono::seconds>(std::chrono::system_clock::now());
-        const bucu::cli::Context context{bucu::platform::current_os(), environment,
-                                         now.time_since_epoch().count()};
+        const auto now = std::chrono::floor<std::chrono::seconds>(std::chrono::system_clock::now());
+        const bucu::cli::Context context{bucu::platform::current_os(), environment, now};
         return bucu::cli::run(args, std::cout, std::cerr, context);
     } catch (const std::exception& error) {
         // Reports the failure; nothing is swallowed (architecture section 7).

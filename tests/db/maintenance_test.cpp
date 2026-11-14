@@ -2,6 +2,7 @@
 
 #include <sqlite3.h>
 
+#include <chrono>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
@@ -22,6 +23,8 @@ namespace {
 using bucu::db::Database;
 using bucu::test::TempDir;
 
+constexpr std::chrono::sys_seconds kNow{std::chrono::seconds{1700000000}};
+
 // Opens `path` and stores a few bookmarks in it, then closes it.
 void fill(const std::filesystem::path& path) {
     auto database = Database::open(path);
@@ -30,7 +33,7 @@ void fill(const std::filesystem::path& path) {
          {"https://one.example/", "https://two.example/", "https://three.example/"}) {
         auto bookmark = bucu::core::make_bookmark(url, "Title", "", "a, b");
         REQUIRE(bookmark.has_value());
-        REQUIRE(bucu::db::insert_bookmark(*database, *bookmark, 1700000000).has_value());
+        REQUIRE(bucu::db::insert_bookmark(*database, *bookmark, kNow).has_value());
     }
 }
 
@@ -212,7 +215,7 @@ TEST_CASE("a backup that fails part way leaves no file and no journal, wal, or s
             auto bookmark = bucu::core::make_bookmark(
                 "https://example.org/" + std::to_string(number), title, title, "a");
             REQUIRE(bookmark.has_value());
-            REQUIRE(bucu::db::insert_bookmark(*database, *bookmark, 1700000000).has_value());
+            REQUIRE(bucu::db::insert_bookmark(*database, *bookmark, kNow).has_value());
         }
     }
     auto database = Database::open(path);

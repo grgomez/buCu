@@ -1,6 +1,6 @@
 #pragma once
 
-#include <cstdint>
+#include <chrono>
 #include <iosfwd>
 #include <string>
 #include <vector>
@@ -15,7 +15,7 @@ namespace bucu::cli {
 struct Context {
     platform::Os os;
     const platform::Environment& environment;
-    std::int64_t now;  // Unix seconds, UTC
+    std::chrono::sys_seconds now;
 };
 
 // Runs bucu with the command-line arguments (without the program name), writes normal output to

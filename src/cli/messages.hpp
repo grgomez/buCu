@@ -4,6 +4,7 @@
 #include <string>
 #include <string_view>
 
+#include "bucu/core/bookmark_id.hpp"
 #include "bucu/core/error.hpp"
 #include "bucu/db/error.hpp"
 #include "bucu/platform/error.hpp"
@@ -17,7 +18,7 @@ namespace bucu::cli {
 std::string validation_error_message(const core::ValidationError& error);
 
 // The normalized URL is already stored as bookmark `id`.
-std::string duplicate_url_message(std::string_view url, std::int64_t id);
+std::string duplicate_url_message(std::string_view url, core::BookmarkId id);
 
 // A database that cannot be opened: names the file.
 std::string open_error_message(std::string_view file, const db::Error& error);

@@ -2,6 +2,7 @@
 
 #include <sqlite3.h>
 
+#include <chrono>
 #include <cstdint>
 #include <string>
 #include <utility>
@@ -20,7 +21,8 @@ using bucu::db::ErrorCode;
 using bucu::db::Statement;
 using bucu::test::TempDir;
 
-constexpr std::int64_t kNow = 1700000000;
+constexpr std::int64_t kNowSeconds = 1700000000;
+constexpr std::chrono::sys_seconds kNow{std::chrono::seconds{kNowSeconds}};
 
 struct Fixture {
     TempDir dir;
@@ -40,13 +42,13 @@ struct Fixture {
     }
 
     // The tag names of a bookmark, in name order.
-    std::vector<std::string> tags_of(std::int64_t id) {
+    std::vector<std::string> tags_of(bucu::core::BookmarkId id) {
         auto statement =
             Statement::prepare(bucu::db::detail::handle(database),
                                "SELECT tag.name FROM bookmark_tag JOIN tag ON tag.id = tag_id "
                                "WHERE bookmark_id = ? ORDER BY tag.name");
         REQUIRE(statement.has_value());
-        REQUIRE(statement->bind(1, id).has_value());
+        REQUIRE(statement->bind(1, id.value()).has_value());
         std::vector<std::string> names;
         while (statement->step().value()) {
             names.push_back(statement->column_text(0));
@@ -84,13 +86,13 @@ TEST_CASE("insert_bookmark stores the bookmark and links its tags", "[db]") {
         "SELECT id, url, title, description, flags, created_at, updated_at FROM bookmark");
     REQUIRE(row.has_value());
     REQUIRE(row->step().value());
-    CHECK(row->column_int(0) == *id);
+    CHECK(row->column_int(0) == id->value());
     CHECK(row->column_text(1) == "https://example.org/");
     CHECK(row->column_text(2) == "Example");
     CHECK(row->column_text(3) == "A page");
     CHECK(row->column_int(4) == 1);
-    CHECK(row->column_int(5) == kNow);
-    CHECK(row->column_int(6) == kNow);
+    CHECK(row->column_int(5) == kNowSeconds);
+    CHECK(row->column_int(6) == kNowSeconds);
     CHECK(fixture.tags_of(*id) == std::vector<std::string>{"dev", "web"});
 }
 
@@ -124,8 +126,9 @@ TEST_CASE("a stored URL returns kDuplicateUrl with its ID and changes nothing", 
         bucu::db::insert_bookmark(fixture.database, make("https://example.org/", "a", "One"), kNow);
     REQUIRE(first.has_value());
 
-    const auto again = bucu::db::insert_bookmark(
-        fixture.database, make("https://example.org/", "b, c", "Two"), kNow + 5);
+    const auto again =
+        bucu::db::insert_bookmark(fixture.database, make("https://example.org/", "b, c", "Two"),
+                                  kNow + std::chrono::seconds{5});
 
     REQUIRE_FALSE(again.has_value());
     CHECK(again.error().code == ErrorCode::kDuplicateUrl);
