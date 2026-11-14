@@ -12,20 +12,22 @@ namespace bucu::core {
 namespace {
 
 // Bit operations run on unsigned values, so the high bit of a stored flags value is no hazard.
-std::uint64_t bits(std::int64_t value) { return static_cast<std::uint64_t>(value); }
+std::uint64_t unsigned_bits(std::int64_t value) { return static_cast<std::uint64_t>(value); }
 
 }  // namespace
 
-bool has_flag(std::int64_t flags, std::int64_t flag) {
-    return (bits(flags) & bits(flag)) == bits(flag);
+bool has_flag(FlagSet flags, Flag flag) {
+    return (unsigned_bits(flags.bits()) & unsigned_bits(flag.bits())) == unsigned_bits(flag.bits());
 }
 
-std::int64_t set_flag(std::int64_t flags, std::int64_t flag) {
-    return static_cast<std::int64_t>(bits(flags) | bits(flag));
+FlagSet set_flag(FlagSet flags, Flag flag) {
+    return FlagSet(
+        static_cast<std::int64_t>(unsigned_bits(flags.bits()) | unsigned_bits(flag.bits())));
 }
 
-std::int64_t clear_flag(std::int64_t flags, std::int64_t flag) {
-    return static_cast<std::int64_t>(bits(flags) & ~bits(flag));
+FlagSet clear_flag(FlagSet flags, Flag flag) {
+    return FlagSet(
+        static_cast<std::int64_t>(unsigned_bits(flags.bits()) & ~unsigned_bits(flag.bits())));
 }
 
 std::expected<Bookmark, ValidationError> make_bookmark(std::string_view url, std::string_view title,
@@ -48,7 +50,7 @@ std::expected<Bookmark, ValidationError> make_bookmark(std::string_view url, std
         return std::unexpected(std::move(parsed_tags.error()));
     }
     return Bookmark{std::move(*normalized), std::string(title), std::string(description),
-                    std::move(*parsed_tags), 0};
+                    std::move(*parsed_tags), FlagSet()};
 }
 
 }  // namespace bucu::core

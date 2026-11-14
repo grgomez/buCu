@@ -88,8 +88,8 @@ std::expected<core::BookmarkId, Error> insert_bookmark(Database& database,
     if (!insert) {
         return std::unexpected(std::move(insert.error()));
     }
-    if (auto done = run(*insert, bookmark.url, bookmark.title, bookmark.description, bookmark.flags,
-                        stored_time, stored_time);
+    if (auto done = run(*insert, bookmark.url, bookmark.title, bookmark.description,
+                        bookmark.flags.bits(), stored_time, stored_time);
         !done) {
         return std::unexpected(std::move(done.error()));
     }
