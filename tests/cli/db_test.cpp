@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 
+#include "bucu/platform/paths.hpp"
 #include "catch_amalgamated.hpp"
 #include "cli/run.hpp"
 #include "platform/fake_environment.hpp"
@@ -100,17 +101,20 @@ TEST_CASE("db path makes a relative --db absolute and does not need its director
 TEST_CASE("db path follows BUCU_DB and the default location (product section 3)", "[cli][db]") {
     const Fixture fixture;
     const bucu::platform::test::FakeEnvironment from_variable({{"BUCU_DB", fixture.db_text()}});
+    // The Linux rule takes an absolute XDG_DATA_HOME that starts with "/"; the printed path is
+    // made absolute for the machine that runs the test.
     const bucu::platform::test::FakeEnvironment from_default(
-        {{"XDG_DATA_HOME", fixture.dir.path().string()}});
+        {{"XDG_DATA_HOME", "/bucu-test-data"}});
 
     const Result variable = Fixture::invoke({"db", "path"}, from_variable);
     const Result by_default = Fixture::invoke({"db", "path"}, from_default);
+    const std::filesystem::path expected = std::filesystem::absolute(
+        bucu::platform::path_from_utf8("/bucu-test-data/bucu/bookmarks.db"));
 
     CHECK(variable.out == fixture.db_text() + "\n");
     CHECK(by_default.code == 0);
-    CHECK(by_default.out ==
-          bucu::test::utf8_path(fixture.dir.path() / "bucu" / "bookmarks.db") + "\n");
-    CHECK_FALSE(std::filesystem::exists(fixture.dir.path() / "bucu"));
+    CHECK(by_default.out == bucu::test::utf8_path(expected) + "\n");
+    CHECK_FALSE(std::filesystem::exists(expected.parent_path().parent_path()));
 }
 
 TEST_CASE("db path reports a location that cannot be determined", "[cli][db]") {
