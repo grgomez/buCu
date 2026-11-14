@@ -157,3 +157,43 @@ TEST_CASE("a relative override is kept as given", "[platform][paths]") {
     REQUIRE(from_option.has_value());
     CHECK(from_option->path == "dir/a.db");
 }
+
+namespace {
+
+using bucu::platform::ErrorCode;
+
+void check_missing_variable(Os os, const FakeEnvironment& environment, const std::string& name) {
+    const auto location = resolve_database_location(os, environment, std::nullopt);
+    REQUIRE_FALSE(location.has_value());
+    CHECK(location.error().code == ErrorCode::kMissingVariable);
+    CHECK_THAT(location.error().message, Catch::Matchers::ContainsSubstring(name));
+    CHECK_THAT(location.error().message, Catch::Matchers::ContainsSubstring("--db"));
+    CHECK_THAT(location.error().message, Catch::Matchers::ContainsSubstring("BUCU_DB"));
+}
+
+}  // namespace
+
+TEST_CASE("a missing or empty HOME is an error that names the variable", "[platform][paths]") {
+    check_missing_variable(Os::kLinuxOrBsd, FakeEnvironment(), "HOME");
+    check_missing_variable(Os::kLinuxOrBsd, FakeEnvironment({{"HOME", ""}}), "HOME");
+    check_missing_variable(Os::kLinuxOrBsd,
+                           FakeEnvironment({{"XDG_DATA_HOME", "relative"}, {"HOME", ""}}), "HOME");
+    check_missing_variable(Os::kMacOs, FakeEnvironment(), "HOME");
+    check_missing_variable(Os::kMacOs, FakeEnvironment({{"HOME", ""}}), "HOME");
+}
+
+TEST_CASE("a missing or empty APPDATA is an error that names the variable", "[platform][paths]") {
+    check_missing_variable(Os::kWindows, FakeEnvironment(), "APPDATA");
+    check_missing_variable(Os::kWindows, FakeEnvironment({{"APPDATA", ""}}), "APPDATA");
+}
+
+TEST_CASE("an override or an absolute XDG_DATA_HOME needs no HOME", "[platform][paths]") {
+    CHECK(resolve_database_location(Os::kLinuxOrBsd, FakeEnvironment(), "/a.db").has_value());
+    CHECK(resolve_database_location(Os::kLinuxOrBsd, FakeEnvironment({{"BUCU_DB", "/b.db"}}),
+                                    std::nullopt)
+              .has_value());
+    CHECK(resolve_database_location(Os::kLinuxOrBsd, FakeEnvironment({{"XDG_DATA_HOME", "/x"}}),
+                                    std::nullopt)
+              .has_value());
+    CHECK(resolve_database_location(Os::kWindows, FakeEnvironment(), "C:\\a.db").has_value());
+}

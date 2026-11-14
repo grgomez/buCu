@@ -27,23 +27,44 @@ std::optional<std::string> non_empty(const Environment& environment, std::string
 // An absolute path in the XDG Base Directory sense: it starts with a slash.
 bool is_absolute_xdg(const std::string& path) { return !path.empty() && path.front() == '/'; }
 
-std::string default_path(Os os, const Environment& environment) {
+Error missing_variable(std::string_view name) {
+    return Error{ErrorCode::kMissingVariable,
+                 "the " + std::string(name) +
+                     " environment variable is not set; set it, or name the "
+                     "database with --db or BUCU_DB"};
+}
+
+std::expected<std::string, Error> default_path(Os os, const Environment& environment) {
     std::string separator = "/";
     std::string base;
     switch (os) {
-        case Os::kWindows:
+        case Os::kWindows: {
             separator = "\\";
-            base = non_empty(environment, "APPDATA").value_or("");
+            const std::optional<std::string> app_data = non_empty(environment, "APPDATA");
+            if (!app_data.has_value()) {
+                return std::unexpected(missing_variable("APPDATA"));
+            }
+            base = *app_data;
             break;
-        case Os::kMacOs:
-            base = non_empty(environment, "HOME").value_or("") + "/Library/Application Support";
+        }
+        case Os::kMacOs: {
+            const std::optional<std::string> home = non_empty(environment, "HOME");
+            if (!home.has_value()) {
+                return std::unexpected(missing_variable("HOME"));
+            }
+            base = *home + "/Library/Application Support";
             break;
+        }
         case Os::kLinuxOrBsd: {
             const std::optional<std::string> xdg = non_empty(environment, "XDG_DATA_HOME");
             if (xdg.has_value() && is_absolute_xdg(*xdg)) {
                 base = *xdg;
             } else {
-                base = non_empty(environment, "HOME").value_or("") + "/.local/share";
+                const std::optional<std::string> home = non_empty(environment, "HOME");
+                if (!home.has_value()) {
+                    return std::unexpected(missing_variable("HOME"));
+                }
+                base = *home + "/.local/share";
             }
             break;
         }
@@ -71,7 +92,11 @@ std::expected<Location, Error> resolve_database_location(
     if (const std::optional<std::string> override_path = non_empty(environment, "BUCU_DB")) {
         return Location{*override_path, false};
     }
-    return Location{default_path(os, environment), true};
+    const std::expected<std::string, Error> path = default_path(os, environment);
+    if (!path.has_value()) {
+        return std::unexpected(path.error());
+    }
+    return Location{*path, true};
 }
 
 std::filesystem::path path_from_utf8(std::string_view text) {
