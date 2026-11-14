@@ -129,6 +129,11 @@ int run(const std::vector<std::string>& args, std::ostream& out, std::ostream& e
     add->add_option("--tag", add_args.tag_options)->allow_extra_args(false);
     add->add_flag("--immutable", add_args.immutable);
 
+    CLI::App* db = app.add_subcommand("db");
+    db->require_subcommand(1);
+    CLI::App* db_path = db->add_subcommand("path");
+    CLI::App* db_version = db->add_subcommand("version");
+
     // CLI11 reads the arguments from the back of the vector.
     std::vector<std::string> reversed(args.rbegin(), args.rend());
     try {
@@ -147,6 +152,12 @@ int run(const std::vector<std::string>& args, std::ostream& out, std::ostream& e
     }
     if (add->parsed()) {
         return finish(run_add(add_args, globals, context, out, err), out, err);
+    }
+    if (db_path->parsed()) {
+        return finish(run_db_path(globals, context, out, err), out, err);
+    }
+    if (db_version->parsed()) {
+        return finish(run_db_version(globals, context, out, err), out, err);
     }
     // Only global options were given. An unknown argument was already refused by the parser.
     err << "bucu: no command was given. Run 'bucu --help' for usage.\n";

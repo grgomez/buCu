@@ -35,4 +35,12 @@ std::optional<db::Database> open_database(const Globals& globals, const Context&
 int run_add(const AddArgs& args, const Globals& globals, const Context& context, std::ostream& out,
             std::ostream& err);
 
+// The `db` subcommands. Each returns the exit code.
+// NOLINTNEXTLINE(bugprone-easily-swappable-parameters): out and err are distinct streams by design
+int run_db_path(const Globals& globals, const Context& context, std::ostream& out,
+                std::ostream& err);
+// NOLINTNEXTLINE(bugprone-easily-swappable-parameters): out and err are distinct streams by design
+int run_db_version(const Globals& globals, const Context& context, std::ostream& out,
+                   std::ostream& err);
+
 }  // namespace bucu::cli

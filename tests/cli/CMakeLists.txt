@@ -1,4 +1,4 @@
-add_executable(bucu_cli_tests add_test.cpp record_test.cpp run_test.cpp)
+add_executable(bucu_cli_tests add_test.cpp db_test.cpp record_test.cpp run_test.cpp)
 target_link_libraries(bucu_cli_tests PRIVATE bucu_cli bucu_core bucu_platform bucu_test_support bucu::sqlite bucu::catch2)
 target_compile_definitions(bucu_cli_tests PRIVATE
     BUCU_GOLDEN_DIR="${CMAKE_CURRENT_SOURCE_DIR}/golden")
