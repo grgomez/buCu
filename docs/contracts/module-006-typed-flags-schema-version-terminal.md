@@ -2,7 +2,7 @@
 
 - Kind: Module
 - Version: 6 (from 5)
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-11-14
 - Issue: #56
 - Previous record: [`module-005`](module-005-platform-untranslated-output.md)
