@@ -4,6 +4,7 @@
 #include "bucu/core/bookmark.hpp"
 #include "bucu/db/bookmarks.hpp"
 #include "cli/commands.hpp"
+#include "cli/exit_codes.hpp"
 #include "cli/messages.hpp"
 #include "cli/record.hpp"
 
@@ -33,7 +34,8 @@ int run_add(const AddArgs& args, const Globals& globals, const Context& context,
             std::ostream& err) {
     auto bookmark = core::make_bookmark(args.url, args.title, args.description, tag_text(args));
     if (!bookmark) {
-        return 1;
+        err << validation_error_message(bookmark.error()) << '\n';
+        return kExitInvalid;
     }
     if (args.immutable) {
         bookmark->flags = core::set_flag(bookmark->flags, core::kFlagImmutableTitle);
@@ -41,15 +43,19 @@ int run_add(const AddArgs& args, const Globals& globals, const Context& context,
 
     auto database = open_database(globals, context, err);
     if (!database) {
-        return 1;
+        return kExitFailure;
     }
     const auto id = db::insert_bookmark(*database, *bookmark, context.now);
+    if (!id && id.error().code == db::ErrorCode::kDuplicateUrl) {
+        err << duplicate_url_message(bookmark->url, id.error().bookmark_id.value_or(0)) << '\n';
+        return kExitConflict;
+    }
     if (!id) {
         err << sql_error_message("store the bookmark", id.error()) << '\n';
-        return 1;
+        return kExitFailure;
     }
     out << format_record(*id, *bookmark);
-    return 0;
+    return kExitOk;
 }
 
 }  // namespace bucu::cli

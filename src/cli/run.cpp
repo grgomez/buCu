@@ -11,6 +11,7 @@
 #include "bucu/db/database.hpp"
 #include "bucu/platform/paths.hpp"
 #include "cli/commands.hpp"
+#include "cli/exit_codes.hpp"
 #include "cli/messages.hpp"
 
 namespace bucu::cli {
@@ -65,7 +66,7 @@ int finish(int code, std::ostream& out, std::ostream& err) {
     out.flush();
     if (!out) {
         err << "bucu: cannot write to standard output\n";
-        return 1;
+        return kExitFailure;
     }
     return code;
 }
@@ -99,7 +100,7 @@ int run(const std::vector<std::string>& args, std::ostream& out, std::ostream& e
     // A lone "--" has nothing after it to run, so it counts as a bare call.
     if (args.empty() || (args.size() == 1 && args[0] == "--")) {
         err << kHelpText;
-        return 2;
+        return kExitUsage;
     }
 
     // An empty name keeps CLI11 from prefixing its messages with the program name.
@@ -142,14 +143,14 @@ int run(const std::vector<std::string>& args, std::ostream& out, std::ostream& e
             what.pop_back();
         }
         err << "bucu: " << what << ". Run 'bucu --help' for usage.\n";
-        return 2;
+        return kExitUsage;
     }
     if (add->parsed()) {
         return finish(run_add(add_args, globals, context, out, err), out, err);
     }
     // Only global options were given. An unknown argument was already refused by the parser.
     err << "bucu: no command was given. Run 'bucu --help' for usage.\n";
-    return 2;
+    return kExitUsage;
 }
 
 }  // namespace bucu::cli

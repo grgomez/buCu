@@ -213,3 +213,96 @@ TEST_CASE("--help lists the add options", "[cli][add]") {
         CHECK(result.out.find(word) != std::string::npos);
     }
 }
+
+namespace {
+
+// The stderr line and exit code for `bucu add <args>`, with nothing stored and nothing printed.
+void check_refused(const Fixture& fixture, const std::vector<std::string>& args, int code,
+                   const std::string& line) {
+    CAPTURE(args);
+    std::vector<std::string> full = {"add"};
+    full.insert(full.end(), args.begin(), args.end());
+
+    const Result result = fixture.bucu(full);
+
+    CHECK(result.code == code);
+    CHECK(result.out.empty());
+    CHECK(result.err == line);
+    if (std::filesystem::exists(fixture.db)) {
+        CHECK(fixture.bookmarks().empty());
+    }
+}
+
+}  // namespace
+
+TEST_CASE("a URL that breaks a rule exits 3 with one line naming the field and the reason",
+          "[cli][add]") {
+    const Fixture fixture;
+
+    check_refused(fixture, {"example.org"}, 3,
+                  "bucu: invalid URL 'example.org': it has no scheme, such as https://.\n");
+    check_refused(fixture, {""}, 3, "bucu: invalid URL '': it is empty.\n");
+    check_refused(fixture, {"https://a b"}, 3,
+                  "bucu: invalid URL 'https://a b': it contains whitespace.\n");
+    check_refused(fixture, {"https://a\x01"}, 3,
+                  "bucu: invalid URL 'https://a\x01': it contains a control character.\n");
+    check_refused(fixture, {"https:///x"}, 3, "bucu: invalid URL 'https:///x': it has no host.\n");
+    check_refused(fixture, {"https://a\xff"}, 3, "bucu: invalid URL: it is not valid UTF-8.\n");
+}
+
+TEST_CASE("a tag that breaks a rule exits 3 and names the tag", "[cli][add]") {
+    const Fixture fixture;
+    const std::string too_long(129, 'a');
+
+    check_refused(fixture, {"https://a.example", "--tag", too_long}, 3,
+                  "bucu: invalid tag '" + too_long + "': it is longer than 128 characters.\n");
+    check_refused(fixture, {"https://a.example", "ok", "--tag", "a\x01"}, 3,
+                  "bucu: invalid tag 'a\x01': it contains a control character.\n");
+    check_refused(fixture, {"https://a.example", "--tag", "a\xff"}, 3,
+                  "bucu: invalid tag: it is not valid UTF-8.\n");
+}
+
+TEST_CASE("a title or description that is not valid UTF-8 exits 3 and leaves the value out",
+          "[cli][add]") {
+    const Fixture fixture;
+
+    check_refused(fixture, {"https://a.example", "--title", "a\xff"}, 3,
+                  "bucu: invalid title: it is not valid UTF-8.\n");
+    check_refused(fixture, {"https://a.example", "--description", "\xc3"}, 3,
+                  "bucu: invalid description: it is not valid UTF-8.\n");
+}
+
+TEST_CASE("a stored URL exits 4, names the existing ID, and changes nothing", "[cli][add]") {
+    const Fixture fixture;
+    REQUIRE(fixture.bucu({"add", "https://example.org/", "keep", "--title", "One"}).code == 0);
+    const Rows before = fixture.bookmarks();
+
+    const Result result =
+        fixture.bucu({"add", "https://EXAMPLE.org:443", "other", "--title", "Two"});
+
+    CHECK(result.code == 4);
+    CHECK(result.out.empty());
+    CHECK(result.err ==
+          "bucu: https://example.org/ is already bookmarked as 1. Use 'bucu update 1' to change "
+          "it.\n");
+    CHECK(fixture.bookmarks() == before);
+    CHECK(fixture.tags() == "keep");
+}
+
+TEST_CASE("a missing URL or an unknown option exits 2 with the usage error line", "[cli][add]") {
+    const Fixture fixture;
+
+    for (const std::vector<std::string>& args : {std::vector<std::string>{"add"},
+                                                 {"add", "--title", "x"},
+                                                 {"add", "https://a.example", "--bogus"}}) {
+        CAPTURE(args);
+        const Result result = fixture.bucu(args);
+
+        CHECK(result.code == 2);
+        CHECK(result.out.empty());
+        CHECK(result.err.starts_with("bucu: "));
+        CHECK(result.err.ends_with(". Run 'bucu --help' for usage.\n"));
+        CHECK(std::count(result.err.begin(), result.err.end(), '\n') == 1);
+        CHECK_FALSE(std::filesystem::exists(fixture.db));
+    }
+}
