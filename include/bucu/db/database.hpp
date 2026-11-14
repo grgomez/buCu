@@ -29,7 +29,7 @@ public:
     ~Database() = default;
 
     // The schema version of the open database: `kSchemaVersion` after a successful `open`.
-    int schema_version() const noexcept { return schema_version_; }
+    SchemaVersion schema_version() const noexcept { return schema_version_; }
 
 private:
     struct Closer {
@@ -41,7 +41,7 @@ private:
     friend sqlite3* detail::handle(Database& database);
 
     std::unique_ptr<sqlite3, Closer> connection_;
-    int schema_version_ = 0;
+    SchemaVersion schema_version_{0};
 };
 
 }  // namespace bucu::db

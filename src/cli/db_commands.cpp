@@ -37,8 +37,8 @@ int run_db_version(const Globals& globals, const Context& context, std::ostream&
     if (!database) {
         return kExitFailure;
     }
-    out << "schema " << database->schema_version() << " (newest supported: " << db::kSchemaVersion
-        << ")\n";
+    out << "schema " << database->schema_version().value()
+        << " (newest supported: " << db::kSchemaVersion.value() << ")\n";
     return kExitOk;
 }
 

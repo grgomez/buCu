@@ -47,7 +47,7 @@ Error failed(std::string message) {
 
 std::span<const std::string_view> migrations() { return kMigrations; }
 
-std::expected<int, Error> user_version(sqlite3* connection) {
+std::expected<SchemaVersion, Error> user_version(sqlite3* connection) {
     auto statement = Statement::prepare(connection, "PRAGMA user_version");
     if (!statement) {
         return std::unexpected(std::move(statement.error()));
@@ -55,7 +55,7 @@ std::expected<int, Error> user_version(sqlite3* connection) {
     if (auto row = statement->step(); !row) {
         return std::unexpected(std::move(row.error()));
     }
-    return static_cast<int>(statement->column_int(0));
+    return SchemaVersion(static_cast<int>(statement->column_int(0)));
 }
 
 std::expected<void, Error> migrate(sqlite3* connection, std::span<const std::string_view> steps) {
@@ -64,7 +64,7 @@ std::expected<void, Error> migrate(sqlite3* connection, std::span<const std::str
     if (!current) {
         return std::unexpected(failed(current.error().message));
     }
-    if (static_cast<std::size_t>(*current) >= steps.size()) {
+    if (static_cast<std::size_t>(current->value()) >= steps.size()) {
         return {};
     }
     for (;;) {
@@ -76,17 +76,18 @@ std::expected<void, Error> migrate(sqlite3* connection, std::span<const std::str
         if (!version) {
             return std::unexpected(failed(version.error().message));
         }
-        if (static_cast<std::size_t>(*version) >= steps.size()) {
+        if (static_cast<std::size_t>(version->value()) >= steps.size()) {
             return {};  // up to date; the transaction ends unused
         }
-        const std::string sql(steps[static_cast<std::size_t>(*version)]);
+        const std::string sql(steps[static_cast<std::size_t>(version->value())]);
         char* raw_message = nullptr;
         if (sqlite3_exec(connection, sql.c_str(), nullptr, nullptr, &raw_message) != SQLITE_OK) {
             std::string message = raw_message != nullptr ? raw_message : "migration step failed";
             sqlite3_free(raw_message);
             return std::unexpected(failed(std::move(message)));
         }
-        const std::string set_version = "PRAGMA user_version = " + std::to_string(*version + 1);
+        const std::string set_version =
+            "PRAGMA user_version = " + std::to_string(version->value() + 1);
         if (sqlite3_exec(connection, set_version.c_str(), nullptr, nullptr, nullptr) != SQLITE_OK) {
             return std::unexpected(failed(sqlite3_errmsg(connection)));
         }

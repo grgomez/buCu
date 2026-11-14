@@ -83,7 +83,7 @@ TEST_CASE("a new database is at version 1 with the version 1 tables and no rows"
     auto database = Database::open(dir.path() / "bookmarks.db");
 
     REQUIRE(database.has_value());
-    CHECK(database->schema_version() == 1);
+    CHECK(database->schema_version() == bucu::db::SchemaVersion(1));
     CHECK(scalar(*database, "PRAGMA user_version") == 1);
     const std::map<std::string, std::vector<std::string>> expected{
         {"bookmark", {"id", "url", "title", "description", "flags", "created_at", "updated_at"}},
@@ -104,7 +104,7 @@ TEST_CASE("an empty file is upgraded to version 1", "[db]") {
     auto database = Database::open(path);
 
     REQUIRE(database.has_value());
-    CHECK(database->schema_version() == 1);
+    CHECK(database->schema_version() == bucu::db::SchemaVersion(1));
     CHECK(scalar(*database, "PRAGMA user_version") == 1);
     CHECK(scalar(*database, "SELECT count(*) FROM sqlite_master WHERE type = 'table'") == 3);
 }
@@ -125,7 +125,7 @@ TEST_CASE("reopening a version 1 database keeps every row", "[db]") {
     auto database = Database::open(path);
 
     REQUIRE(database.has_value());
-    CHECK(database->schema_version() == 1);
+    CHECK(database->schema_version() == bucu::db::SchemaVersion(1));
     CHECK(scalar(*database, "SELECT count(*) FROM bookmark") == 1);
     CHECK(scalar(*database, "SELECT created_at FROM bookmark WHERE id = 7") == 100);
     CHECK(scalar(*database, "SELECT updated_at FROM bookmark WHERE id = 7") == 200);
@@ -249,7 +249,7 @@ TEST_CASE("a failed first open keeps the empty file it created, and the next ope
     CHECK(std::filesystem::exists(path));
     auto next = Database::open(path);
     REQUIRE(next.has_value());
-    CHECK(next->schema_version() == 1);
+    CHECK(next->schema_version() == bucu::db::SchemaVersion(1));
     CHECK(scalar(*next, "SELECT count(*) FROM sqlite_master WHERE name = 'extra'") == 0);
 }
 

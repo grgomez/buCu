@@ -6,10 +6,17 @@
 #include <fstream>
 #include <sstream>
 #include <string>
+#include <type_traits>
 
 #include "catch_amalgamated.hpp"
 #include "db/handle.hpp"
 #include "support/temp_dir.hpp"
+
+// A raw integer never becomes a SchemaVersion, and a SchemaVersion never becomes a raw integer,
+// by itself (US3-AC4).
+static_assert(!std::is_convertible_v<int, bucu::db::SchemaVersion>);
+static_assert(!std::is_convertible_v<bucu::db::SchemaVersion, int>);
+static_assert(std::is_constructible_v<bucu::db::SchemaVersion, int>);
 
 namespace {
 
@@ -99,7 +106,7 @@ TEST_CASE("open refuses a newer schema, names both versions, and leaves the file
     REQUIRE_FALSE(database.has_value());
     CHECK(database.error().code == ErrorCode::kNewerSchema);
     CHECK(database.error().message.find("99") != std::string::npos);
-    CHECK(database.error().message.find(std::to_string(bucu::db::kSchemaVersion)) !=
+    CHECK(database.error().message.find(std::to_string(bucu::db::kSchemaVersion.value())) !=
           std::string::npos);
     CHECK(read_bytes(path) == before);
 }

@@ -135,7 +135,7 @@ TEST_CASE("backup copies the committed data while another connection holds a wri
                                                     "https://three.example/"});
     auto opened = Database::open(copy);
     REQUIRE(opened.has_value());
-    CHECK(opened->schema_version() == 1);
+    CHECK(opened->schema_version() == bucu::db::SchemaVersion(1));
     const auto report = bucu::db::integrity_check(*opened);
     REQUIRE(report.has_value());
     CHECK(report->empty());

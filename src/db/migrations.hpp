@@ -15,7 +15,7 @@ namespace bucu::db {
 std::span<const std::string_view> migrations();
 
 // Reads `PRAGMA user_version`.
-std::expected<int, Error> user_version(sqlite3* connection);
+std::expected<SchemaVersion, Error> user_version(sqlite3* connection);
 
 // Applies every step of `steps` the file has not had yet, each in its own `BEGIN IMMEDIATE`
 // transaction that re-reads the version first (another process may have migrated the file while

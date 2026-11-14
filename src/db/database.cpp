@@ -110,20 +110,22 @@ std::expected<Connection, Error> open_connection(const std::filesystem::path& pa
         }
         return std::unexpected(found.error());
     }
-    if (*found < 0) {
+    if (found->value() < 0) {
         return std::unexpected(Error{ErrorCode::kNotBucuDatabase,
                                      "the file has an invalid schema version (" +
-                                         std::to_string(*found) + "), so it is not a BuCu database",
+                                         std::to_string(found->value()) +
+                                         "), so it is not a BuCu database",
                                      std::nullopt});
     }
     if (*found > kSchemaVersion) {
         return std::unexpected(Error{ErrorCode::kNewerSchema,
-                                     "the database has schema version " + std::to_string(*found) +
-                                         ", newer than version " + std::to_string(kSchemaVersion) +
+                                     "the database has schema version " +
+                                         std::to_string(found->value()) + ", newer than version " +
+                                         std::to_string(kSchemaVersion.value()) +
                                          ", the newest this BuCu supports",
                                      std::nullopt});
     }
-    if (*found == 0) {
+    if (found->value() == 0) {
         const auto tables = has_tables(raw);
         if (!tables) {
             return std::unexpected(tables.error());
