@@ -110,7 +110,7 @@ completion <shell>         print a shell completion script (#19)
 
 - Options: `--title <text>`, `--description <text>`, `--tag <tags>` (repeatable, one value for each use), and `--immutable` (a switch that sets the immutable-title flag, §4 Flags). A title or description that is absent or empty is stored empty.
 - Tags: the words after the URL are joined with single spaces and read as one tag input; each `--tag` value is another. All are split on commas by the rules of §4 Tags, and the stored tags are their union.
-- A tag that starts with `-` MUST be given as `--tag=<tag>`, or after `--`. After `--` every word is a tag, so when one tag starts with `-`, put every positional tag after `--`.
+- A tag that starts with `-` MUST be given after `--`, or as `--tag=<tag>`.
 - The URL, tags, title, and description MUST be validated and normalized by §4 before anything is stored. A broken rule is a validation error (§6). The bookmark and its tags are stored in one transaction.
 - When the normalized URL is already stored, `add` changes nothing and fails with the duplicate URL error (§6). Updating an existing bookmark is `bucu update` (#13).
 - `add` MUST NOT prompt, open an editor, or use the network in #10 (#14 and #16 add them).

@@ -129,6 +129,32 @@ TEST_CASE("every tag after -- is a positional tag, even one that starts with -",
     CHECK(fixture.tags() == "-y z,a");
 }
 
+TEST_CASE("tags after -- are accepted when positional tags came before it", "[cli][add]") {
+    const Fixture fixture;
+
+    const Result result = fixture.bucu({"add", "https://example.org", "web", "--", "-x"});
+
+    CHECK(result.code == 0);
+    CHECK(result.err.empty());
+    // The positional words are one tag input (product section 4, Tags), so they join with spaces.
+    CHECK(result.out.find("   tags:  web -x\n") != std::string::npos);
+    CHECK(fixture.tags() == "web -x");
+}
+
+TEST_CASE("words after -- are tags, never options, and -- still works for db backup",
+          "[cli][add]") {
+    const Fixture fixture;
+
+    const Result added =
+        fixture.bucu({"add", "https://example.org", "a", "--tag", "b", "--", "--help", "--db"});
+    const Result backup =
+        fixture.bucu({"db", "backup", "--", bucu::test::utf8_path(fixture.dir.path() / "c.db")});
+
+    CHECK(added.code == 0);
+    CHECK(fixture.tags() == "a --help --db,b");
+    CHECK(backup.code == 0);
+}
+
 TEST_CASE("a --tag takes one value, so words after it are positional tags", "[cli][add]") {
     const Fixture fixture;
 

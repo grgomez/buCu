@@ -1,5 +1,6 @@
 #include "cli/run.hpp"
 
+#include <algorithm>
 #include <memory>
 #include <optional>
 #include <ostream>
@@ -94,15 +95,14 @@ std::optional<db::Database> open_database(const Globals& globals, const Context&
     return std::move(*database);
 }
 
-// NOLINTNEXTLINE(bugprone-easily-swappable-parameters): out and err are distinct streams by design
-int run(const std::vector<std::string>& args, std::ostream& out, std::ostream& err,
-        const Context& context) {
-    // A lone "--" has nothing after it to run, so it counts as a bare call.
-    if (args.empty() || (args.size() == 1 && args[0] == "--")) {
-        err << kHelpText;
-        return kExitUsage;
-    }
+namespace {
 
+// Parses and runs `args`; `extra_tags` are more positional tags for `add`. A probe is silent: when
+// its parse fails or the command is not `add`, it returns no value and nothing has run.
+// NOLINTNEXTLINE(bugprone-easily-swappable-parameters): out and err are distinct streams by design
+std::optional<int> parse_and_run(const std::vector<std::string>& args,
+                                 const std::vector<std::string>& extra_tags, bool probe,
+                                 std::ostream& out, std::ostream& err, const Context& context) {
     // An empty name keeps CLI11 from prefixing its messages with the program name.
     CLI::App app{"", ""};
     app.formatter(std::make_shared<HelpFormatter>());
@@ -120,8 +120,6 @@ int run(const std::vector<std::string>& args, std::ostream& out, std::ostream& e
     AddArgs add_args;
     CLI::App* add = app.add_subcommand("add");
     add->add_option("url", add_args.url)->required();
-    // CLI11 ends `add` at "--" once a positional word was read, so a tag that starts with - needs
-    // every positional tag after "--" (product section 5).
     add->add_option("tags", add_args.tags);
     add->add_option("--title", add_args.title)->expected(1);
     add->add_option("--description", add_args.description)->expected(1);
@@ -143,10 +141,19 @@ int run(const std::vector<std::string>& args, std::ostream& out, std::ostream& e
     try {
         app.parse(reversed);
     } catch (const CLI::CallForHelp& help) {
+        if (probe) {
+            return std::nullopt;
+        }
         return finish(app.exit(help, out, err), out, err);
     } catch (const CLI::CallForVersion& version) {
+        if (probe) {
+            return std::nullopt;
+        }
         return finish(app.exit(version, out, err), out, err);
     } catch (const CLI::ParseError& error) {
+        if (probe) {
+            return std::nullopt;
+        }
         std::string what = error.what();
         if (what.ends_with('.')) {
             what.pop_back();
@@ -154,6 +161,10 @@ int run(const std::vector<std::string>& args, std::ostream& out, std::ostream& e
         err << "bucu: " << what << ". Run 'bucu --help' for usage.\n";
         return kExitUsage;
     }
+    if (probe && !add->parsed()) {
+        return std::nullopt;
+    }
+    add_args.tags.insert(add_args.tags.end(), extra_tags.begin(), extra_tags.end());
     if (add->parsed()) {
         return finish(run_add(add_args, globals, context, out, err), out, err);
     }
@@ -172,6 +183,32 @@ int run(const std::vector<std::string>& args, std::ostream& out, std::ostream& e
     // Only global options were given. An unknown argument was already refused by the parser.
     err << "bucu: no command was given. Run 'bucu --help' for usage.\n";
     return kExitUsage;
+}
+
+}  // namespace
+
+// NOLINTNEXTLINE(bugprone-easily-swappable-parameters): out and err are distinct streams by design
+int run(const std::vector<std::string>& args, std::ostream& out, std::ostream& err,
+        const Context& context) {
+    // A lone "--" has nothing after it to run, so it counts as a bare call.
+    if (args.empty() || (args.size() == 1 && args[0] == "--")) {
+        err << kHelpText;
+        return kExitUsage;
+    }
+
+    // CLI11 ends `add` at "--" once a positional word was read, which would lose a tag such as -x
+    // in `add <url> web -- -x` (product section 5). So when `add` parses without the words after
+    // "--", those words are appended to its tags. Any other command, and any failure, is parsed
+    // whole.
+    const auto marker = std::ranges::find(args, "--");
+    if (marker != args.end()) {
+        const std::vector<std::string> head(args.begin(), marker);
+        const std::vector<std::string> tail(marker + 1, args.end());
+        if (const auto result = parse_and_run(head, tail, true, out, err, context)) {
+            return *result;
+        }
+    }
+    return *parse_and_run(args, {}, false, out, err, context);
 }
 
 }  // namespace bucu::cli
