@@ -82,6 +82,7 @@ std::string open_error_message(std::string_view file, const db::Error& error) {
         case db::ErrorCode::kMigrationFailed:
         case db::ErrorCode::kSql:
         case db::ErrorCode::kDuplicateUrl:
+        case db::ErrorCode::kDestinationExists:
             break;
     }
     return line;

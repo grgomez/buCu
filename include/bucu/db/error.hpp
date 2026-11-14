@@ -18,6 +18,7 @@ enum class ErrorCode {
     kMigrationFailed,
     kSql,
     kDuplicateUrl,
+    kDestinationExists,
 };
 
 struct Error {
