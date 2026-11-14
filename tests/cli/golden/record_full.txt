@@ -1,0 +1,5 @@
+7  Example
+   url:   https://example.org/
+   desc:  A page
+   tags:  docs, tools, web dev
+   flags: immutable-title
