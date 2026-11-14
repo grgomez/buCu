@@ -209,7 +209,12 @@ int run(const std::vector<std::string>& args, std::ostream& out, std::ostream& e
         }
     }
     // Only a probe returns no value, so this run always has one.
-    return parse_and_run(args, {}, false, out, err, context).value_or(kExitFailure);
+    const std::optional<int> code = parse_and_run(args, {}, false, out, err, context);
+    if (!code.has_value()) {
+        err << "bucu: internal error: no exit code\n";
+        return kExitFailure;
+    }
+    return *code;
 }
 
 }  // namespace bucu::cli
