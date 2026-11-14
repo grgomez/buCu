@@ -52,6 +52,12 @@ check_lf("${WORK_DIR}/version.out")
 run(path 0 db path)
 check_lf("${WORK_DIR}/path.out")
 
+run(check 0 db check)
+check_lf("${WORK_DIR}/check.out")
+
+run(backup 0 db backup "${WORK_DIR}/copy.db")
+check_lf("${WORK_DIR}/backup.out")
+
 run(invalid 3 add example.org)
 check_lf("${WORK_DIR}/invalid.err")
 
