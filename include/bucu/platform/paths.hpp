@@ -40,4 +40,9 @@ std::filesystem::path path_from_utf8(std::string_view text);
 // The path as UTF-8 text.
 std::string utf8_from_path(const std::filesystem::path& path);
 
+// Makes the location usable (docs/product.md section 3). The default directory is created with its
+// parents. An override creates nothing: its parent directory must exist, and an empty parent means
+// the current directory. Returns the path of the database file.
+std::expected<std::filesystem::path, Error> prepare_database_location(const Location& location);
+
 }  // namespace bucu::platform

@@ -197,3 +197,68 @@ TEST_CASE("an override or an absolute XDG_DATA_HOME needs no HOME", "[platform][
               .has_value());
     CHECK(resolve_database_location(Os::kWindows, FakeEnvironment(), "C:\\a.db").has_value());
 }
+
+namespace {
+
+using bucu::platform::Location;
+using bucu::platform::prepare_database_location;
+using bucu::platform::utf8_from_path;
+
+Location location_in(const fs::path& file, bool is_default) {
+    return Location{utf8_from_path(file), is_default};
+}
+
+}  // namespace
+
+TEST_CASE("preparing the default location creates the directory with its parents",
+          "[platform][paths]") {
+    const TempDir dir;
+    const fs::path file = dir.path() / "a" / "b" / "bookmarks.db";
+
+    const auto prepared = prepare_database_location(location_in(file, true));
+    REQUIRE(prepared.has_value());
+    CHECK(*prepared == file);
+    CHECK(fs::is_directory(dir.path() / "a" / "b"));
+}
+
+TEST_CASE("a file in the place of the default directory is an error that changes nothing",
+          "[platform][paths]") {
+    const TempDir dir;
+    const fs::path blocker = dir.path() / "a";
+    std::ofstream(blocker) << "data";
+
+    const auto prepared = prepare_database_location(location_in(blocker / "bookmarks.db", true));
+    REQUIRE_FALSE(prepared.has_value());
+    CHECK(prepared.error().code == ErrorCode::kCannotCreateDirectory);
+    CHECK_THAT(prepared.error().message,
+               Catch::Matchers::ContainsSubstring(utf8_from_path(blocker)));
+    CHECK(fs::is_regular_file(blocker));
+}
+
+TEST_CASE("an override with a missing parent creates nothing and names the directory",
+          "[platform][paths]") {
+    const TempDir dir;
+    const fs::path missing = dir.path() / "missing";
+
+    const auto prepared = prepare_database_location(location_in(missing / "a.db", false));
+    REQUIRE_FALSE(prepared.has_value());
+    CHECK(prepared.error().code == ErrorCode::kMissingDirectory);
+    CHECK_THAT(prepared.error().message,
+               Catch::Matchers::ContainsSubstring(utf8_from_path(missing)));
+    CHECK_FALSE(fs::exists(missing));
+}
+
+TEST_CASE("an override whose parent exists is accepted as given", "[platform][paths]") {
+    const TempDir dir;
+    const fs::path file = dir.path() / "a.db";
+
+    const auto prepared = prepare_database_location(location_in(file, false));
+    REQUIRE(prepared.has_value());
+    CHECK(*prepared == file);
+}
+
+TEST_CASE("an override with no directory part is in the current directory", "[platform][paths]") {
+    const auto prepared = prepare_database_location(Location{"b.db", false});
+    REQUIRE(prepared.has_value());
+    CHECK(*prepared == fs::path("b.db"));
+}

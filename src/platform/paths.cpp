@@ -1,9 +1,11 @@
 #include "bucu/platform/paths.hpp"
 
 #include <expected>
+#include <filesystem>
 #include <optional>
 #include <string>
 #include <string_view>
+#include <system_error>
 
 #include "bucu/platform/environment.hpp"
 #include "bucu/platform/error.hpp"
@@ -108,6 +110,31 @@ std::filesystem::path path_from_utf8(std::string_view text) {
 std::string utf8_from_path(const std::filesystem::path& path) {
     const std::u8string utf8 = path.u8string();
     return std::string(utf8.begin(), utf8.end());
+}
+
+std::expected<std::filesystem::path, Error> prepare_database_location(const Location& location) {
+    const std::filesystem::path file = path_from_utf8(location.path);
+    const std::filesystem::path directory = file.parent_path();
+    if (location.is_default) {
+        std::error_code error;
+        std::filesystem::create_directories(directory, error);
+        if (error || !std::filesystem::is_directory(directory)) {
+            return std::unexpected(
+                Error{ErrorCode::kCannotCreateDirectory,
+                      "cannot create the directory " + utf8_from_path(directory)});
+        }
+        return file;
+    }
+    if (directory.empty()) {
+        return file;  // No directory part: the current directory, which exists.
+    }
+    std::error_code error;
+    if (!std::filesystem::is_directory(directory, error)) {
+        return std::unexpected(
+            Error{ErrorCode::kMissingDirectory,
+                  "the directory " + utf8_from_path(directory) + " does not exist"});
+    }
+    return file;
 }
 
 }  // namespace bucu::platform
