@@ -39,7 +39,13 @@ template <typename... Values>
 std::expected<void, Error> run(Statement& statement, const Values&... values) {
     int index = 0;
     std::expected<void, Error> bound;
-    ((bound = bound ? statement.bind(++index, values) : std::move(bound)), ...);
+    // Binds in order and stops at the first failure, so that failure is the error returned.
+    const auto bind_next = [&](const auto& value) {
+        if (bound) {
+            bound = statement.bind(++index, value);
+        }
+    };
+    (bind_next(values), ...);
     if (!bound) {
         return bound;
     }
