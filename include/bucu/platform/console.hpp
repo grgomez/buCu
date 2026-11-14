@@ -14,7 +14,8 @@ public:
     ~ConsoleSetup();
 
 private:
-    unsigned int previous_code_page_ = 0;  // 0 when nothing was changed
+    // Used only on Windows; the other platforms leave it at 0 (-Wunused-private-field there).
+    [[maybe_unused]] unsigned int previous_code_page_ = 0;  // 0 when nothing was changed
 };
 
 }  // namespace bucu::platform
