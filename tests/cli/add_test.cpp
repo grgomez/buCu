@@ -271,7 +271,7 @@ TEST_CASE("a URL that breaks a rule exits 3 with one line naming the field and t
     check_refused(fixture, {"https://a b"}, 3,
                   "bucu: invalid URL 'https://a b': it contains whitespace.\n");
     check_refused(fixture, {"https://a\x01"}, 3,
-                  "bucu: invalid URL 'https://a\x01': it contains a control character.\n");
+                  "bucu: invalid URL 'https://a\\x01': it contains a control character.\n");
     check_refused(fixture, {"https:///x"}, 3, "bucu: invalid URL 'https:///x': it has no host.\n");
     check_refused(fixture, {"https://a\xff"}, 3, "bucu: invalid URL: it is not valid UTF-8.\n");
 }
@@ -283,7 +283,7 @@ TEST_CASE("a tag that breaks a rule exits 3 and names the tag", "[cli][add]") {
     check_refused(fixture, {"https://a.example", "--tag", too_long}, 3,
                   "bucu: invalid tag '" + too_long + "': it is longer than 128 characters.\n");
     check_refused(fixture, {"https://a.example", "ok", "--tag", "a\x01"}, 3,
-                  "bucu: invalid tag 'a\x01': it contains a control character.\n");
+                  "bucu: invalid tag 'a\\x01': it contains a control character.\n");
     check_refused(fixture, {"https://a.example", "--tag", "a\xff"}, 3,
                   "bucu: invalid tag: it is not valid UTF-8.\n");
 }
@@ -331,4 +331,18 @@ TEST_CASE("a missing URL or an unknown option exits 2 with the usage error line"
         CHECK(std::count(result.err.begin(), result.err.end(), '\n') == 1);
         CHECK_FALSE(std::filesystem::exists(fixture.db));
     }
+}
+
+TEST_CASE("a control character in the echoed value is escaped, so the error is one line",
+          "[cli][add]") {
+    const Fixture fixture;
+
+    check_refused(fixture, {"https://c.example/\x1b[31m"}, 3,
+                  "bucu: invalid URL 'https://c.example/\\x1b[31m': it contains a control "
+                  "character.\n");
+    check_refused(fixture, {"https://a.example", "--tag", "x\x7fy\xc2\x9fz"}, 3,
+                  "bucu: invalid tag 'x\\x7fy\\u009fz': it contains a control character.\n");
+    const Result line_break = fixture.bucu({"add", "https://a\nb.example"});
+    CHECK(line_break.code == 3);
+    CHECK(line_break.err == "bucu: invalid URL 'https://a\\nb.example': it contains whitespace.\n");
 }
