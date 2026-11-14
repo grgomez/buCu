@@ -1,11 +1,12 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 
 namespace bucu::core {
 
 // The bookmark field a validation error is about.
-enum class Field {
+enum class Field : std::uint8_t {
     kUrl,
     kTag,
     kTitle,
@@ -13,7 +14,7 @@ enum class Field {
 };
 
 // Why a value was refused. `cli` maps each code to a message (product section 6).
-enum class Reason {
+enum class Reason : std::uint8_t {
     kEmpty,
     kInvalidUtf8,
     kNoScheme,
