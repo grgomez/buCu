@@ -7,7 +7,7 @@
 namespace bucu::platform {
 
 // The value of the global `--color` option (docs/product.md section 5).
-enum class ColorMode {
+enum class ColorMode : std::uint8_t {
     kAuto,
     kAlways,
     kNever,

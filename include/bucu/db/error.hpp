@@ -28,7 +28,7 @@ private:
 inline constexpr SchemaVersion kSchemaVersion{1};
 
 // Why a database operation failed. `cli` maps each code to a message and an exit code.
-enum class ErrorCode {
+enum class ErrorCode : std::uint8_t {
     kCannotOpen,
     kNotADatabase,
     kNotBucuDatabase,

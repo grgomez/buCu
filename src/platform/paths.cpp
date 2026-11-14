@@ -113,7 +113,7 @@ std::string utf8_from_path(const std::filesystem::path& path) {
 }
 
 std::expected<std::filesystem::path, Error> prepare_database_location(const Location& location) {
-    const std::filesystem::path file = path_from_utf8(location.path);
+    std::filesystem::path file = path_from_utf8(location.path);
     const std::filesystem::path directory = file.parent_path();
     if (location.is_default) {
         std::error_code error;

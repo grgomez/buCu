@@ -1,6 +1,7 @@
 #pragma once
 
 #include <chrono>
+#include <functional>
 #include <iosfwd>
 #include <string>
 #include <vector>
@@ -13,8 +14,8 @@ namespace bucu::cli {
 // What a run needs from the world, so tests inject it (architecture section 9). `main` builds the
 // real one.
 struct Context {
-    platform::Os os;
-    const platform::Environment& environment;
+    platform::Os os = platform::Os::kLinuxOrBsd;
+    std::reference_wrapper<const platform::Environment> environment;
     std::chrono::sys_seconds now;
 };
 

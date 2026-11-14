@@ -12,6 +12,8 @@ public:
     Environment() = default;
     Environment(const Environment&) = delete;
     Environment& operator=(const Environment&) = delete;
+    Environment(Environment&&) = delete;
+    Environment& operator=(Environment&&) = delete;
     virtual ~Environment() = default;
 
     // The value of a variable, or no value when it is not set. A variable set to the empty string

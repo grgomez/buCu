@@ -1,6 +1,8 @@
 #include <chrono>
+#include <cstddef>
 #include <exception>
 #include <iostream>
+#include <span>
 #include <string>
 #include <vector>
 
@@ -13,7 +15,9 @@ int main(int argc, char** argv) {
     // UTF-8 console output on Windows, restored when main returns (constitution principle 12).
     const bucu::platform::ConsoleSetup console;
     try {
-        const std::vector<std::string> args(argv + 1, argv + argc);
+        const std::span<char*> all(argv, static_cast<std::size_t>(argc));
+        const auto rest = all.subspan(all.empty() ? 0 : 1);
+        const std::vector<std::string> args(rest.begin(), rest.end());
         const bucu::platform::SystemEnvironment environment;
         const auto now = std::chrono::floor<std::chrono::seconds>(std::chrono::system_clock::now());
         const bucu::cli::Context context{bucu::platform::current_os(), environment, now};

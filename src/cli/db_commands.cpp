@@ -15,7 +15,7 @@ namespace bucu::cli {
 int run_db_path(const Globals& globals, const Context& context, std::ostream& out,
                 std::ostream& err) {
     const auto location =
-        platform::resolve_database_location(context.os, context.environment, globals.db);
+        platform::resolve_database_location(context.os, context.environment.get(), globals.db);
     if (!location) {
         err << location_error_message(location.error()) << '\n';
         return kExitFailure;
@@ -31,6 +31,7 @@ int run_db_path(const Globals& globals, const Context& context, std::ostream& ou
     return kExitOk;
 }
 
+// NOLINTNEXTLINE(bugprone-easily-swappable-parameters): out and err are distinct streams by design
 int run_db_version(const Globals& globals, const Context& context, std::ostream& out,
                    std::ostream& err) {
     const auto database = open_database(globals, context, err);
