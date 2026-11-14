@@ -30,3 +30,18 @@ TEST_CASE("never colour is off everywhere", "[platform][terminal]") {
     CHECK_FALSE(use_color(ColorMode::kNever, true, FakeEnvironment()));
     CHECK_FALSE(use_color(ColorMode::kNever, false, FakeEnvironment({{"NO_COLOR", ""}})));
 }
+
+TEST_CASE("a run is interactive only when input and output are both terminals",
+          "[platform][terminal]") {
+    CHECK(bucu::platform::is_interactive(true, true));
+    CHECK_FALSE(bucu::platform::is_interactive(true, false));
+    CHECK_FALSE(bucu::platform::is_interactive(false, true));
+    CHECK_FALSE(bucu::platform::is_interactive(false, false));
+}
+
+TEST_CASE("the terminal wrappers can be called", "[platform][terminal]") {
+    // Their value depends on how the tests run, so this asserts nothing about it.
+    const bool in = bucu::platform::stdin_is_terminal();
+    const bool out = bucu::platform::stdout_is_terminal();
+    SUCCEED("stdin " << in << ", stdout " << out);
+}
