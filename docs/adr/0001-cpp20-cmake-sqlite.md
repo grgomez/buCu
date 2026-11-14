@@ -1,6 +1,6 @@
 # ADR 0001: C++20, CMake, and SQLite
 
-- Status: Accepted
+- Status: Accepted, amended by [ADR 0006](0006-coding-standard-google-and-core-guidelines.md) (the C++ version is C++23)
 - Date: 2026-11-09
 - Issue: #1
 
