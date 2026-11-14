@@ -1,0 +1,5 @@
+add_executable(bucu_core_tests utf8_test.cpp unicode_lower_test.cpp url_test.cpp tags_test.cpp bookmark_test.cpp)
+target_link_libraries(bucu_core_tests PRIVATE bucu_core bucu::catch2)
+target_include_directories(bucu_core_tests PRIVATE "${PROJECT_SOURCE_DIR}/src")
+bucu_apply_warnings(bucu_core_tests)
+add_test(NAME core COMMAND bucu_core_tests)

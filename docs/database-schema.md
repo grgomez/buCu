@@ -49,6 +49,9 @@ Bookmarks carry no UUID; #31 adds one with a migration.
 
 Buku keeps one `bookmarks` table with tags in one comma-delimited text column, and compacts IDs when a bookmark is deleted. BuCu normalizes tags into their own tables, and its ID rule is settled by #13. Importing a Buku database therefore maps its schema rather than copying it (#23).
 
+- URLs: BuCu normalizes each URL before it is stored and compares normalized URLs byte for byte; Buku compares the text as given (product §4). Importing a Buku database normalizes its URLs, and two Buku rows that normalize to one URL need a rule from #23.
+- Tags: BuCu lowercases them with the same rule as Buku, Python's `str.lower()` (product §4), so a tag from a Buku database is already in BuCu's form.
+
 ## 5. Portability and merging
 
 The database is one file that any SQLite 3 tool can read, on any platform. Merging two databases is not supported yet; the limits and the path to it are #31.
