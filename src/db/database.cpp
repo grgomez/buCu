@@ -81,7 +81,7 @@ std::expected<Connection, Error> open_connection(const std::filesystem::path& pa
     }
 
     const std::u8string utf8 = path.u8string();
-    const std::string name(reinterpret_cast<const char*>(utf8.data()), utf8.size());
+    const std::string name(utf8.begin(), utf8.end());
     const int flags = SQLITE_OPEN_READWRITE | (present ? 0 : SQLITE_OPEN_CREATE);
     sqlite3* raw = nullptr;
     const int code = sqlite3_open_v2(name.c_str(), &raw, flags, nullptr);
