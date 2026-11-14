@@ -64,7 +64,13 @@ Os current_os() {
 }
 
 std::expected<Location, Error> resolve_database_location(
-    Os os, const Environment& environment, const std::optional<std::string>& /*explicit_path*/) {
+    Os os, const Environment& environment, const std::optional<std::string>& explicit_path) {
+    if (explicit_path.has_value() && !explicit_path->empty()) {
+        return Location{*explicit_path, false};
+    }
+    if (const std::optional<std::string> override_path = non_empty(environment, "BUCU_DB")) {
+        return Location{*override_path, false};
+    }
     return Location{default_path(os, environment), true};
 }
 

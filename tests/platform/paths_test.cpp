@@ -118,3 +118,42 @@ TEST_CASE("a relative HOME or APPDATA is used as given", "[platform][paths]") {
     CHECK(default_path(Os::kWindows, FakeEnvironment({{"APPDATA", "roaming"}})) ==
           "roaming\\bucu\\bookmarks.db");
 }
+
+TEST_CASE("an explicit path wins over BUCU_DB, and BUCU_DB wins over the default",
+          "[platform][paths]") {
+    const FakeEnvironment environment({{"BUCU_DB", "/b.db"}, {"HOME", "/home/a"}});
+
+    const auto explicit_wins = resolve_database_location(Os::kLinuxOrBsd, environment, "/a.db");
+    REQUIRE(explicit_wins.has_value());
+    CHECK(explicit_wins->path == "/a.db");
+    CHECK_FALSE(explicit_wins->is_default);
+
+    const auto env_wins = resolve_database_location(Os::kLinuxOrBsd, environment, std::nullopt);
+    REQUIRE(env_wins.has_value());
+    CHECK(env_wins->path == "/b.db");
+    CHECK_FALSE(env_wins->is_default);
+}
+
+TEST_CASE("an empty explicit path or BUCU_DB counts as absent", "[platform][paths]") {
+    const FakeEnvironment empty_env({{"BUCU_DB", ""}, {"HOME", "/home/a"}});
+
+    const auto from_default = resolve_database_location(Os::kLinuxOrBsd, empty_env, "");
+    REQUIRE(from_default.has_value());
+    CHECK(from_default->is_default);
+
+    const FakeEnvironment set_env({{"BUCU_DB", "/b.db"}, {"HOME", "/home/a"}});
+    const auto from_env = resolve_database_location(Os::kLinuxOrBsd, set_env, "");
+    REQUIRE(from_env.has_value());
+    CHECK(from_env->path == "/b.db");
+}
+
+TEST_CASE("a relative override is kept as given", "[platform][paths]") {
+    const FakeEnvironment environment({{"BUCU_DB", "b.db"}});
+    const auto from_env = resolve_database_location(Os::kLinuxOrBsd, environment, std::nullopt);
+    REQUIRE(from_env.has_value());
+    CHECK(from_env->path == "b.db");
+
+    const auto from_option = resolve_database_location(Os::kLinuxOrBsd, environment, "dir/a.db");
+    REQUIRE(from_option.has_value());
+    CHECK(from_option->path == "dir/a.db");
+}
