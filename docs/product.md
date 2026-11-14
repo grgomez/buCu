@@ -94,21 +94,68 @@ delete <id>                delete bookmarks, with confirmation (#13)
 open <id-or-query>         open bookmarks in the system browser (#15)
 export <format> <file>     export to html or md (#17, #18)
 import <format> <file>     import from html or md (#17, #18)
-db <path|version|check|backup>   database utilities (#10)
+db path|version|check|backup <file>   database utilities (#10); <file> is for backup only
 completion <shell>         print a shell completion script (#19)
 ```
 
 - Output to a non-terminal MUST be plain text with no pager, and with no colour unless `--color always` is given, so it works in pipes and scripts.
 - `--color auto` (the default) uses colour only when standard output is a terminal and `NO_COLOR` is unset or empty. `--color always` uses colour even when output is not a terminal or `NO_COLOR` is set. `--color never` uses no colour. Standard error does not change the choice.
 - A command that would prompt in an interactive run MUST NOT wait for input in a non-interactive run; it fails with a message that names the option to use instead (for example `--yes`).
+- Every line `bucu` writes to standard output or standard error MUST end in LF (U+000A) only, on every platform, whether the output goes to a terminal, a file, or a pipe.
+- The global options (`--db`, `--color`, `--offline`) MUST come before the command; after it they are a usage error. `--color` and `--offline` are accepted and checked from #10: `--color` takes its effect with #11 and `--offline` with #16.
+
+### add (added by #10)
+
+`bucu add <url> [tags...]` stores one bookmark and prints its record.
+
+- Options: `--title <text>`, `--description <text>`, `--tag <tags>` (repeatable, one value for each use), and `--immutable` (a switch that sets the immutable-title flag, §4 Flags). A title or description that is absent or empty is stored empty.
+- Tags: the words after the URL are joined with single spaces and read as one tag input; each `--tag` value is another. All are split on commas by the rules of §4 Tags, and the stored tags are their union.
+- A tag that starts with `-` MUST be given after `--`, or as `--tag=<tag>`.
+- The URL, tags, title, and description MUST be validated and normalized by §4 before anything is stored. A broken rule is a validation error (§6). The bookmark and its tags are stored in one transaction.
+- When the normalized URL is already stored, `add` changes nothing and fails with the duplicate URL error (§6). Updating an existing bookmark is `bucu update` (#13).
+- `add` MUST NOT prompt, open an editor, or use the network in #10 (#14 and #16 add them).
+- On success, `add` prints the stored record to standard output:
+  - Line 1: the ID, two spaces, and the title; only the ID when the title is empty.
+  - Then, each only when its value is not empty and in this order: `url:`, `desc:`, `tags:` (tags joined by `, `), and `flags:` (`immutable-title` for bit 1). The `url:` line is always present.
+  - Each of these lines starts with three spaces, and its label is padded with spaces to 7 characters, so every value starts in column 11.
+  - A line break inside the title or description continues on a new line indented to the value column (10 spaces).
+  - There is no colour until #11, which reuses this block.
+
+```text
+7  Example
+   url:   https://example.org/
+   desc:  A page
+   tags:  docs, tools, web dev
+   flags: immutable-title
+```
+
+### db (added by #10)
+
+- `bucu db path` prints the absolute path of the database that the run would use (§3), followed by LF. It does not open or create the database, or any directory, so it can print a path that does not exist yet.
+- `bucu db version` opens the database like any command (creating it when missing) and prints `schema <n> (newest supported: <m>)`.
+- `bucu db check` runs SQLite's full integrity check. An intact database prints `ok` and exits `0`. Otherwise the report goes to standard output as SQLite gives it, each problem ending in LF (a problem may hold line breaks), then `bucu: the database failed its integrity check. Restore a backup, or export what is readable.` goes to standard error, and the exit code is `1`.
+- `bucu db backup <file>` writes a consistent copy of the database to the new file `<file>`, even while another process writes to the database; the copy holds what was committed when the backup ran. It refuses an existing `<file>` (the database's own path included), creates no missing parent directory, and leaves no partial file when it fails. On success it prints `Backed up to <absolute path>.` and `For a portable copy, use 'bucu export'.` (export arrives with #17 and #18). Restoring a backup is not a command: use the copy as the database with `--db` or `BUCU_DB`.
+- Every `db` subcommand except `path` opens the database like any command. A file that is not a SQLite database, or has a schema newer than BuCu supports, fails with exit code `1` and an error that names the file.
 
 ## 6. Messages and exit codes (added by #10)
 
 - Errors go to standard error, start with `bucu: `, and say what failed and what to do. Normal output goes to standard output.
-- Exit codes: `0` success, `1` a runtime failure, `2` a usage error. Further codes (for example "not found"): settled by #10.
+- Exit codes:
+
+  | Code | Meaning |
+  | --- | --- |
+  | `0` | Success |
+  | `1` | A runtime failure: the database cannot be opened, a backup fails, or writing fails |
+  | `2` | A usage error |
+  | `3` | A validation error: a rule of §4 is broken |
+  | `4` | A conflict: the URL is already stored |
+
+  Codes `5` and above are reserved for later issues (for example "not found", #13).
 - A bare `bucu`, or `bucu --` with nothing after it, prints the help text to standard error and exits `2`.
 - `--help` and `-h` print the help text, and `--version` prints the version, whichever other arguments are given; both exit `0`. When both are given, the help text wins, in either order.
 - A usage error prints one line, `bucu: <what failed>. Run 'bucu --help' for usage.`, to standard error, nothing to standard output, and exits `2`.
+- A validation error prints one line, `bucu: invalid <field> '<value>': <reason>.`, and exits `3`. The field is `URL`, `tag`, `title`, or `description`. The reason is one of: `it is empty`, `it is not valid UTF-8`, `it has no scheme, such as https://`, `it contains whitespace`, `it contains a control character`, `it has no host`, or `it is longer than 128 characters`. The value is left out for a title, a description, and text that is not valid UTF-8; otherwise it is shown with each control character written as an escape (`\n`, `\x1b`), so the error stays one line. Nothing is stored and nothing goes to standard output.
+- A URL that is already stored prints `bucu: <normalized URL> is already bookmarked as <ID>. Use 'bucu update <ID>' to change it.` to standard error, prints nothing to standard output, changes nothing, and exits `4`.
 - When writing standard output fails, `bucu` prints `bucu: cannot write to standard output` to standard error and exits `1`.
 
 ## 7. Import and export formats (added by #17, #18)

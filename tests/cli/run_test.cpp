@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "catch_amalgamated.hpp"
+#include "platform/fake_environment.hpp"
 
 namespace {
 
@@ -17,10 +18,14 @@ struct Result {
     std::string err;
 };
 
+// A context with no variables and a fixed clock, so no test depends on the machine.
+const bucu::platform::test::FakeEnvironment kEnvironment;
+const bucu::cli::Context kContext{bucu::platform::Os::kLinuxOrBsd, kEnvironment, 1700000000};
+
 Result invoke(const std::vector<std::string>& args) {
     std::ostringstream out;
     std::ostringstream err;
-    const int code = bucu::cli::run(args, out, err);
+    const int code = bucu::cli::run(args, out, err, kContext);
     return {code, out.str(), err.str()};
 }
 
@@ -92,7 +97,7 @@ TEST_CASE("a failed write to standard output reports it and exits 1 (product sec
         std::ostringstream out;
         out.setstate(std::ios::badbit);
         std::ostringstream err;
-        const int code = bucu::cli::run({flag}, out, err);
+        const int code = bucu::cli::run({flag}, out, err, kContext);
         CHECK(err.str() == "bucu: cannot write to standard output\n");
         CHECK(code == 1);
     }

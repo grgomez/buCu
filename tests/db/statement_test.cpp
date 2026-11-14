@@ -10,7 +10,7 @@
 #include "catch_amalgamated.hpp"
 #include "db/handle.hpp"
 #include "db/transaction.hpp"
-#include "temp_dir.hpp"
+#include "support/temp_dir.hpp"
 
 namespace {
 
@@ -18,7 +18,7 @@ using bucu::db::Database;
 using bucu::db::ErrorCode;
 using bucu::db::Statement;
 using bucu::db::Transaction;
-using bucu::db::test::TempDir;
+using bucu::test::TempDir;
 
 // An open database with a scratch table `item(id INTEGER PRIMARY KEY, name TEXT UNIQUE, note)`.
 struct Fixture {

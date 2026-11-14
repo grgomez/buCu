@@ -6,7 +6,7 @@
 #include <string>
 #include <system_error>
 
-namespace bucu::db::test {
+namespace bucu::test {
 
 // A fresh directory under the system temporary directory, removed with the object (architecture
 // section 9: tests are independent and never touch the home directory).
@@ -15,7 +15,7 @@ public:
     TempDir() {
         std::random_device entropy;
         const std::uint64_t id = (static_cast<std::uint64_t>(entropy()) << 32U) | entropy();
-        path_ = std::filesystem::temp_directory_path() / ("bucu-db-test-" + std::to_string(id));
+        path_ = std::filesystem::temp_directory_path() / ("bucu-test-" + std::to_string(id));
         std::filesystem::create_directories(path_);
     }
     TempDir(const TempDir&) = delete;
@@ -37,4 +37,4 @@ inline std::string utf8_path(const std::filesystem::path& path) {
     return std::string(reinterpret_cast<const char*>(utf8.data()), utf8.size());
 }
 
-}  // namespace bucu::db::test
+}  // namespace bucu::test
