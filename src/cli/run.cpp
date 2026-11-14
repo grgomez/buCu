@@ -48,7 +48,8 @@ int finish(int code, std::ostream& out, std::ostream& err) {
 }  // namespace
 
 // NOLINTNEXTLINE(bugprone-easily-swappable-parameters): out and err are distinct streams by design
-int run(const std::vector<std::string>& args, std::ostream& out, std::ostream& err) {
+int run(const std::vector<std::string>& args, std::ostream& out, std::ostream& err,
+        const Context& /*context*/) {
     // A lone "--" has nothing after it to run, so it counts as a bare call.
     if (args.empty() || (args.size() == 1 && args[0] == "--")) {
         err << kHelpText;

@@ -9,13 +9,13 @@
 
 #include "catch_amalgamated.hpp"
 #include "db/handle.hpp"
-#include "temp_dir.hpp"
+#include "support/temp_dir.hpp"
 
 namespace {
 
 using bucu::db::Database;
 using bucu::db::ErrorCode;
-using bucu::db::test::TempDir;
+using bucu::test::TempDir;
 
 // Reads the first column of the first row of `sql` on the connection `open` configured.
 std::string query_text(Database& database, const char* sql) {
@@ -39,7 +39,7 @@ std::string read_bytes(const std::filesystem::path& path) {
 // Makes a file with a plain SQLite connection, without BuCu's code, in the default journal mode.
 void make_file(const std::filesystem::path& path, const char* sql) {
     sqlite3* connection = nullptr;
-    REQUIRE(sqlite3_open(bucu::db::test::utf8_path(path).c_str(), &connection) == SQLITE_OK);
+    REQUIRE(sqlite3_open(bucu::test::utf8_path(path).c_str(), &connection) == SQLITE_OK);
     REQUIRE(sqlite3_exec(connection, sql, nullptr, nullptr, nullptr) == SQLITE_OK);
     REQUIRE(sqlite3_close(connection) == SQLITE_OK);
 }
