@@ -7,13 +7,13 @@
 #include "catch_amalgamated.hpp"
 #include "db/handle.hpp"
 #include "db/statement.hpp"
-#include "temp_dir.hpp"
+#include "support/temp_dir.hpp"
 
 namespace {
 
 using bucu::db::Database;
 using bucu::db::Statement;
-using bucu::db::test::TempDir;
+using bucu::test::TempDir;
 
 // A version 1 database with bookmarks 1 and 2, tags 1 and 2, and the links (1,1), (1,2), (2,1).
 struct Fixture {

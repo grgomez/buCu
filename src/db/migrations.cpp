@@ -39,7 +39,9 @@ CREATE INDEX bookmark_tag_tag_id ON bookmark_tag (tag_id);
 
 constexpr std::array<std::string_view, 1> kMigrations{kVersion1};
 
-Error failed(std::string message) { return Error{ErrorCode::kMigrationFailed, std::move(message)}; }
+Error failed(std::string message) {
+    return Error{ErrorCode::kMigrationFailed, std::move(message), std::nullopt};
+}
 
 }  // namespace
 

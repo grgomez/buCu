@@ -1,6 +1,10 @@
 #pragma once
 
+#include <cstdint>
+#include <optional>
 #include <string>
+
+#include "bucu/core/bookmark_id.hpp"
 
 namespace bucu::db {
 
@@ -15,11 +19,14 @@ enum class ErrorCode {
     kNewerSchema,
     kMigrationFailed,
     kSql,
+    kDuplicateUrl,
+    kDestinationExists,
 };
 
 struct Error {
     ErrorCode code;
     std::string message;
+    std::optional<core::BookmarkId> bookmark_id;  // kDuplicateUrl: the ID that holds the URL
 };
 
 }  // namespace bucu::db

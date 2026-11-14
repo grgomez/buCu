@@ -64,10 +64,10 @@ Each module is a CMake library target under `src/<module>/`, with its public hea
 | Module | Owns | MUST NOT |
 | --- | --- | --- |
 | `core` | Bookmark model, URL validation and normalization, tag parsing and operations, search query parsing, validation errors | Include SQLite, CLI11, libcurl, or any operating-system header; read the clock or the environment (receive them as parameters) |
-| `db` | Connection setup, schema migrations, prepared statements, transactions, repositories that stream rows | Format output; parse command lines; contain rules that belong in `core` |
+| `db` | Connection setup, schema migrations, prepared statements, transactions, repositories that stream rows, integrity check and backup | Format output; parse command lines; contain rules that belong in `core` |
 | `io` | Import and export formats over streams, one transaction per import | Load a whole file or result set into memory; open files by itself (receive streams) |
 | `net` | The fetch interface and the libcurl implementation, timeouts, size caps | Be required by any other module; run unless asked (constitution principle 8) |
-| `platform` | Data directory, browser launch, editor launch, terminal detection and colour, UTF-8 console | Contain business rules |
+| `platform` | Data directory, browser launch, editor launch, terminal detection and colour, UTF-8 console, untranslated (LF) standard output | Contain business rules |
 | `cli` | Subcommands, options, output formatting, pagination, exit codes, wiring of the implementations | Run SQL directly; contain rules that belong in `core` |
 
 Moving a responsibility needs an ADR (constitution §4).
@@ -120,6 +120,7 @@ flowchart LR
 ## 7. Error handling
 
 - Expected failures (invalid input, a missing bookmark, a malformed import file, a constraint violation) MUST return a typed error (`std::expected`) that `cli` maps to a message and an exit code (product §6).
+- A duplicate URL is a typed `db` error (`kDuplicateUrl`) that carries the ID of the bookmark that already holds the URL, so `cli` can name it (product §6).
 - An import validates as it streams, inside one transaction; a failed import changes no data.
 - Writes that change more than one table run in one transaction.
 - Do not catch `...` or `std::exception` without handling it. Broad silent handlers are prohibited.

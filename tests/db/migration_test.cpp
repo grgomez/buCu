@@ -15,14 +15,14 @@
 #include "db/handle.hpp"
 #include "db/migrations.hpp"
 #include "db/statement.hpp"
-#include "temp_dir.hpp"
+#include "support/temp_dir.hpp"
 
 namespace {
 
 using bucu::db::Database;
 using bucu::db::ErrorCode;
 using bucu::db::Statement;
-using bucu::db::test::TempDir;
+using bucu::test::TempDir;
 
 std::int64_t scalar(Database& database, const char* sql) {
     auto statement = Statement::prepare(bucu::db::detail::handle(database), sql);
@@ -52,7 +52,7 @@ std::vector<std::string> columns_of(Database& database, const std::string& table
 struct Connection {
     sqlite3* handle = nullptr;
     explicit Connection(const std::filesystem::path& path) {
-        REQUIRE(sqlite3_open(bucu::db::test::utf8_path(path).c_str(), &handle) == SQLITE_OK);
+        REQUIRE(sqlite3_open(bucu::test::utf8_path(path).c_str(), &handle) == SQLITE_OK);
     }
     Connection(const Connection&) = delete;
     Connection& operator=(const Connection&) = delete;

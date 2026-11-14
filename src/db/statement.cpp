@@ -25,7 +25,7 @@ std::expected<void, Error> Statement::check(int code) const {
     if (code == SQLITE_OK || code == SQLITE_ROW || code == SQLITE_DONE) {
         return {};
     }
-    return std::unexpected(Error{ErrorCode::kSql, sqlite3_errmsg(connection_)});
+    return std::unexpected(Error{ErrorCode::kSql, sqlite3_errmsg(connection_), std::nullopt});
 }
 
 std::expected<Statement, Error> Statement::prepare(sqlite3* connection, std::string_view sql) {
