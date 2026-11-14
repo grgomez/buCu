@@ -1,13 +1,32 @@
 bucu - a command-line bookmark manager
 
 Usage:
-  bucu [options]
+  bucu [--db <path>] [--color <when>] [--offline] <command> [args]
+  bucu --version | -h | --help
 
-Options:
-  -h, --help     Print this help text and exit.
-      --version  Print the version and exit.
+Options (before the command):
+  -h, --help          Print this help text and exit.
+      --version       Print the version and exit.
+      --db <path>     Use this database file.
+      --color <when>  Colour output: auto, always, or never.
+      --offline       Make no network request.
+
+Commands:
+  add <url> [tags...]
+      Add a bookmark. Tags are comma-separated; a tag that starts with -
+      goes after -- or in --tag=<tag>.
+        --title <text>        Set the title.
+        --description <text>  Set the description.
+        --tag <tags>          Add tags; repeat the option for more.
+        --immutable           Keep a later title fetch from replacing the title.
+  db path               Print the database location.
+  db version            Print the schema version.
+  db check              Check the database for damage.
+  db backup <file>      Write a consistent copy to a new file.
 
 Exit codes:
   0  success
   1  a runtime failure
   2  a usage error
+  3  a validation error: a value broke a bookmark rule
+  4  a conflict: the URL is already bookmarked
