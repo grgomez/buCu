@@ -6,8 +6,15 @@ target_include_directories(bucu_platform
     PUBLIC "${PROJECT_SOURCE_DIR}/include"
     PRIVATE "${PROJECT_SOURCE_DIR}/src")
 bucu_apply_warnings(bucu_platform)
+# <windows.h> without its min and max macros and rarely used parts.
+if(WIN32)
+    target_compile_definitions(bucu_platform PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN)
+endif()
 
 # Operating-system calls for tests (architecture section 9). Linked only into the test executable.
 add_library(bucu_platform_test_support STATIC test_support.cpp)
 target_include_directories(bucu_platform_test_support PRIVATE "${PROJECT_SOURCE_DIR}/src")
 bucu_apply_warnings(bucu_platform_test_support)
+if(WIN32)
+    target_compile_definitions(bucu_platform_test_support PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN)
+endif()

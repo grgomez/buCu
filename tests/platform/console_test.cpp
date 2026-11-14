@@ -33,7 +33,7 @@ TEST_CASE("ConsoleSetup selects the UTF-8 code page and restores the previous on
     CHECK(test::console_output_code_page() == before);
 }
 
-// Hidden: run by hand to check that Ctrl+C restores the code page (manual check 2). It holds the
+// Hidden: run by hand (#8) to check that Ctrl+C restores the code page. It holds the
 // guard and waits, so an automated run never selects it.
 TEST_CASE("ConsoleSetup is held until the run is interrupted", "[.console-wait]") {
     const bucu::platform::ConsoleSetup guard;
