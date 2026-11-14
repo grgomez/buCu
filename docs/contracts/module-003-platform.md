@@ -2,7 +2,7 @@
 
 - Kind: Module
 - Version: 3 (from 2)
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-11-13
 - Issue: #8
 - Previous record: [`module-002`](module-002-core-domain.md)
