@@ -12,6 +12,7 @@
 #include "cli/run.hpp"
 #include "platform/fake_environment.hpp"
 #include "support/damage.hpp"
+#include "support/sqlite_read.hpp"
 #include "support/temp_dir.hpp"
 
 namespace {
@@ -210,4 +211,132 @@ TEST_CASE("db check on a newer schema exits 1 and names the file", "[cli][db]") 
     fixture.write_schema_version(7);
 
     check_names_file(fixture.bucu({"db", "check"}), fixture);
+}
+
+namespace {
+
+// Adds two bookmarks, one with tags, so a backup has something to hold.
+void fill(const Fixture& fixture) {
+    REQUIRE(fixture.bucu({"add", "https://one.example", "web", "dev", "--title", "One"}).code == 0);
+    REQUIRE(fixture.bucu({"add", "https://two.example", "web"}).code == 0);
+}
+
+std::string read_bytes(const std::filesystem::path& path) {
+    std::ifstream file(path, std::ios::binary);
+    std::ostringstream content;
+    content << file.rdbuf();
+    return content.str();
+}
+
+}  // namespace
+
+TEST_CASE("db backup writes a copy that opens, checks, and holds the same data", "[cli][db]") {
+    const Fixture fixture;
+    fill(fixture);
+    const auto copy = fixture.dir.path() / "copy.db";
+    const std::string copy_text = bucu::test::utf8_path(copy);
+
+    const Result result = fixture.bucu({"db", "backup", copy_text});
+
+    CHECK(result.code == 0);
+    CHECK(result.out ==
+          "Backed up to " + copy_text + ".\nFor a portable copy, use 'bucu export'.\n");
+    CHECK(result.err.empty());
+    const auto version = Fixture::invoke({"--db", copy_text, "db", "version"}, fixture.environment);
+    CHECK(version.out == "schema 1 (newest supported: 1)\n");
+    const auto check = Fixture::invoke({"--db", copy_text, "db", "check"}, fixture.environment);
+    CHECK(check.out == "ok\n");
+    const char* sql =
+        "SELECT bookmark.id, url, title, description, flags, created_at, updated_at, "
+        "(SELECT group_concat(name) FROM (SELECT tag.name FROM bookmark_tag "
+        "JOIN tag ON tag.id = tag_id WHERE bookmark_id = bookmark.id ORDER BY tag.name)) "
+        "FROM bookmark ORDER BY bookmark.id";
+    CHECK(bucu::test::read_rows(copy, sql) == bucu::test::read_rows(fixture.db, sql));
+    CHECK(bucu::test::read_rows(copy, sql).size() == 2);
+}
+
+TEST_CASE("db backup prints the absolute path of a relative file name", "[cli][db]") {
+    const Fixture fixture;
+    const auto expected = std::filesystem::absolute("bucu-backup-test-relative.db");
+    std::filesystem::remove(expected);
+
+    const Result result = fixture.bucu({"db", "backup", "bucu-backup-test-relative.db"});
+    const bool written = std::filesystem::exists(expected);
+    std::filesystem::remove(expected);
+
+    CHECK(result.code == 0);
+    CHECK(written);
+    CHECK(result.out.starts_with("Backed up to " + bucu::test::utf8_path(expected) + ".\n"));
+}
+
+TEST_CASE("db backup refuses an existing file and leaves it unchanged", "[cli][db]") {
+    const Fixture fixture;
+    fill(fixture);
+    const auto existing = fixture.dir.path() / "existing.db";
+    {
+        std::ofstream file(existing, std::ios::binary);
+        file << "keep me";
+    }
+
+    const Result result = fixture.bucu({"db", "backup", bucu::test::utf8_path(existing)});
+
+    CHECK(result.code == 1);
+    CHECK(result.out.empty());
+    CHECK(result.err.starts_with("bucu: "));
+    CHECK(result.err.find(bucu::test::utf8_path(existing)) != std::string::npos);
+    CHECK(std::count(result.err.begin(), result.err.end(), '\n') == 1);
+    CHECK(read_bytes(existing) == "keep me");
+}
+
+TEST_CASE("db backup to the database's own path is refused as an existing file", "[cli][db]") {
+    const Fixture fixture;
+    fill(fixture);
+
+    const Result result = fixture.bucu({"db", "backup", fixture.db_text()});
+
+    CHECK(result.code == 1);
+    CHECK(result.out.empty());
+    CHECK(result.err.find(fixture.db_text()) != std::string::npos);
+    CHECK(fixture.bucu({"db", "check"}).out == "ok\n");
+}
+
+TEST_CASE("db backup into a missing directory exits 1, names the file, and creates nothing",
+          "[cli][db]") {
+    const Fixture fixture;
+    const auto copy = fixture.dir.path() / "missing" / "copy.db";
+
+    const Result result = fixture.bucu({"db", "backup", bucu::test::utf8_path(copy)});
+
+    CHECK(result.code == 1);
+    CHECK(result.out.empty());
+    CHECK(result.err.find(bucu::test::utf8_path(copy)) != std::string::npos);
+    CHECK_FALSE(std::filesystem::exists(fixture.dir.path() / "missing"));
+}
+
+TEST_CASE("db backup of a file that is not a database, or a newer schema, exits 1", "[cli][db]") {
+    for (const bool newer : {false, true}) {
+        CAPTURE(newer);
+        const Fixture fixture;
+        if (newer) {
+            fixture.write_schema_version(7);
+        } else {
+            fixture.write_text_file();
+        }
+        const auto copy = fixture.dir.path() / "copy.db";
+
+        const Result result = fixture.bucu({"db", "backup", bucu::test::utf8_path(copy)});
+
+        check_names_file(result, fixture);
+        CHECK_FALSE(std::filesystem::exists(copy));
+    }
+}
+
+TEST_CASE("db backup with no file is a usage error", "[cli][db]") {
+    const Fixture fixture;
+
+    const Result result = fixture.bucu({"db", "backup"});
+
+    CHECK(result.code == 2);
+    CHECK(result.out.empty());
+    CHECK(result.err.ends_with(". Run 'bucu --help' for usage.\n"));
 }

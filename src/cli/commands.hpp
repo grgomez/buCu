@@ -47,4 +47,8 @@ int run_db_version(const Globals& globals, const Context& context, std::ostream&
 int run_db_check(const Globals& globals, const Context& context, std::ostream& out,
                  std::ostream& err);
 
+// NOLINTNEXTLINE(bugprone-easily-swappable-parameters): out and err are distinct streams by design
+int run_db_backup(const std::string& file, const Globals& globals, const Context& context,
+                  std::ostream& out, std::ostream& err);
+
 }  // namespace bucu::cli

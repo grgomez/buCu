@@ -66,4 +66,27 @@ int run_db_check(const Globals& globals, const Context& context, std::ostream& o
     return kExitFailure;
 }
 
+int run_db_backup(const std::string& file, const Globals& globals, const Context& context,
+                  std::ostream& out, std::ostream& err) {
+    auto database = open_database(globals, context, err);
+    if (!database) {
+        return kExitFailure;
+    }
+    std::error_code status;
+    const std::filesystem::path destination =
+        std::filesystem::absolute(platform::path_from_utf8(file), status);
+    if (status) {
+        err << "bucu: cannot make " << file << " absolute: " << status.message() << ".\n";
+        return kExitFailure;
+    }
+    const std::string written = platform::utf8_from_path(destination);
+    if (const auto copied = db::backup(*database, destination); !copied) {
+        err << backup_error_message(written, copied.error()) << '\n';
+        return kExitFailure;
+    }
+    out << "Backed up to " << written << ".\n"
+        << "For a portable copy, use 'bucu export'.\n";
+    return kExitOk;
+}
+
 }  // namespace bucu::cli

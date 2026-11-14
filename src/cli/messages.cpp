@@ -92,6 +92,10 @@ std::string location_error_message(const platform::Error& error) {
     return "bucu: " + sentence(error.message);
 }
 
+std::string backup_error_message(std::string_view file, const db::Error& error) {
+    return "bucu: cannot back up to " + std::string(file) + ": " + sentence(error.message);
+}
+
 std::string sql_error_message(std::string_view action, const db::Error& error) {
     return "bucu: cannot " + std::string(action) + ": " + sentence(error.message);
 }

@@ -26,6 +26,9 @@ std::string open_error_message(std::string_view file, const db::Error& error);
 // directory.
 std::string location_error_message(const platform::Error& error);
 
+// A backup that cannot be written to `file`: names the file and the reason.
+std::string backup_error_message(std::string_view file, const db::Error& error);
+
 // A statement that failed while `action` ("store the bookmark") ran.
 std::string sql_error_message(std::string_view action, const db::Error& error);
 
