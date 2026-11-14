@@ -262,3 +262,16 @@ TEST_CASE("an override with no directory part is in the current directory", "[pl
     REQUIRE(prepared.has_value());
     CHECK(*prepared == fs::path("b.db"));
 }
+
+TEST_CASE("an override whose parent is a file says it is not a directory", "[platform][paths]") {
+    const TempDir dir;
+    const fs::path blocker = dir.path() / "a";
+    std::ofstream(blocker) << "data";
+
+    const auto prepared = prepare_database_location(location_in(blocker / "b.db", false));
+    REQUIRE_FALSE(prepared.has_value());
+    CHECK(prepared.error().code == ErrorCode::kMissingDirectory);
+    CHECK_THAT(prepared.error().message,
+               Catch::Matchers::ContainsSubstring(utf8_from_path(blocker)));
+    CHECK_THAT(prepared.error().message, Catch::Matchers::ContainsSubstring("is not a directory"));
+}

@@ -118,7 +118,7 @@ std::expected<std::filesystem::path, Error> prepare_database_location(const Loca
     if (location.is_default) {
         std::error_code error;
         std::filesystem::create_directories(directory, error);
-        if (error || !std::filesystem::is_directory(directory)) {
+        if (error || !std::filesystem::is_directory(directory, error)) {
             return std::unexpected(
                 Error{ErrorCode::kCannotCreateDirectory,
                       "cannot create the directory " + utf8_from_path(directory)});
@@ -130,9 +130,10 @@ std::expected<std::filesystem::path, Error> prepare_database_location(const Loca
     }
     std::error_code error;
     if (!std::filesystem::is_directory(directory, error)) {
-        return std::unexpected(
-            Error{ErrorCode::kMissingDirectory,
-                  "the directory " + utf8_from_path(directory) + " does not exist"});
+        const bool exists = std::filesystem::exists(directory, error);
+        return std::unexpected(Error{ErrorCode::kMissingDirectory,
+                                     "the directory " + utf8_from_path(directory) +
+                                         (exists ? " is not a directory" : " does not exist")});
     }
     return file;
 }
