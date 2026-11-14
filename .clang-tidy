@@ -1,5 +1,5 @@
 # Adopted checks (architecture section 8, ADR 0006). Naming per architecture section 8.
-# A disabled check needs a reason and an issue; each suppression covers one line.
+# A disabled check needs a reason and an issue; each suppression covers one line or one function.
 #
 # Disabled: cppcoreguidelines-avoid-magic-numbers. Reason: the bit masks and
 # limits stay unnamed until the readability issue (#58) enables it, together

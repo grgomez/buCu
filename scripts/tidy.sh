@@ -39,7 +39,9 @@ if ! run-clang-tidy -quiet -clang-tidy-binary "$tidy" -p "$build" $files; then
 fi
 
 echo "tidy.sh: NOLINT must name its check"
-if git grep -nE 'NOLINT(NEXTLINE|BEGIN)?([^(A-Z]|$)' -- 'src' 'tests' 'include'; then
+# Fails on a NOLINT with no list, an empty list, or a wildcard list, and on a bare NOLINTEND.
+nolint_bad='NOLINT(NEXTLINE|BEGIN|END)?([^(A-Za-z]|$)|NOLINT(NEXTLINE|BEGIN|END)?\(([^)]*\*[^)]*|[[:space:]]*)\)'
+if git grep -nE "$nolint_bad" -- 'src' 'tests' 'include'; then
     echo "tidy.sh: a NOLINT above names no check; write NOLINT(<check>) and a reason." >&2
     status=1
 fi
