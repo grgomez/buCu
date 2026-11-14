@@ -11,6 +11,7 @@
 #include "catch_amalgamated.hpp"
 #include "cli/run.hpp"
 #include "platform/fake_environment.hpp"
+#include "support/damage.hpp"
 #include "support/temp_dir.hpp"
 
 namespace {
@@ -165,4 +166,48 @@ TEST_CASE("db with no subcommand, or an unknown one, is a usage error", "[cli][d
         CHECK(result.err.starts_with("bucu: "));
         CHECK(result.err.ends_with(". Run 'bucu --help' for usage.\n"));
     }
+}
+
+TEST_CASE("db check prints ok for an intact database", "[cli][db]") {
+    const Fixture fixture;
+    REQUIRE(fixture.bucu({"add", "https://example.org", "web"}).code == 0);
+
+    const Result result = fixture.bucu({"db", "check"});
+
+    CHECK(result.code == 0);
+    CHECK(result.out == "ok\n");
+    CHECK(result.err.empty());
+}
+
+TEST_CASE("db check prints the report and the error line for a damaged database", "[cli][db]") {
+    const Fixture fixture;
+    for (const char* url :
+         {"https://one.example", "https://two.example", "https://three.example"}) {
+        REQUIRE(fixture.bucu({"add", url}).code == 0);
+    }
+    bucu::test::damage_url_index(fixture.db);
+
+    const Result result = fixture.bucu({"db", "check"});
+
+    CHECK(result.code == 1);
+    CHECK_FALSE(result.out.empty());
+    CHECK(result.out != "ok\n");
+    CHECK(result.out.ends_with('\n'));
+    CHECK(result.err ==
+          "bucu: the database failed its integrity check. Restore a backup, or export what is "
+          "readable.\n");
+}
+
+TEST_CASE("db check on a file that is not a database exits 1 and names the file", "[cli][db]") {
+    const Fixture fixture;
+    fixture.write_text_file();
+
+    check_names_file(fixture.bucu({"db", "check"}), fixture);
+}
+
+TEST_CASE("db check on a newer schema exits 1 and names the file", "[cli][db]") {
+    const Fixture fixture;
+    fixture.write_schema_version(7);
+
+    check_names_file(fixture.bucu({"db", "check"}), fixture);
 }

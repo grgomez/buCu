@@ -133,6 +133,7 @@ int run(const std::vector<std::string>& args, std::ostream& out, std::ostream& e
     db->require_subcommand(1);
     CLI::App* db_path = db->add_subcommand("path");
     CLI::App* db_version = db->add_subcommand("version");
+    CLI::App* db_check = db->add_subcommand("check");
 
     // CLI11 reads the arguments from the back of the vector.
     std::vector<std::string> reversed(args.rbegin(), args.rend());
@@ -158,6 +159,9 @@ int run(const std::vector<std::string>& args, std::ostream& out, std::ostream& e
     }
     if (db_version->parsed()) {
         return finish(run_db_version(globals, context, out, err), out, err);
+    }
+    if (db_check->parsed()) {
+        return finish(run_db_check(globals, context, out, err), out, err);
     }
     // Only global options were given. An unknown argument was already refused by the parser.
     err << "bucu: no command was given. Run 'bucu --help' for usage.\n";

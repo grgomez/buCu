@@ -43,4 +43,8 @@ int run_db_path(const Globals& globals, const Context& context, std::ostream& ou
 int run_db_version(const Globals& globals, const Context& context, std::ostream& out,
                    std::ostream& err);
 
+// NOLINTNEXTLINE(bugprone-easily-swappable-parameters): out and err are distinct streams by design
+int run_db_check(const Globals& globals, const Context& context, std::ostream& out,
+                 std::ostream& err);
+
 }  // namespace bucu::cli

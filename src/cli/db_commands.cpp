@@ -4,6 +4,7 @@
 #include <system_error>
 
 #include "bucu/db/error.hpp"
+#include "bucu/db/maintenance.hpp"
 #include "bucu/platform/paths.hpp"
 #include "cli/commands.hpp"
 #include "cli/exit_codes.hpp"
@@ -39,6 +40,30 @@ int run_db_version(const Globals& globals, const Context& context, std::ostream&
     out << "schema " << database->schema_version() << " (newest supported: " << db::kSchemaVersion
         << ")\n";
     return kExitOk;
+}
+
+int run_db_check(const Globals& globals, const Context& context, std::ostream& out,
+                 std::ostream& err) {
+    auto database = open_database(globals, context, err);
+    if (!database) {
+        return kExitFailure;
+    }
+    const auto report = db::integrity_check(*database);
+    if (!report) {
+        err << sql_error_message("check the database", report.error()) << '\n';
+        return kExitFailure;
+    }
+    if (report->empty()) {
+        out << "ok\n";
+        return kExitOk;
+    }
+    // The report as SQLite gives it: a problem may hold line breaks.
+    for (const std::string& problem : *report) {
+        out << problem << '\n';
+    }
+    err << "bucu: the database failed its integrity check. Restore a backup, or export what is "
+           "readable.\n";
+    return kExitFailure;
 }
 
 }  // namespace bucu::cli
