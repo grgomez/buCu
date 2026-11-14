@@ -20,6 +20,8 @@ public:
     }
     TempDir(const TempDir&) = delete;
     TempDir& operator=(const TempDir&) = delete;
+    TempDir(TempDir&&) = delete;
+    TempDir& operator=(TempDir&&) = delete;
     ~TempDir() {
         std::error_code ignored;
         std::filesystem::remove_all(path_, ignored);
@@ -34,7 +36,7 @@ private:
 // The path as UTF-8 in a std::string, the way Database::open hands it to SQLite.
 inline std::string utf8_path(const std::filesystem::path& path) {
     const std::u8string utf8 = path.u8string();
-    return std::string(reinterpret_cast<const char*>(utf8.data()), utf8.size());
+    return std::string(utf8.begin(), utf8.end());
 }
 
 }  // namespace bucu::test

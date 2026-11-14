@@ -24,7 +24,7 @@ TEST_CASE("SystemEnvironment reads a set variable, including non-ASCII text", "[
     test::unset_environment_variable(kName);
 
     REQUIRE(read.has_value());
-    CHECK(*read == value);
+    CHECK(read == value);
 }
 
 TEST_CASE("SystemEnvironment reports an unset variable as no value", "[platform][env]") {

@@ -56,6 +56,8 @@ struct Connection {
     }
     Connection(const Connection&) = delete;
     Connection& operator=(const Connection&) = delete;
+    Connection(Connection&&) = delete;
+    Connection& operator=(Connection&&) = delete;
     ~Connection() { sqlite3_close(handle); }
 
     void exec(const std::string& sql) const {

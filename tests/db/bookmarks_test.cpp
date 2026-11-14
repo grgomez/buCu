@@ -147,7 +147,7 @@ TEST_CASE("a stored URL returns kDuplicateUrl with its ID and changes nothing", 
     REQUIRE_FALSE(again.has_value());
     CHECK(again.error().code == ErrorCode::kDuplicateUrl);
     REQUIRE(again.error().bookmark_id.has_value());
-    CHECK(*again.error().bookmark_id == *first);
+    CHECK(again.error().bookmark_id == *first);
     CHECK(fixture.count("bookmark") == 1);
     CHECK(fixture.count("tag") == 1);
     CHECK(fixture.count("bookmark_tag") == 1);

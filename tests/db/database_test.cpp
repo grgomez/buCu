@@ -7,9 +7,11 @@
 #include <sstream>
 #include <string>
 #include <type_traits>
+#include <utility>
 
 #include "catch_amalgamated.hpp"
 #include "db/handle.hpp"
+#include "support/sqlite_read.hpp"
 #include "support/temp_dir.hpp"
 
 // A raw integer never becomes a SchemaVersion, and a SchemaVersion never becomes a raw integer,
@@ -30,8 +32,7 @@ std::string query_text(Database& database, const char* sql) {
     sqlite3_stmt* statement = nullptr;
     REQUIRE(sqlite3_prepare_v2(handle, sql, -1, &statement, nullptr) == SQLITE_OK);
     REQUIRE(sqlite3_step(statement) == SQLITE_ROW);
-    const unsigned char* text = sqlite3_column_text(statement, 0);
-    std::string value(text == nullptr ? "" : reinterpret_cast<const char*>(text));
+    std::string value = bucu::test::column_text(statement, 0);
     sqlite3_finalize(statement);
     return value;
 }
@@ -153,7 +154,12 @@ TEST_CASE("open refuses a write-protected version 1 database and leaves it alone
     const std::string before = read_bytes(path);
     // Restores write access at the end so the directory can be removed on every platform.
     struct Restore {
-        const fs::path& file;
+        fs::path file;
+        explicit Restore(fs::path path) : file(std::move(path)) {}
+        Restore(const Restore&) = delete;
+        Restore& operator=(const Restore&) = delete;
+        Restore(Restore&&) = delete;
+        Restore& operator=(Restore&&) = delete;
         ~Restore() {
             std::error_code ignored;
             fs::permissions(file, fs::perms::owner_write, fs::perm_options::add, ignored);

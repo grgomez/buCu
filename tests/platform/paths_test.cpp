@@ -28,6 +28,8 @@ public:
     }
     TempDir(const TempDir&) = delete;
     TempDir& operator=(const TempDir&) = delete;
+    TempDir(TempDir&&) = delete;
+    TempDir& operator=(TempDir&&) = delete;
     ~TempDir() {
         std::error_code ignored;
         fs::remove_all(path_, ignored);

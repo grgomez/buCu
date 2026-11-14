@@ -1,5 +1,6 @@
 #include "core/unicode_lower.hpp"
 
+#include <array>
 #include <iterator>
 #include <string>
 #include <string_view>
@@ -63,10 +64,10 @@ TEST_CASE("Lowercase leaves an empty string empty", "[core][lower]") {
 }
 
 TEST_CASE("White_Space is the 25 Unicode code points", "[core][lower]") {
-    constexpr char32_t kSpaces[] = {0x0009, 0x000A, 0x000B, 0x000C, 0x000D, 0x0020, 0x0085,
-                                    0x00A0, 0x1680, 0x2000, 0x2001, 0x2002, 0x2003, 0x2004,
-                                    0x2005, 0x2006, 0x2007, 0x2008, 0x2009, 0x200A, 0x2028,
-                                    0x2029, 0x202F, 0x205F, 0x3000};
+    constexpr std::array<char32_t, 25> kSpaces = {
+        0x0009, 0x000A, 0x000B, 0x000C, 0x000D, 0x0020, 0x0085, 0x00A0, 0x1680,
+        0x2000, 0x2001, 0x2002, 0x2003, 0x2004, 0x2005, 0x2006, 0x2007, 0x2008,
+        0x2009, 0x200A, 0x2028, 0x2029, 0x202F, 0x205F, 0x3000};
     CHECK(std::size(kSpaces) == 25);
     for (const char32_t cp : kSpaces) {
         CHECK(is_white_space(cp));
