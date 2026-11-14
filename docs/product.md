@@ -29,7 +29,13 @@ The first milestone is a robust core, not full Buku compatibility. Buku compatib
 ## 3. Database location (added by #8)
 
 - The database lives in the user data directory of the platform, unless `--db <path>` or the `BUCU_DB` environment variable names another file. `--db` wins over `BUCU_DB`.
-- Directory names per platform and the creation rule: settled by #8.
+- Without an override, the database is `bookmarks.db` in a `bucu` directory under the platform data directory:
+  - Linux and BSD: `$XDG_DATA_HOME`, when it is an absolute path; otherwise `$HOME/.local/share`.
+  - macOS: `$HOME/Library/Application Support`.
+  - Windows: `%APPDATA%`.
+- An explicit path (`--db`) wins over `BUCU_DB`, and `BUCU_DB` wins over the default. An empty value counts as absent. A relative override is relative to the current directory.
+- BuCu creates the default directory and its parents when they are missing. It creates no directory for an override: the override's parent directory must exist.
+- When the location cannot be determined or prepared, BuCu reports an error that names the variable (`HOME` or `APPDATA` unset or empty, with a suggestion to use `--db` or `BUCU_DB`) or the directory (missing, or a file is in its place). An override, or an absolute `XDG_DATA_HOME` on Linux and BSD, needs no `HOME`.
 
 ## 4. Bookmark rules (added by #9)
 
@@ -92,7 +98,8 @@ db <path|version|check|backup>   database utilities (#10)
 completion <shell>         print a shell completion script (#19)
 ```
 
-- Output to a non-terminal MUST be plain text with no colour and no pager, so it works in pipes and scripts.
+- Output to a non-terminal MUST be plain text with no pager, and with no colour unless `--color always` is given, so it works in pipes and scripts.
+- `--color auto` (the default) uses colour only when standard output is a terminal and `NO_COLOR` is unset or empty. `--color always` uses colour even when output is not a terminal or `NO_COLOR` is set. `--color never` uses no colour. Standard error does not change the choice.
 - A command that would prompt in an interactive run MUST NOT wait for input in a non-interactive run; it fails with a message that names the option to use instead (for example `--yes`).
 
 ## 6. Messages and exit codes (added by #10)

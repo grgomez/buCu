@@ -154,6 +154,7 @@ flowchart LR
 | `cli` | Argument handling, exit codes, and golden-file tests of stable output |
 | `platform`, `net` | Tests through fakes of the interfaces; no real browser, editor, or network in CI |
 
+- Platform rules take the operating system and the environment as parameters, so each operating system's rule is tested on every CI platform. Tests reach operating-system calls only through `src/platform/test_support.hpp` (internal, not in `include/`), so no test holds an operating-system `#ifdef`.
 - Tests MUST NOT depend on the machine's clock, locale, time zone, home directory, or network. Inject them.
 - Every bug fix has a regression test (constitution §3).
 - Test behaviour, not implementation details.
