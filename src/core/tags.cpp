@@ -50,8 +50,9 @@ std::expected<TagSet, ValidationError> parse_tags(std::string_view input) {
         start = comma + 1;
         const auto decoded = decode_utf8(segment);
         if (!decoded) {
-            return std::unexpected(
-                ValidationError{Field::kTag, Reason::kInvalidUtf8, std::string(segment)});
+            return std::unexpected(ValidationError{.field = Field::kTag,
+                                                   .reason = Reason::kInvalidUtf8,
+                                                   .value = std::string(segment)});
         }
         std::string collapsed = collapse_whitespace(*decoded);
         if (collapsed.empty()) {
@@ -60,18 +61,19 @@ std::expected<TagSet, ValidationError> parse_tags(std::string_view input) {
         // D4: White_Space (tab, newline) is folded to a space, so it is not a control here.
         for (const char32_t cp : *decoded) {
             if (is_control(cp) && !is_white_space(cp)) {
-                return std::unexpected(
-                    ValidationError{Field::kTag, Reason::kControlCharacter, std::move(collapsed)});
+                return std::unexpected(ValidationError{.field = Field::kTag,
+                                                       .reason = Reason::kControlCharacter,
+                                                       .value = std::move(collapsed)});
             }
         }
         std::string lowered = to_lower(collapsed);
         // The limit counts code points after lowercasing (U+0130 becomes two): the bytes that
         // are not UTF-8 continuation bytes.
         const auto length = static_cast<std::size_t>(std::ranges::count_if(
-            lowered, [](char c) { return (static_cast<unsigned char>(c) & 0xC0U) != 0x80U; }));
+            lowered, [](char c) { return !is_utf8_continuation(static_cast<unsigned char>(c)); }));
         if (length > kMaxTagLength) {
-            return std::unexpected(
-                ValidationError{Field::kTag, Reason::kTooLong, std::move(lowered)});
+            return std::unexpected(ValidationError{
+                .field = Field::kTag, .reason = Reason::kTooLong, .value = std::move(lowered)});
         }
         tags.insert(std::move(lowered));
     }

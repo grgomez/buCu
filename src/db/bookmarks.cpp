@@ -77,8 +77,9 @@ std::expected<core::BookmarkId, Error> insert_bookmark(Database& database,
     }
     if (const std::optional<core::BookmarkId>& holder = *existing; holder.has_value()) {
         return std::unexpected(Error{
-            ErrorCode::kDuplicateUrl,
-            "the URL is already stored as bookmark " + std::to_string(holder->value()), holder});
+            .code = ErrorCode::kDuplicateUrl,
+            .message = "the URL is already stored as bookmark " + std::to_string(holder->value()),
+            .bookmark_id = holder});
     }
 
     auto insert = Statement::prepare(connection,

@@ -1,5 +1,6 @@
 #include "bucu/core/url.hpp"
 
+#include <cstddef>
 #include <string>
 #include <string_view>
 
@@ -102,7 +103,9 @@ TEST_CASE("URL validation refuses whitespace and control characters inside", "[c
         "https://a.org/a\x7F"
         "b",
         Reason::kControlCharacter);
-    check_refused(std::string("https://a.org/a\0b", 17), Reason::kControlCharacter);
+    // The literal's length: sizeof would stop at the NUL.
+    constexpr std::size_t kLengthWithNul = 17;
+    check_refused(std::string("https://a.org/a\0b", kLengthWithNul), Reason::kControlCharacter);
     check_refused(utf8(U"https://a.org/a\u0085b"), Reason::kWhitespace);
     check_refused(utf8(U"https://a.org/a\u0090b"), Reason::kControlCharacter);
 }

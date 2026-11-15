@@ -30,7 +30,7 @@ struct Fixture {
 
     std::int64_t count(const char* table) {
         auto statement = Statement::prepare(bucu::db::detail::handle(database),
-                                            (std::string("SELECT count(*) FROM ") + table).c_str());
+                                            std::string("SELECT count(*) FROM ") + table);
         REQUIRE(statement.has_value());
         REQUIRE(statement->step().value());
         return statement->column_int(0);
@@ -57,7 +57,7 @@ struct Fixture {
     }
 
 private:
-    Database open_database() const {
+    [[nodiscard]] Database open_database() const {
         auto opened = Database::open(dir.path() / "bookmarks.db");
         REQUIRE(opened.has_value());
         return std::move(*opened);
@@ -99,7 +99,8 @@ TEST_CASE("insert_bookmark stores the bookmark and links its tags", "[db]") {
 TEST_CASE("insert_bookmark stores the flags bit for bit, unknown and high bits included", "[db]") {
     Fixture fixture;
     auto bookmark = make("https://example.org/", "", "", "");
-    bookmark.flags = bucu::core::FlagSet(INT64_MIN | 6);
+    constexpr std::int64_t kUnknownFlagBits = 6;
+    bookmark.flags = bucu::core::FlagSet(INT64_MIN | kUnknownFlagBits);
 
     REQUIRE(bucu::db::insert_bookmark(fixture.database, bookmark, kNow).has_value());
 

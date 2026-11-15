@@ -32,29 +32,30 @@ struct Fixture {
     std::filesystem::path db = dir.path() / "bookmarks.db";
 
     // `bucu --db <db> <args>`
-    Result bucu(std::vector<std::string> args) const {
+    [[nodiscard]] Result bucu(std::vector<std::string> args) const {
         args.insert(args.begin(), {"--db", bucu::test::utf8_path(db)});
         return invoke(args);
     }
 
     // `bucu <args>`, with no --db added.
-    Result invoke(const std::vector<std::string>& args) const {
-        const bucu::cli::Context context{bucu::platform::Os::kLinuxOrBsd, environment, kNow};
+    [[nodiscard]] Result invoke(const std::vector<std::string>& args) const {
+        const bucu::cli::Context context{
+            .os = bucu::platform::Os::kLinuxOrBsd, .environment = environment, .now = kNow};
         std::ostringstream out;
         std::ostringstream err;
         const int code = bucu::cli::run(args, out, err, context);
-        return {code, out.str(), err.str()};
+        return {.code = code, .out = out.str(), .err = err.str()};
     }
 
     Rows rows(const char* sql) const { return bucu::test::read_rows(db, sql); }
 
-    Rows bookmarks() const {
+    [[nodiscard]] Rows bookmarks() const {
         return rows(
             "SELECT id, url, title, description, flags, created_at, updated_at "
             "FROM bookmark ORDER BY id");
     }
 
-    std::string tags() const {
+    [[nodiscard]] std::string tags() const {
         std::string joined;
         for (const auto& row : rows("SELECT name FROM tag ORDER BY name")) {
             joined += (joined.empty() ? "" : ",") + row[0];

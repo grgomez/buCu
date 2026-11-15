@@ -9,6 +9,11 @@
 
 namespace {
 
+// The most code points a tag may have. The value 128 pins product section 4 on purpose, so a
+// change to the limit in the code fails these tests.
+constexpr std::size_t kLimit = 128;
+constexpr std::size_t kHalfLimit = kLimit / 2;
+
 using bucu::core::parse_tags;
 using bucu::core::TagSet;
 
@@ -118,29 +123,30 @@ TEST_CASE("Tag parsing refuses invalid UTF-8 and names the tag", "[core][tags]")
 }
 
 TEST_CASE("A tag may have 128 code points and no more", "[core][tags]") {
-    const std::string at_limit(128, 'a');
+    const std::string at_limit(kLimit, 'a');
     CHECK(parsed(at_limit) == TagSet{at_limit});
-    const std::string too_long(129, 'a');
+    const std::string too_long(kLimit + 1, 'a');
     check_tag_refused(too_long, Reason::kTooLong, too_long);
     // The limit counts code points, not bytes.
-    CHECK(parsed(repeat(U"ñ", 128)).size() == 1);
-    check_tag_refused(repeat(U"ñ", 129), Reason::kTooLong, repeat(U"ñ", 129));
+    CHECK(parsed(repeat(U"ñ", kLimit)).size() == 1);
+    check_tag_refused(repeat(U"ñ", kLimit + 1), Reason::kTooLong, repeat(U"ñ", kLimit + 1));
 }
 
 TEST_CASE("The tag limit counts code points after lowercasing", "[core][tags]") {
     // U+0130 lowercases to two code points: 64 of them make 128, 65 make 130.
-    CHECK(parsed(repeat(U"İ", 64)).size() == 1);
-    check_tag_refused(repeat(U"İ", 65), Reason::kTooLong, repeat(U"i̇", 65));
+    CHECK(parsed(repeat(U"İ", kHalfLimit)).size() == 1);
+    check_tag_refused(repeat(U"İ", kHalfLimit + 1), Reason::kTooLong, repeat(U"i̇", kHalfLimit + 1));
     // U+023A grows from two bytes to three but stays one code point.
-    CHECK(parsed(repeat(U"Ⱥ", 128)).size() == 1);
-    check_tag_refused(repeat(U"Ⱥ", 129), Reason::kTooLong, repeat(U"ⱥ", 129));
+    CHECK(parsed(repeat(U"Ⱥ", kLimit)).size() == 1);
+    check_tag_refused(repeat(U"Ⱥ", kLimit + 1), Reason::kTooLong, repeat(U"ⱥ", kLimit + 1));
 }
 
 TEST_CASE("Spaces inside a tag count toward the limit after collapsing", "[core][tags]") {
-    const std::string spaced = std::string(64, 'a') + "     " + std::string(63, 'b');
-    CHECK(parsed(spaced).size() == 1);  // 64 + 1 + 63 = 128
-    const std::string over = std::string(64, 'a') + "     " + std::string(64, 'b');
-    check_tag_refused(over, Reason::kTooLong, std::string(64, 'a') + " " + std::string(64, 'b'));
+    const std::string half(kHalfLimit, 'a');
+    const std::string spaced = half + "     " + std::string(kHalfLimit - 1, 'b');
+    CHECK(parsed(spaced).size() == 1);  // half + 1 + (half - 1) = the limit
+    const std::string over = half + "     " + std::string(kHalfLimit, 'b');
+    check_tag_refused(over, Reason::kTooLong, half + " " + std::string(kHalfLimit, 'b'));
 }
 
 TEST_CASE("Adding tags is a union", "[core][tags]") {

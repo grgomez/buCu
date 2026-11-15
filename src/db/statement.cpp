@@ -29,7 +29,9 @@ std::expected<void, Error> Statement::check(int code) const {
     if (code == SQLITE_OK || code == SQLITE_ROW || code == SQLITE_DONE) {
         return {};
     }
-    return std::unexpected(Error{ErrorCode::kSql, sqlite3_errmsg(connection_), std::nullopt});
+    return std::unexpected(Error{.code = ErrorCode::kSql,
+                                 .message = sqlite3_errmsg(connection_),
+                                 .bookmark_id = std::nullopt});
 }
 
 std::expected<Statement, Error> Statement::prepare(sqlite3* connection, std::string_view sql) {
@@ -77,7 +79,7 @@ std::string Statement::column_text(int index) const {
     }
     const int size = sqlite3_column_bytes(statement_.get(), index);
     const std::span<const unsigned char> bytes(text, static_cast<std::size_t>(size));
-    return std::string(bytes.begin(), bytes.end());
+    return {bytes.begin(), bytes.end()};
 }
 
 }  // namespace bucu::db

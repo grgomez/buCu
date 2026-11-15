@@ -2,6 +2,7 @@
 
 #include <sqlite3.h>
 
+#include <cstddef>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
@@ -38,7 +39,7 @@ std::string query_text(Database& database, const char* sql) {
 }
 
 std::string read_bytes(const std::filesystem::path& path) {
-    std::ifstream file(path, std::ios::binary);
+    const std::ifstream file(path, std::ios::binary);
     std::ostringstream content;
     content << file.rdbuf();
     return content.str();
@@ -131,7 +132,8 @@ TEST_CASE("open refuses a file that is not a SQLite database and leaves it alone
     const auto path = dir.path() / "notes.txt";
     {
         std::ofstream file(path, std::ios::binary);
-        file << std::string(300, 'x') << "\nthis is plain text, not a database\n";
+        constexpr std::size_t kTextLength = 300;
+        file << std::string(kTextLength, 'x') << "\nthis is plain text, not a database\n";
     }
     const std::string before = read_bytes(path);
 
@@ -153,7 +155,7 @@ TEST_CASE("open refuses a write-protected version 1 database and leaves it alone
     }
     const std::string before = read_bytes(path);
     // Restores write access at the end so the directory can be removed on every platform.
-    struct Restore {
+    const struct Restore {
         fs::path file;
         explicit Restore(fs::path path) : file(std::move(path)) {}
         Restore(const Restore&) = delete;

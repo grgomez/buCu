@@ -27,7 +27,8 @@ std::expected<void, Error> exec(sqlite3* connection, const char* sql) {
     if (code != SQLITE_OK) {
         std::string message = raw_message != nullptr ? raw_message : sqlite3_errstr(code);
         sqlite3_free(raw_message);
-        return std::unexpected(Error{ErrorCode::kSql, std::move(message), std::nullopt});
+        return std::unexpected(Error{
+            .code = ErrorCode::kSql, .message = std::move(message), .bookmark_id = std::nullopt});
     }
     return {};
 }
@@ -42,7 +43,9 @@ std::expected<void, Error> enable_wal(sqlite3* connection) {
     }
     sqlite3_finalize(statement);
     if (code != SQLITE_ROW && code != SQLITE_DONE) {
-        return std::unexpected(Error{ErrorCode::kSql, message_of(connection, code), std::nullopt});
+        return std::unexpected(Error{.code = ErrorCode::kSql,
+                                     .message = message_of(connection, code),
+                                     .bookmark_id = std::nullopt});
     }
     return {};
 }
@@ -77,7 +80,9 @@ std::expected<Connection, Error> open_connection(const std::filesystem::path& pa
     std::error_code status;
     const bool present = std::filesystem::exists(path, status);
     if (status) {
-        return std::unexpected(Error{ErrorCode::kCannotOpen, status.message(), std::nullopt});
+        return std::unexpected(Error{.code = ErrorCode::kCannotOpen,
+                                     .message = status.message(),
+                                     .bookmark_id = std::nullopt});
     }
 
     const std::u8string utf8 = path.u8string();
@@ -87,13 +92,16 @@ std::expected<Connection, Error> open_connection(const std::filesystem::path& pa
     const int code = sqlite3_open_v2(name.c_str(), &raw, flags, nullptr);
     std::unique_ptr<sqlite3, ConnectionCloser> connection(raw);  // closed on every return below
     if (code != SQLITE_OK) {
-        return std::unexpected(Error{ErrorCode::kCannotOpen, message_of(raw, code), std::nullopt});
+        return std::unexpected(Error{.code = ErrorCode::kCannotOpen,
+                                     .message = message_of(raw, code),
+                                     .bookmark_id = std::nullopt});
     }
     // SQLite quietly opens a write-protected file read-only; BuCu cannot use it (a later write
     // would fail), so refuse it here.
     if (sqlite3_db_readonly(raw, "main") == 1) {
-        return std::unexpected(Error{ErrorCode::kCannotOpen,
-                                     "the file cannot be written (it is read-only)", std::nullopt});
+        return std::unexpected(Error{.code = ErrorCode::kCannotOpen,
+                                     .message = "the file cannot be written (it is read-only)",
+                                     .bookmark_id = std::nullopt});
     }
 
     if (auto result = exec(raw, "PRAGMA foreign_keys = ON"); !result) {
@@ -105,25 +113,26 @@ std::expected<Connection, Error> open_connection(const std::filesystem::path& pa
     const auto found = user_version(raw);
     if (!found) {
         if (sqlite3_errcode(raw) == SQLITE_NOTADB) {
-            return std::unexpected(
-                Error{ErrorCode::kNotADatabase, "the file is not a SQLite database", std::nullopt});
+            return std::unexpected(Error{.code = ErrorCode::kNotADatabase,
+                                         .message = "the file is not a SQLite database",
+                                         .bookmark_id = std::nullopt});
         }
         return std::unexpected(found.error());
     }
     if (found->value() < 0) {
-        return std::unexpected(Error{ErrorCode::kNotBucuDatabase,
-                                     "the file has an invalid schema version (" +
-                                         std::to_string(found->value()) +
-                                         "), so it is not a BuCu database",
-                                     std::nullopt});
+        return std::unexpected(Error{.code = ErrorCode::kNotBucuDatabase,
+                                     .message = "the file has an invalid schema version (" +
+                                                std::to_string(found->value()) +
+                                                "), so it is not a BuCu database",
+                                     .bookmark_id = std::nullopt});
     }
     if (*found > kSchemaVersion) {
-        return std::unexpected(Error{ErrorCode::kNewerSchema,
-                                     "the database has schema version " +
-                                         std::to_string(found->value()) + ", newer than version " +
-                                         std::to_string(kSchemaVersion.value()) +
-                                         ", the newest this BuCu supports",
-                                     std::nullopt});
+        return std::unexpected(
+            Error{.code = ErrorCode::kNewerSchema,
+                  .message = "the database has schema version " + std::to_string(found->value()) +
+                             ", newer than version " + std::to_string(kSchemaVersion.value()) +
+                             ", the newest this BuCu supports",
+                  .bookmark_id = std::nullopt});
     }
     if (found->value() == 0) {
         const auto tables = has_tables(raw);
@@ -132,9 +141,10 @@ std::expected<Connection, Error> open_connection(const std::filesystem::path& pa
         }
         if (*tables) {
             return std::unexpected(
-                Error{ErrorCode::kNotBucuDatabase,
-                      "the file has tables but no schema version, so it is not a BuCu database",
-                      std::nullopt});
+                Error{.code = ErrorCode::kNotBucuDatabase,
+                      .message =
+                          "the file has tables but no schema version, so it is not a BuCu database",
+                      .bookmark_id = std::nullopt});
         }
     }
     if (auto result = enable_wal(raw); !result) {

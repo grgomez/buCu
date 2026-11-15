@@ -15,7 +15,7 @@ namespace bucu::core {
 class Flag {
 public:
     explicit constexpr Flag(std::int64_t bits) : bits_(bits) {}
-    constexpr std::int64_t bits() const { return bits_; }
+    [[nodiscard]] constexpr std::int64_t bits() const { return bits_; }
 
 private:
     std::int64_t bits_;
@@ -31,7 +31,7 @@ public:
     constexpr FlagSet(Flag flag) : bits_(flag.bits()) {}  // NOLINT(google-explicit-constructor)
 
     // The stored integer.
-    constexpr std::int64_t bits() const { return bits_; }
+    [[nodiscard]] constexpr std::int64_t bits() const { return bits_; }
 
     friend constexpr bool operator==(FlagSet, FlagSet) = default;
 

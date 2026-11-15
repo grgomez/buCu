@@ -32,12 +32,29 @@ constexpr auto kLower = std::to_array<LowerMapping>({
 #include "case_properties.inc"
 
 constexpr char32_t kCapitalSigma = 0x03A3;
+constexpr char32_t kSmallSigma = 0x03C3;
 constexpr char32_t kFinalSigma = 0x03C2;
 
+// White_Space (Unicode 18.0.0 PropList.txt) and the control ranges.
+constexpr char32_t kTab = 0x0009;
+constexpr char32_t kCarriageReturn = 0x000D;  // U+0009 to U+000D: tab, line feed, ..., return
+constexpr char32_t kSpace = 0x0020;
+constexpr char32_t kNextLine = 0x0085;
+constexpr char32_t kNoBreakSpace = 0x00A0;
+constexpr char32_t kOghamSpaceMark = 0x1680;
+constexpr char32_t kEnQuad = 0x2000;  // U+2000 to U+200A: the fixed-width spaces
+constexpr char32_t kHairSpace = 0x200A;
+constexpr char32_t kLineSeparator = 0x2028;
+constexpr char32_t kParagraphSeparator = 0x2029;
+constexpr char32_t kNarrowNoBreakSpace = 0x202F;
+constexpr char32_t kMediumMathematicalSpace = 0x205F;
+constexpr char32_t kIdeographicSpace = 0x3000;
+constexpr char32_t kLastC0Control = 0x001F;
+constexpr char32_t kDelete = 0x007F;  // U+007F to U+009F: delete and the C1 controls
+constexpr char32_t kLastC1Control = 0x009F;
+
 bool in_ranges(std::span<const CodePointRange> ranges, char32_t code_point) {
-    const auto it = std::upper_bound(
-        std::begin(ranges), std::end(ranges), code_point,
-        [](char32_t value, const CodePointRange& range) { return value < range.first; });
+    const auto it = std::ranges::upper_bound(ranges, code_point, {}, &CodePointRange::first);
     return it != std::begin(ranges) && code_point <= std::prev(it)->last;
 }
 
@@ -68,18 +85,17 @@ std::string to_lower(std::string_view utf8) {
     if (!decoded) {
         return std::string(utf8);
     }
+    const std::span<const LowerMapping> lower = kLower;
     std::string out;
     out.reserve(utf8.size());
     for (std::size_t i = 0; i < decoded->size(); ++i) {
         const char32_t cp = (*decoded)[i];
         if (cp == kCapitalSigma) {
-            append_utf8(out, is_final_sigma(*decoded, i) ? kFinalSigma : char32_t{0x03C3});
+            append_utf8(out, is_final_sigma(*decoded, i) ? kFinalSigma : kSmallSigma);
             continue;
         }
-        const auto it = std::lower_bound(
-            std::begin(kLower), std::end(kLower), cp,
-            [](const LowerMapping& row, char32_t value) { return row.code_point < value; });
-        if (it == std::end(kLower) || it->code_point != cp) {
+        const auto it = std::ranges::lower_bound(lower, cp, {}, &LowerMapping::code_point);
+        if (it == std::end(lower) || it->code_point != cp) {
             append_utf8(out, cp);
             continue;
         }
@@ -91,12 +107,17 @@ std::string to_lower(std::string_view utf8) {
     return out;
 }
 
-bool is_white_space(char32_t cp) {
-    return (cp >= 0x0009 && cp <= 0x000D) || cp == 0x0020 || cp == 0x0085 || cp == 0x00A0 ||
-           cp == 0x1680 || (cp >= 0x2000 && cp <= 0x200A) || cp == 0x2028 || cp == 0x2029 ||
-           cp == 0x202F || cp == 0x205F || cp == 0x3000;
+bool is_white_space(char32_t code_point) {
+    return (code_point >= kTab && code_point <= kCarriageReturn) || code_point == kSpace ||
+           code_point == kNextLine || code_point == kNoBreakSpace ||
+           code_point == kOghamSpaceMark || (code_point >= kEnQuad && code_point <= kHairSpace) ||
+           code_point == kLineSeparator || code_point == kParagraphSeparator ||
+           code_point == kNarrowNoBreakSpace || code_point == kMediumMathematicalSpace ||
+           code_point == kIdeographicSpace;
 }
 
-bool is_control(char32_t cp) { return cp <= 0x001F || (cp >= 0x007F && cp <= 0x009F); }
+bool is_control(char32_t code_point) {
+    return code_point <= kLastC0Control || (code_point >= kDelete && code_point <= kLastC1Control);
+}
 
 }  // namespace bucu::core

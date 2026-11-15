@@ -30,10 +30,10 @@ std::optional<std::string> non_empty(const Environment& environment, std::string
 bool is_absolute_xdg(const std::string& path) { return !path.empty() && path.front() == '/'; }
 
 Error missing_variable(std::string_view name) {
-    return Error{ErrorCode::kMissingVariable,
-                 "the " + std::string(name) +
-                     " environment variable is not set; set it, or name the "
-                     "database with --db or BUCU_DB"};
+    return Error{.code = ErrorCode::kMissingVariable,
+                 .message = "the " + std::string(name) +
+                            " environment variable is not set; set it, or name the "
+                            "database with --db or BUCU_DB"};
 }
 
 std::expected<std::string, Error> default_path(Os os, const Environment& environment) {
@@ -89,27 +89,27 @@ Os current_os() {
 std::expected<Location, Error> resolve_database_location(
     Os os, const Environment& environment, const std::optional<std::string>& explicit_path) {
     if (explicit_path.has_value() && !explicit_path->empty()) {
-        return Location{*explicit_path, false};
+        return Location{.path = *explicit_path, .is_default = false};
     }
     if (const std::optional<std::string> override_path = non_empty(environment, "BUCU_DB")) {
-        return Location{*override_path, false};
+        return Location{.path = *override_path, .is_default = false};
     }
     const std::expected<std::string, Error> path = default_path(os, environment);
     if (!path.has_value()) {
         return std::unexpected(path.error());
     }
-    return Location{*path, true};
+    return Location{.path = *path, .is_default = true};
 }
 
 std::filesystem::path path_from_utf8(std::string_view text) {
     // char8_t and char share size and alignment; the bytes are the same UTF-8 text.
     const std::u8string utf8(text.begin(), text.end());
-    return std::filesystem::path(utf8);
+    return {utf8};
 }
 
 std::string utf8_from_path(const std::filesystem::path& path) {
     const std::u8string utf8 = path.u8string();
-    return std::string(utf8.begin(), utf8.end());
+    return {utf8.begin(), utf8.end()};
 }
 
 std::expected<std::filesystem::path, Error> prepare_database_location(const Location& location) {
@@ -120,8 +120,8 @@ std::expected<std::filesystem::path, Error> prepare_database_location(const Loca
         std::filesystem::create_directories(directory, error);
         if (error || !std::filesystem::is_directory(directory, error)) {
             return std::unexpected(
-                Error{ErrorCode::kCannotCreateDirectory,
-                      "cannot create the directory " + utf8_from_path(directory)});
+                Error{.code = ErrorCode::kCannotCreateDirectory,
+                      .message = "cannot create the directory " + utf8_from_path(directory)});
         }
         return file;
     }
@@ -131,9 +131,10 @@ std::expected<std::filesystem::path, Error> prepare_database_location(const Loca
     std::error_code error;
     if (!std::filesystem::is_directory(directory, error)) {
         const bool exists = std::filesystem::exists(directory, error);
-        return std::unexpected(Error{ErrorCode::kMissingDirectory,
-                                     "the directory " + utf8_from_path(directory) +
-                                         (exists ? " is not a directory" : " does not exist")});
+        return std::unexpected(
+            Error{.code = ErrorCode::kMissingDirectory,
+                  .message = "the directory " + utf8_from_path(directory) +
+                             (exists ? " is not a directory" : " does not exist")});
     }
     return file;
 }

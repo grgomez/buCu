@@ -56,7 +56,8 @@ Exit codes:
 // Replaces CLI11's generated help with the fixed text above.
 class HelpFormatter : public CLI::FormatterBase {
 public:
-    std::string make_help(const CLI::App*, std::string, CLI::AppFormatMode) const override {
+    std::string make_help(const CLI::App* /*app*/, std::string /*name*/,
+                          CLI::AppFormatMode /*mode*/) const override {
         return kHelpText;
     }
 };

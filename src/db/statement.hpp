@@ -28,8 +28,8 @@ public:
     // Makes the statement ready to run again; bound values stay until bound again.
     std::expected<void, Error> reset();
 
-    std::int64_t column_int(int index) const;
-    std::string column_text(int index) const;
+    [[nodiscard]] std::int64_t column_int(int index) const;
+    [[nodiscard]] std::string column_text(int index) const;
 
 private:
     struct Finalizer {
@@ -39,7 +39,7 @@ private:
     Statement(sqlite3* connection, sqlite3_stmt* statement)
         : connection_(connection), statement_(statement) {}
 
-    std::expected<void, Error> check(int code) const;
+    [[nodiscard]] std::expected<void, Error> check(int code) const;
 
     sqlite3* connection_;
     std::unique_ptr<sqlite3_stmt, Finalizer> statement_;

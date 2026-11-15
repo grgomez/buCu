@@ -37,14 +37,14 @@ struct Fixture {
 
     std::int64_t count(const char* table) {
         auto statement = Statement::prepare(bucu::db::detail::handle(database),
-                                            (std::string("SELECT count(*) FROM ") + table).c_str());
+                                            std::string("SELECT count(*) FROM ") + table);
         REQUIRE(statement.has_value());
         REQUIRE(statement->step().value());
         return statement->column_int(0);
     }
 
 private:
-    Database open_database() const {
+    [[nodiscard]] Database open_database() const {
         auto opened = Database::open(dir.path() / "bookmarks.db");
         REQUIRE(opened.has_value());
         return std::move(*opened);

@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 
+#include "bucu/db/error.hpp"
 #include "bucu/platform/paths.hpp"
 #include "catch_amalgamated.hpp"
 #include "cli/run.hpp"
@@ -18,6 +19,9 @@
 #include "support/temp_dir.hpp"
 
 namespace {
+
+// A schema version above any this build knows.
+constexpr int kNewerSchema = bucu::db::kSchemaVersion.value() + 1;
 
 struct Result {
     int code;
@@ -33,21 +37,22 @@ struct Fixture {
     bucu::platform::test::FakeEnvironment environment;
     std::filesystem::path db = dir.path() / "bookmarks.db";
 
-    std::string db_text() const { return bucu::test::utf8_path(db); }
+    [[nodiscard]] std::string db_text() const { return bucu::test::utf8_path(db); }
 
     // `bucu --db <db> <args>`
-    Result bucu(std::vector<std::string> args) const {
+    [[nodiscard]] Result bucu(std::vector<std::string> args) const {
         args.insert(args.begin(), {"--db", db_text()});
         return invoke(args, environment);
     }
 
     static Result invoke(const std::vector<std::string>& args,
                          const bucu::platform::Environment& environment) {
-        const bucu::cli::Context context{bucu::platform::Os::kLinuxOrBsd, environment, kNow};
+        const bucu::cli::Context context{
+            .os = bucu::platform::Os::kLinuxOrBsd, .environment = environment, .now = kNow};
         std::ostringstream out;
         std::ostringstream err;
         const int code = bucu::cli::run(args, out, err, context);
-        return {code, out.str(), err.str()};
+        return {.code = code, .out = out.str(), .err = err.str()};
     }
 
     // A file that is not a SQLite database.
@@ -150,7 +155,7 @@ TEST_CASE("db version on a file that is not a database exits 1 and names the fil
 TEST_CASE("db version on a newer schema exits 1, names the file, and says both versions",
           "[cli][db]") {
     const Fixture fixture;
-    fixture.write_schema_version(7);
+    fixture.write_schema_version(kNewerSchema);
 
     const Result result = fixture.bucu({"db", "version"});
 
@@ -213,7 +218,7 @@ TEST_CASE("db check on a file that is not a database exits 1 and names the file"
 
 TEST_CASE("db check on a newer schema exits 1 and names the file", "[cli][db]") {
     const Fixture fixture;
-    fixture.write_schema_version(7);
+    fixture.write_schema_version(kNewerSchema);
 
     check_names_file(fixture.bucu({"db", "check"}), fixture);
 }
@@ -227,7 +232,7 @@ void fill(const Fixture& fixture) {
 }
 
 std::string read_bytes(const std::filesystem::path& path) {
-    std::ifstream file(path, std::ios::binary);
+    const std::ifstream file(path, std::ios::binary);
     std::ostringstream content;
     content << file.rdbuf();
     return content.str();
@@ -323,7 +328,7 @@ TEST_CASE("db backup of a file that is not a database, or a newer schema, exits 
         CAPTURE(newer);
         const Fixture fixture;
         if (newer) {
-            fixture.write_schema_version(7);
+            fixture.write_schema_version(kNewerSchema);
         } else {
             fixture.write_text_file();
         }

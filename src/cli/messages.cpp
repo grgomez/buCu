@@ -26,6 +26,10 @@ std::string_view field_name(core::Field field) {
 // echoed in an error stays on one line and sends no control byte to the terminal. Expects UTF-8.
 std::string escape_controls(std::string_view text) {
     constexpr std::string_view kHex = "0123456789abcdef";
+    constexpr unsigned kNibbleBits = 4;
+    constexpr unsigned kNibbleMask = 0xF;
+    constexpr unsigned char kFirstPrintable = 0x20;  // below it are the C0 controls
+    constexpr unsigned char kDelete = 0x7F;
     std::string escaped;
     for (std::size_t index = 0; index < text.size(); ++index) {
         const auto byte = static_cast<unsigned char>(text[index]);
@@ -35,18 +39,18 @@ std::string escape_controls(std::string_view text) {
         if (c1) {
             const auto next = static_cast<unsigned char>(text[++index]);
             escaped += "\\u00";
-            escaped += kHex[next >> 4U];
-            escaped += kHex[next & 0xFU];
+            escaped += kHex[next >> kNibbleBits];
+            escaped += kHex[next & kNibbleMask];
         } else if (byte == '\n') {
             escaped += "\\n";
         } else if (byte == '\r') {
             escaped += "\\r";
         } else if (byte == '\t') {
             escaped += "\\t";
-        } else if (byte < 0x20 || byte == 0x7F) {
+        } else if (byte < kFirstPrintable || byte == kDelete) {
             escaped += "\\x";
-            escaped += kHex[byte >> 4U];
-            escaped += kHex[byte & 0xFU];
+            escaped += kHex[byte >> kNibbleBits];
+            escaped += kHex[byte & kNibbleMask];
         } else {
             escaped += static_cast<char>(byte);
         }

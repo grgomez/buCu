@@ -50,7 +50,7 @@ TEST_CASE("UTF-8 decoding returns code points", "[core][utf8]") {
 
 TEST_CASE("UTF-8 encoding round-trips every length", "[core][utf8]") {
     std::string out;
-    for (char32_t cp : {U'a', char32_t{0xF1}, char32_t{0x20AC}, char32_t{0x1F600}}) {
+    for (const char32_t cp : {U'a', char32_t{0xF1}, char32_t{0x20AC}, char32_t{0x1F600}}) {
         append_utf8(out, cp);
     }
     CHECK(out == "a\xC3\xB1\xE2\x82\xAC\xF0\x9F\x98\x80");

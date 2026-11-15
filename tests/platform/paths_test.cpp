@@ -35,7 +35,7 @@ public:
         fs::remove_all(path_, ignored);
     }
 
-    const fs::path& path() const { return path_; }
+    [[nodiscard]] const fs::path& path() const { return path_; }
 
 private:
     fs::path path_;
@@ -207,7 +207,7 @@ using bucu::platform::prepare_database_location;
 using bucu::platform::utf8_from_path;
 
 Location location_in(const fs::path& file, bool is_default) {
-    return Location{utf8_from_path(file), is_default};
+    return Location{.path = utf8_from_path(file), .is_default = is_default};
 }
 
 }  // namespace
@@ -260,7 +260,7 @@ TEST_CASE("an override whose parent exists is accepted as given", "[platform][pa
 }
 
 TEST_CASE("an override with no directory part is in the current directory", "[platform][paths]") {
-    const auto prepared = prepare_database_location(Location{"b.db", false});
+    const auto prepared = prepare_database_location(Location{.path = "b.db", .is_default = false});
     REQUIRE(prepared.has_value());
     CHECK(*prepared == fs::path("b.db"));
 }

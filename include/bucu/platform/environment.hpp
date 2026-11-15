@@ -18,13 +18,13 @@ public:
 
     // The value of a variable, or no value when it is not set. A variable set to the empty string
     // returns the empty string; the rules that read it decide what empty means.
-    virtual std::optional<std::string> get(std::string_view name) const = 0;
+    [[nodiscard]] virtual std::optional<std::string> get(std::string_view name) const = 0;
 };
 
 // The process environment. On Windows it reads through UTF-16 (constitution principle 12).
 class SystemEnvironment final : public Environment {
 public:
-    std::optional<std::string> get(std::string_view name) const override;
+    [[nodiscard]] std::optional<std::string> get(std::string_view name) const override;
 };
 
 }  // namespace bucu::platform
