@@ -149,20 +149,13 @@ _CLOSES = re.compile(r"^\s*Closes #(\d+)\b", re.M | re.I)
 _CHECKBOX = re.compile(r"^\s*- \[([ xX])\] ")
 _UNTICKED_TASK = re.compile(r"^- \[ \] (T\d{3})\b", re.M)
 _OPEN_EVIDENCE = re.compile(r"Evidence: (?:manual|after merge)")
+_EVIDENCE = re.compile(r"Evidence: (test|property|fuzz|proof|check|manual|after merge)(?![\w-])(.*)$")
 
 
 def closing_issue(pr_body):
     """Return the issue number of the `Closes #<n>` line, or None."""
     match = _CLOSES.search(pr_body)
     return int(match.group(1)) if match else None
-
-
-def criteria_lines(body, tier):
-    """Return the acceptance criteria lines: the Spec part's, or the Scope bullets for Tier 0."""
-    if tier == 0:
-        return scope_bullets(body)
-    return [line for line in split_parts(body).get("SPEC", "").splitlines()
-            if _CRITERION.match(line)]
 
 
 def check_done(body, names):
@@ -237,10 +230,28 @@ def read_issue(number, gh):
     return data["body"] or "", [label["name"] for label in data["labels"]]
 
 
+def criteria_lines(body, tier):
+    """Return the acceptance criteria lines: the Spec part's, or the Scope bullets for Tier 0."""
+    if tier == 0:
+        return scope_bullets(body)
+    return [line for line in split_parts(body).get("SPEC", "").splitlines()
+            if _CRITERION.match(line)]
+
+
+def check_declared(body, tier):
+    """Return a failure for each criterion that declares no valid `Evidence: <kind>`."""
+    failures = []
+    for line in criteria_lines(body, tier):
+        if not _EVIDENCE.search(line):
+            failures.append(f"criterion declares no valid `Evidence: <kind>`: {line.strip()[:60]}")
+    return failures
+
+
 def check_issue(number, gh):
     """Return the `issue` failures for issue `number`."""
     body, names = read_issue(number, gh)
-    return [f"issue #{number}: {f}" for f in check_parts(body, names) + check_size(body)]
+    failures = check_parts(body, names) + check_size(body) + check_declared(body, tier_of(names))
+    return [f"issue #{number}: {f}" for f in failures]
 
 
 def check_pr(number, gh):

@@ -12,7 +12,7 @@ SPEC = importlib.util.spec_from_file_location("sdd_check", ROOT / "tools" / "sdd
 sdd_check = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(sdd_check)
 
-SPEC_PART = "<!-- SPEC:START -->\n# Spec\n### US1: a\n- [ ] US1-AC1: x\n<!-- SPEC:END -->\n"
+SPEC_PART = "<!-- SPEC:START -->\n# Spec\n### US1: a\n- [ ] US1-AC1: x Evidence: test\n<!-- SPEC:END -->\n"
 PLAN_PART = "<!-- PLAN:START -->\n# Plan\n<!-- PLAN:END -->\n"
 TASKS_PART = "<!-- TASKS:START -->\n# Tasks\n- [ ] T001 x\n<!-- TASKS:END -->\n"
 
@@ -123,6 +123,41 @@ class SizeTest(unittest.TestCase):
     def test_marker_in_the_original_text_is_ignored(self):
         text = body(original="[NEEDS CLARIFICATION: owner note]\n")
         self.assertEqual(sdd_check.check_size(text), [])
+
+
+class DeclaredEvidenceTest(unittest.TestCase):
+    def failures(self, criterion, tier=1):
+        spec = f"<!-- SPEC:START -->\n# Spec\n### US1: a\n{criterion}\n<!-- SPEC:END -->\n"
+        return sdd_check.check_declared(body(spec=spec), tier)
+
+    def test_each_kind_passes(self):
+        for kind in ("test", "property", "fuzz", "proof", "check", "manual", "after merge"):
+            self.assertEqual(self.failures(f"- [ ] US1-AC1: x. Evidence: {kind}"), [], kind)
+
+    def test_completed_form_passes(self):
+        self.assertEqual(self.failures("- [x] US1-AC1: x Evidence: check: T004"), [])
+
+    def test_missing_or_unknown_kind_fails(self):
+        for criterion in ("- [ ] US1-AC1: x", "- [ ] US1-AC1: x Evidence: guess",
+                          "- [ ] US1-AC1: x Evidence:", "- [ ] US1-AC1: x Evidence: testing"):
+            failures = self.failures(criterion)
+            self.assertEqual(len(failures), 1, criterion)
+            self.assertIn("US1-AC1", failures[0])
+
+    def test_tier0_scope_bullets_need_a_kind(self):
+        original = "Goal.\n\n## Scope\n\n- first. Evidence: check\n- second\n"
+        tasks = "<!-- TASKS:START -->\n# Tasks\n- [ ] T001 x\n<!-- TASKS:END -->\n"
+        failures = sdd_check.check_declared(body(original=original, spec="", tasks=tasks), 0)
+        self.assertEqual(len(failures), 1)
+        self.assertIn("second", failures[0])
+
+    def test_issue_command_reports_it(self):
+        spec = "<!-- SPEC:START -->\n# Spec\n### US1: a\n- [ ] US1-AC1: x\n<!-- SPEC:END -->\n"
+        gh = CommandLineTest().fake_gh(body(spec=spec), labels(1))
+        err = io.StringIO()
+        self.assertEqual(sdd_check.main(["issue", "7"], gh=gh, err=err), 1)
+        self.assertIn("issue #7: ", err.getvalue())
+        self.assertIn("US1-AC1", err.getvalue())
 
 
 def done_body(task="- [x] T001 x", criterion="- [x] US1-AC1: x Evidence: a_test.py: case"):
