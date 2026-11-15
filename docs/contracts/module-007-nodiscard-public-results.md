@@ -2,7 +2,7 @@
 
 - Kind: Module
 - Version: 7 (from 6)
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-11-14
 - Issue: #58
 - Previous record: [`module-006`](module-006-typed-flags-schema-version-terminal.md)
