@@ -1,19 +1,29 @@
-# Adopted checks (architecture section 8, ADR 0006). Naming per architecture section 8.
-# A disabled check needs a reason and an issue; each suppression covers one line or one function.
+# Adopted checks (architecture section 8, ADR 0006, ADR 0007). Naming per architecture section 8.
+# A permanently excluded check gives its reason and the issue that decided it; each suppression
+# covers one line or one function (a generated third_party/ table may carry a whole-file pair).
 #
-# Disabled: cppcoreguidelines-avoid-magic-numbers. Reason: the bit masks and
-# limits stay unnamed until the readability issue (#58) enables it, together
-# with its alias readability-magic-numbers, and names them.
+# Excluded checks (issue #58, ADR 0007):
+# - modernize-use-trailing-return-type: the Google C++ style guide uses leading return types.
+# - misc-include-cleaner: it needs per-library include mappings that BuCu does not keep.
+# - readability-identifier-length: it flags idiomatic short names (id, db, it).
+# - readability-uppercase-literal-suffix: the Google C++ style guide does not require it.
+# - misc-non-private-member-variables-in-classes: it flags Catch2 fixtures.
+# - readability-function-cognitive-complexity: it scores Catch2 macro expansion in TEST_CASE bodies.
 Checks: >
   -*,
   bugprone-*,
   performance-*,
   google-*,
   cppcoreguidelines-*,
-  -cppcoreguidelines-avoid-magic-numbers,
-  modernize-use-nullptr,
-  modernize-use-override,
-  readability-identifier-naming
+  readability-*,
+  modernize-*,
+  misc-*,
+  -modernize-use-trailing-return-type,
+  -misc-include-cleaner,
+  -readability-identifier-length,
+  -readability-uppercase-literal-suffix,
+  -misc-non-private-member-variables-in-classes,
+  -readability-function-cognitive-complexity
 WarningsAsErrors: '*'
 HeaderFilterRegex: '(src|include|tests)/'
 CheckOptions:
