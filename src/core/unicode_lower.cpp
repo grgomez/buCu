@@ -32,7 +32,26 @@ constexpr auto kLower = std::to_array<LowerMapping>({
 #include "case_properties.inc"
 
 constexpr char32_t kCapitalSigma = 0x03A3;
+constexpr char32_t kSmallSigma = 0x03C3;
 constexpr char32_t kFinalSigma = 0x03C2;
+
+// White_Space (Unicode 18.0.0 PropList.txt) and the control ranges.
+constexpr char32_t kTab = 0x0009;
+constexpr char32_t kCarriageReturn = 0x000D;  // U+0009 to U+000D: tab, line feed, ..., return
+constexpr char32_t kSpace = 0x0020;
+constexpr char32_t kNextLine = 0x0085;
+constexpr char32_t kNoBreakSpace = 0x00A0;
+constexpr char32_t kOghamSpaceMark = 0x1680;
+constexpr char32_t kEnQuad = 0x2000;  // U+2000 to U+200A: the fixed-width spaces
+constexpr char32_t kHairSpace = 0x200A;
+constexpr char32_t kLineSeparator = 0x2028;
+constexpr char32_t kParagraphSeparator = 0x2029;
+constexpr char32_t kNarrowNoBreakSpace = 0x202F;
+constexpr char32_t kMediumMathematicalSpace = 0x205F;
+constexpr char32_t kIdeographicSpace = 0x3000;
+constexpr char32_t kLastC0Control = 0x001F;
+constexpr char32_t kDelete = 0x007F;  // U+007F to U+009F: delete and the C1 controls
+constexpr char32_t kLastC1Control = 0x009F;
 
 bool in_ranges(std::span<const CodePointRange> ranges, char32_t code_point) {
     const auto it = std::upper_bound(
@@ -73,7 +92,7 @@ std::string to_lower(std::string_view utf8) {
     for (std::size_t i = 0; i < decoded->size(); ++i) {
         const char32_t cp = (*decoded)[i];
         if (cp == kCapitalSigma) {
-            append_utf8(out, is_final_sigma(*decoded, i) ? kFinalSigma : char32_t{0x03C3});
+            append_utf8(out, is_final_sigma(*decoded, i) ? kFinalSigma : kSmallSigma);
             continue;
         }
         const auto it = std::lower_bound(
@@ -92,11 +111,14 @@ std::string to_lower(std::string_view utf8) {
 }
 
 bool is_white_space(char32_t cp) {
-    return (cp >= 0x0009 && cp <= 0x000D) || cp == 0x0020 || cp == 0x0085 || cp == 0x00A0 ||
-           cp == 0x1680 || (cp >= 0x2000 && cp <= 0x200A) || cp == 0x2028 || cp == 0x2029 ||
-           cp == 0x202F || cp == 0x205F || cp == 0x3000;
+    return (cp >= kTab && cp <= kCarriageReturn) || cp == kSpace || cp == kNextLine ||
+           cp == kNoBreakSpace || cp == kOghamSpaceMark || (cp >= kEnQuad && cp <= kHairSpace) ||
+           cp == kLineSeparator || cp == kParagraphSeparator || cp == kNarrowNoBreakSpace ||
+           cp == kMediumMathematicalSpace || cp == kIdeographicSpace;
 }
 
-bool is_control(char32_t cp) { return cp <= 0x001F || (cp >= 0x007F && cp <= 0x009F); }
+bool is_control(char32_t cp) {
+    return cp <= kLastC0Control || (cp >= kDelete && cp <= kLastC1Control);
+}
 
 }  // namespace bucu::core
