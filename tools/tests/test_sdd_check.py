@@ -12,7 +12,7 @@ SPEC = importlib.util.spec_from_file_location("sdd_check", ROOT / "tools" / "sdd
 sdd_check = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(sdd_check)
 
-SPEC_PART = "<!-- SPEC:START -->\n# Spec\n### US1: a\n- [ ] US1-AC1: x\n<!-- SPEC:END -->\n"
+SPEC_PART = "<!-- SPEC:START -->\n# Spec\n### US1: a\n- [ ] US1-AC1: x Evidence: test\n<!-- SPEC:END -->\n"
 PLAN_PART = "<!-- PLAN:START -->\n# Plan\n<!-- PLAN:END -->\n"
 TASKS_PART = "<!-- TASKS:START -->\n# Tasks\n- [ ] T001 x\n<!-- TASKS:END -->\n"
 
@@ -125,7 +125,42 @@ class SizeTest(unittest.TestCase):
         self.assertEqual(sdd_check.check_size(text), [])
 
 
-def done_body(task="- [x] T001 x", criterion="- [x] US1-AC1: x Evidence: a_test.py: case"):
+class DeclaredEvidenceTest(unittest.TestCase):
+    def failures(self, criterion, tier=1):
+        spec = f"<!-- SPEC:START -->\n# Spec\n### US1: a\n{criterion}\n<!-- SPEC:END -->\n"
+        return sdd_check.check_declared(body(spec=spec), tier)
+
+    def test_each_kind_passes(self):
+        for kind in ("test", "property", "fuzz", "proof", "check", "manual", "after merge"):
+            self.assertEqual(self.failures(f"- [ ] US1-AC1: x. Evidence: {kind}"), [], kind)
+
+    def test_completed_form_passes(self):
+        self.assertEqual(self.failures("- [x] US1-AC1: x Evidence: check: T004"), [])
+
+    def test_missing_or_unknown_kind_fails(self):
+        for criterion in ("- [ ] US1-AC1: x", "- [ ] US1-AC1: x Evidence: guess",
+                          "- [ ] US1-AC1: x Evidence:", "- [ ] US1-AC1: x Evidence: testing"):
+            failures = self.failures(criterion)
+            self.assertEqual(len(failures), 1, criterion)
+            self.assertIn("US1-AC1", failures[0])
+
+    def test_tier0_scope_bullets_need_a_kind(self):
+        original = "Goal.\n\n## Scope\n\n- first. Evidence: check\n- second\n"
+        tasks = "<!-- TASKS:START -->\n# Tasks\n- [ ] T001 x\n<!-- TASKS:END -->\n"
+        failures = sdd_check.check_declared(body(original=original, spec="", tasks=tasks), 0)
+        self.assertEqual(len(failures), 1)
+        self.assertIn("second", failures[0])
+
+    def test_issue_command_reports_it(self):
+        spec = "<!-- SPEC:START -->\n# Spec\n### US1: a\n- [ ] US1-AC1: x\n<!-- SPEC:END -->\n"
+        gh = CommandLineTest().fake_gh(body(spec=spec), labels(1))
+        err = io.StringIO()
+        self.assertEqual(sdd_check.main(["issue", "7"], gh=gh, err=err), 1)
+        self.assertIn("issue #7: ", err.getvalue())
+        self.assertIn("US1-AC1", err.getvalue())
+
+
+def done_body(task="- [x] T001 x", criterion="- [x] US1-AC1: x Evidence: test: a_test.py: case"):
     spec = f"<!-- SPEC:START -->\n# Spec\n### US1: a\n{criterion}\n<!-- SPEC:END -->\n"
     tasks = f"<!-- TASKS:START -->\n# Tasks\n{task}\n<!-- TASKS:END -->\n"
     return body(spec=spec, tasks=tasks)
@@ -151,16 +186,38 @@ class DoneTest(unittest.TestCase):
         self.assertTrue(any("US1-AC1" in f for f in self.failures(text)))
 
     def test_unchecked_criterion_with_manual_or_after_merge(self):
-        for evidence in ("Evidence: manual, check 1 (owner)", "Evidence: after merge (owner)"):
+        for evidence in ("Evidence: manual: check 1 (owner)", "Evidence: after merge (owner)"):
             text = done_body(criterion=f"- [ ] US1-AC1: x {evidence}")
             self.assertEqual(self.failures(text), [])
 
     def test_unchecked_criterion_with_test_evidence(self):
-        text = done_body(criterion="- [ ] US1-AC1: x Evidence: a_test.py: case")
+        text = done_body(criterion="- [ ] US1-AC1: x Evidence: test: a_test.py: case")
         self.assertTrue(any("US1-AC1" in f for f in self.failures(text)))
 
+    def test_ticked_kinds_with_a_location_pass(self):
+        for evidence in ("test: a_test.py: case", "property: a_test.cpp: round trip",
+                         "fuzz: fuzz/x.cpp: corpus run", "proof: proofs/x.v: lemma",
+                         "check: T004", "check: T004, T005", "manual: check 1 (owner)",
+                         "after merge (owner)"):
+            text = done_body(criterion=f"- [x] US1-AC1: x Evidence: {evidence}")
+            self.assertEqual(self.failures(text), [], evidence)
+
+    def test_ticked_kind_without_its_location_fails(self):
+        for evidence in ("test", "test: a_test.py", "property: a_test.cpp:", "check",
+                         "check: first task", "check: T4", "manual", "manual: check 1",
+                         "after merge", "guess: x: y"):
+            text = done_body(criterion=f"- [x] US1-AC1: x Evidence: {evidence}")
+            failures = self.failures(text)
+            self.assertEqual(len(failures), 1, evidence)
+            self.assertIn("US1-AC1", failures[0])
+
+    def test_unticked_kind_must_be_manual_or_after_merge_in_full(self):
+        for evidence in ("manual", "manual, check 1 (owner)", "after merge", "check: T004"):
+            text = done_body(criterion=f"- [ ] US1-AC1: x Evidence: {evidence}")
+            self.assertEqual(len(self.failures(text)), 1, evidence)
+
     def test_tier0_scope_bullets_are_the_criteria(self):
-        original = "Goal.\n\n## Scope\n\n- [x] first. Evidence: T001 Check\n- second\n"
+        original = "Goal.\n\n## Scope\n\n- [x] first. Evidence: check: T001\n- second\n"
         tasks = "<!-- TASKS:START -->\n# Tasks\n- [x] T001 x\n<!-- TASKS:END -->\n"
         text = body(original=original, spec="", tasks=tasks)
         failures = self.failures(text, tier=0)

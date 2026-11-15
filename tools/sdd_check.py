@@ -148,7 +148,19 @@ def check_size(body):
 _CLOSES = re.compile(r"^\s*Closes #(\d+)\b", re.M | re.I)
 _CHECKBOX = re.compile(r"^\s*- \[([ xX])\] ")
 _UNTICKED_TASK = re.compile(r"^- \[ \] (T\d{3})\b", re.M)
-_OPEN_EVIDENCE = re.compile(r"Evidence: (?:manual|after merge)")
+_LOCATED = re.compile(r": [^:\s][^:]*: \S")
+_DELIVERED = {
+    "test": _LOCATED,
+    "property": _LOCATED,
+    "fuzz": _LOCATED,
+    "proof": _LOCATED,
+    "check": re.compile(r": T\d{3}(?:, T\d{3})*\s*$"),
+}
+_OPEN = {
+    "manual": re.compile(r": check \d+ \(owner\)\s*$"),
+    "after merge": re.compile(r" \(owner\)\s*$"),
+}
+_EVIDENCE = re.compile(r"Evidence: (test|property|fuzz|proof|check|manual|after merge)(?![\w-])(.*)$")
 
 
 def closing_issue(pr_body):
@@ -157,12 +169,20 @@ def closing_issue(pr_body):
     return int(match.group(1)) if match else None
 
 
-def criteria_lines(body, tier):
-    """Return the acceptance criteria lines: the Spec part's, or the Scope bullets for Tier 0."""
-    if tier == 0:
-        return scope_bullets(body)
-    return [line for line in split_parts(body).get("SPEC", "").splitlines()
-            if _CRITERION.match(line)]
+def _check_delivered(line, ticked, label):
+    """Return the failures of one criterion's completed `Evidence:` field (`/pr` step 4)."""
+    found = _EVIDENCE.search(line)
+    kind, rest = (found.group(1), found.group(2)) if found else (None, "")
+    if ticked:
+        form = _DELIVERED.get(kind) or _OPEN.get(kind)
+        if form is None or not form.match(rest):
+            return [f"ticked criterion needs `Evidence: <test|property|fuzz|proof>: <file>: <case>`, "
+                    f"`Evidence: check: <task IDs>`, or the owner's completed manual or "
+                    f"after merge form: {label}"]
+    elif kind not in _OPEN or not _OPEN[kind].match(rest):
+        return [f"unticked criterion needs `Evidence: manual: check <n> (owner)` or "
+                f"`Evidence: after merge (owner)`: {label}"]
+    return []
 
 
 def check_done(body, names):
@@ -176,12 +196,8 @@ def check_done(body, names):
         box = _CHECKBOX.match(line)
         if not box:
             failures.append(f"criterion has no checkbox: {label}")
-        elif box.group(1) == " ":
-            if not _OPEN_EVIDENCE.search(line):
-                failures.append(f"unticked criterion needs `Evidence: manual` or "
-                                f"`Evidence: after merge`: {label}")
-        elif "Evidence:" not in line:
-            failures.append(f"ticked criterion has no `Evidence:`: {label}")
+        else:
+            failures.extend(_check_delivered(line, box.group(1) != " ", label))
     return failures
 
 
@@ -237,10 +253,28 @@ def read_issue(number, gh):
     return data["body"] or "", [label["name"] for label in data["labels"]]
 
 
+def criteria_lines(body, tier):
+    """Return the acceptance criteria lines: the Spec part's, or the Scope bullets for Tier 0."""
+    if tier == 0:
+        return scope_bullets(body)
+    return [line for line in split_parts(body).get("SPEC", "").splitlines()
+            if _CRITERION.match(line)]
+
+
+def check_declared(body, tier):
+    """Return a failure for each criterion that declares no valid `Evidence: <kind>`."""
+    failures = []
+    for line in criteria_lines(body, tier):
+        if not _EVIDENCE.search(line):
+            failures.append(f"criterion declares no valid `Evidence: <kind>`: {line.strip()[:60]}")
+    return failures
+
+
 def check_issue(number, gh):
     """Return the `issue` failures for issue `number`."""
     body, names = read_issue(number, gh)
-    return [f"issue #{number}: {f}" for f in check_parts(body, names) + check_size(body)]
+    failures = check_parts(body, names) + check_size(body) + check_declared(body, tier_of(names))
+    return [f"issue #{number}: {f}" for f in failures]
 
 
 def check_pr(number, gh):

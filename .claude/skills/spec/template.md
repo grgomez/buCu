@@ -17,10 +17,10 @@ One paragraph: the user problem and the outcome.
 
 As a BuCu user, I want <capability>, so that <benefit>.
 
-Acceptance criteria:
+Acceptance criteria (each ends with `Evidence: <kind>`, a kind from [`/pr` step 4](../pr/SKILL.md)):
 
-- [ ] US1-AC1: Given <state>, when <command>, then <output, exit code, or stored result>.
-- [ ] US1-AC2: Given <state>, when <command>, then <result>.
+- [ ] US1-AC1: Given <state>, when <command>, then <output, exit code, or stored result>. Evidence: <kind>
+- [ ] US1-AC2: Given <state>, when <command>, then <result>. Evidence: <kind>
 
 ## Functional requirements
 
