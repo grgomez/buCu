@@ -160,7 +160,7 @@ class DeclaredEvidenceTest(unittest.TestCase):
         self.assertIn("US1-AC1", err.getvalue())
 
 
-def done_body(task="- [x] T001 x", criterion="- [x] US1-AC1: x Evidence: a_test.py: case"):
+def done_body(task="- [x] T001 x", criterion="- [x] US1-AC1: x Evidence: test: a_test.py: case"):
     spec = f"<!-- SPEC:START -->\n# Spec\n### US1: a\n{criterion}\n<!-- SPEC:END -->\n"
     tasks = f"<!-- TASKS:START -->\n# Tasks\n{task}\n<!-- TASKS:END -->\n"
     return body(spec=spec, tasks=tasks)
@@ -186,16 +186,37 @@ class DoneTest(unittest.TestCase):
         self.assertTrue(any("US1-AC1" in f for f in self.failures(text)))
 
     def test_unchecked_criterion_with_manual_or_after_merge(self):
-        for evidence in ("Evidence: manual, check 1 (owner)", "Evidence: after merge (owner)"):
+        for evidence in ("Evidence: manual: check 1 (owner)", "Evidence: after merge (owner)"):
             text = done_body(criterion=f"- [ ] US1-AC1: x {evidence}")
             self.assertEqual(self.failures(text), [])
 
     def test_unchecked_criterion_with_test_evidence(self):
-        text = done_body(criterion="- [ ] US1-AC1: x Evidence: a_test.py: case")
+        text = done_body(criterion="- [ ] US1-AC1: x Evidence: test: a_test.py: case")
         self.assertTrue(any("US1-AC1" in f for f in self.failures(text)))
 
+    def test_ticked_kinds_with_a_location_pass(self):
+        for evidence in ("test: a_test.py: case", "property: a_test.cpp: round trip",
+                         "fuzz: fuzz/x.cpp: corpus run", "proof: proofs/x.v: lemma",
+                         "check: T004", "check: T004, T005"):
+            text = done_body(criterion=f"- [x] US1-AC1: x Evidence: {evidence}")
+            self.assertEqual(self.failures(text), [], evidence)
+
+    def test_ticked_kind_without_its_location_fails(self):
+        for evidence in ("test", "test: a_test.py", "property: a_test.cpp:", "check",
+                         "check: first task", "check: T4", "manual: check 1 (owner)",
+                         "after merge (owner)", "guess: x: y"):
+            text = done_body(criterion=f"- [x] US1-AC1: x Evidence: {evidence}")
+            failures = self.failures(text)
+            self.assertEqual(len(failures), 1, evidence)
+            self.assertIn("US1-AC1", failures[0])
+
+    def test_unticked_kind_must_be_manual_or_after_merge_in_full(self):
+        for evidence in ("manual", "manual, check 1 (owner)", "after merge", "check: T004"):
+            text = done_body(criterion=f"- [ ] US1-AC1: x Evidence: {evidence}")
+            self.assertEqual(len(self.failures(text)), 1, evidence)
+
     def test_tier0_scope_bullets_are_the_criteria(self):
-        original = "Goal.\n\n## Scope\n\n- [x] first. Evidence: T001 Check\n- second\n"
+        original = "Goal.\n\n## Scope\n\n- [x] first. Evidence: check: T001\n- second\n"
         tasks = "<!-- TASKS:START -->\n# Tasks\n- [x] T001 x\n<!-- TASKS:END -->\n"
         text = body(original=original, spec="", tasks=tasks)
         failures = self.failures(text, tier=0)
