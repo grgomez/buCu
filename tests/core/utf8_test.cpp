@@ -41,8 +41,10 @@ TEST_CASE("UTF-8 validation rejects malformed text", "[core][utf8]") {
 TEST_CASE("UTF-8 decoding returns code points", "[core][utf8]") {
     auto decoded = decode_utf8("a\xC3\xB1\xE2\x82\xAC\xF0\x9F\x98\x80");
     REQUIRE(decoded.has_value());
-    CHECK(*decoded == std::u32string{U'a', 0xF1, 0x20AC, 0x1F600});
-    CHECK(decode_utf8("")->empty());
+    CHECK(decoded == std::u32string{U'a', 0xF1, 0x20AC, 0x1F600});
+    const auto empty = decode_utf8("");
+    REQUIRE(empty.has_value());
+    CHECK(empty == std::u32string{});
     CHECK_FALSE(decode_utf8("\xC3").has_value());
 }
 

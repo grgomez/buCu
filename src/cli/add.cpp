@@ -1,7 +1,9 @@
+#include <optional>
 #include <ostream>
 #include <string>
 
 #include "bucu/core/bookmark.hpp"
+#include "bucu/core/bookmark_id.hpp"
 #include "bucu/db/bookmarks.hpp"
 #include "cli/commands.hpp"
 #include "cli/exit_codes.hpp"
@@ -46,11 +48,12 @@ int run_add(const AddArgs& args, const Globals& globals, const Context& context,
         return kExitFailure;
     }
     const auto id = db::insert_bookmark(*database, *bookmark, context.now);
-    if (!id && id.error().code == db::ErrorCode::kDuplicateUrl) {
-        err << duplicate_url_message(bookmark->url, *id.error().bookmark_id) << '\n';
-        return kExitConflict;
-    }
     if (!id) {
+        const std::optional<core::BookmarkId>& holder = id.error().bookmark_id;
+        if (id.error().code == db::ErrorCode::kDuplicateUrl && holder.has_value()) {
+            err << duplicate_url_message(bookmark->url, *holder) << '\n';
+            return kExitConflict;
+        }
         err << sql_error_message("store the bookmark", id.error()) << '\n';
         return kExitFailure;
     }

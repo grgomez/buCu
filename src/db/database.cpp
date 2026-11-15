@@ -81,7 +81,7 @@ std::expected<Connection, Error> open_connection(const std::filesystem::path& pa
     }
 
     const std::u8string utf8 = path.u8string();
-    const std::string name(reinterpret_cast<const char*>(utf8.data()), utf8.size());
+    const std::string name(utf8.begin(), utf8.end());
     const int flags = SQLITE_OPEN_READWRITE | (present ? 0 : SQLITE_OPEN_CREATE);
     sqlite3* raw = nullptr;
     const int code = sqlite3_open_v2(name.c_str(), &raw, flags, nullptr);
@@ -110,20 +110,22 @@ std::expected<Connection, Error> open_connection(const std::filesystem::path& pa
         }
         return std::unexpected(found.error());
     }
-    if (*found < 0) {
+    if (found->value() < 0) {
         return std::unexpected(Error{ErrorCode::kNotBucuDatabase,
                                      "the file has an invalid schema version (" +
-                                         std::to_string(*found) + "), so it is not a BuCu database",
+                                         std::to_string(found->value()) +
+                                         "), so it is not a BuCu database",
                                      std::nullopt});
     }
     if (*found > kSchemaVersion) {
         return std::unexpected(Error{ErrorCode::kNewerSchema,
-                                     "the database has schema version " + std::to_string(*found) +
-                                         ", newer than version " + std::to_string(kSchemaVersion) +
+                                     "the database has schema version " +
+                                         std::to_string(found->value()) + ", newer than version " +
+                                         std::to_string(kSchemaVersion.value()) +
                                          ", the newest this BuCu supports",
                                      std::nullopt});
     }
-    if (*found == 0) {
+    if (found->value() == 0) {
         const auto tables = has_tables(raw);
         if (!tables) {
             return std::unexpected(tables.error());

@@ -4,6 +4,8 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <span>
+#include <string>
 #include <utility>
 
 namespace bucu::db {
@@ -13,6 +15,8 @@ namespace {
 // SQLITE_TRANSIENT written out: the macro is an old-style cast, which the strict warning set
 // rejects (architecture section 8). SQLite documents -1 as "copy the value now".
 const sqlite3_destructor_type kCopyValue =
+    // The one cast SQLite's API requires; no check can see that -1 is the documented value.
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast,performance-no-int-to-ptr)
     reinterpret_cast<sqlite3_destructor_type>(static_cast<std::intptr_t>(-1));
 
 }  // namespace
@@ -72,7 +76,8 @@ std::string Statement::column_text(int index) const {
         return {};
     }
     const int size = sqlite3_column_bytes(statement_.get(), index);
-    return std::string(reinterpret_cast<const char*>(text), static_cast<std::size_t>(size));
+    const std::span<const unsigned char> bytes(text, static_cast<std::size_t>(size));
+    return std::string(bytes.begin(), bytes.end());
 }
 
 }  // namespace bucu::db

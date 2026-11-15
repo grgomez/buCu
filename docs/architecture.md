@@ -29,7 +29,7 @@ Test and quality tools:
 | ctest | Test runner across platforms | Ships with CMake |
 | clang-format | Formatting authority (`.clang-format`) | |
 | ccache | Compiler cache in CI only; not linked into BuCu | Keeps the matrix fast; local builds stay free of it |
-| clang-tidy | Static analysis (`.clang-tidy`), focused checks only | |
+| clang-tidy 19 or newer | Static analysis (`.clang-tidy`): `google-*`, `cppcoreguidelines-*`, `bugprone-*`, `performance-*`, and the naming checks | Run by `scripts/tidy.sh` and the CI `tidy` job. Version 18 cannot parse `std::expected` ([ADR 0006](adr/0006-coding-standard-google-and-core-guidelines.md)) |
 | AddressSanitizer, UndefinedBehaviorSanitizer, ThreadSanitizer | Memory, undefined-behaviour, and data-race checks | Presets `asan-ubsan` and `tsan`, where the compiler supports them |
 | hyperfine (optional) | Command-line benchmarks | `scripts/bench.sh` falls back to a portable timer |
 
@@ -123,19 +123,21 @@ flowchart LR
 - A duplicate URL is a typed `db` error (`kDuplicateUrl`) that carries the ID of the bookmark that already holds the URL, so `cli` can name it (product §6).
 - An import validates as it streams, inside one transaction; a failed import changes no data.
 - Writes that change more than one table run in one transaction.
+- BuCu code MUST NOT throw an exception for an expected failure: no `throw` in `src/` or `tests/` (a test helper that fails calls Catch2 `FAIL`; Catch2's `*_THROWS` assertions are allowed). Only `src/cli/` MAY catch, and only around third-party code that throws (CLI11 today). `scripts/tidy.sh` enforces this.
 - Do not catch `...` or `std::exception` without handling it. Broad silent handlers are prohibited.
 
 ---
 
 ## 8. Coding standards
 
-- **Formatting:** clang-format is the authority. **Analysis:** clang-tidy with the checks in `.clang-tidy`.
+- **Standard:** the [Google C++ Style Guide](https://google.github.io/styleguide/cppguide.html) is the style base and the [C++ Core Guidelines](https://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines.html) are the design base. Each exception to Google, with its reason, is in [ADR 0006](adr/0006-coding-standard-google-and-core-guidelines.md).
+- **Formatting:** clang-format is the authority. **Analysis:** clang-tidy with the checks in `.clang-tidy`, run by `scripts/tidy.sh` and by the CI `tidy` job, which fails on any diagnostic.
 - **Warnings:** every BuCu target builds with the strict set, and warnings are errors in every preset and in CI (`BUCU_WERROR`, `ON` in every preset, `OFF` by default in `CMakeLists.txt` so a packager's newer compiler does not break the build).
   - GCC and Clang: `-Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wshadow -Wold-style-cast -Wnon-virtual-dtor -Woverloaded-virtual -Wcast-align -Wnull-dereference -Wdouble-promotion -Wformat=2 -Wimplicit-fallthrough`.
   - GCC only: `-Wduplicated-cond -Wduplicated-branches -Wlogical-op -Wuseless-cast`.
   - MSVC: `/W4 /WX /permissive- /utf-8` (source and execution character sets are UTF-8), with `/external:anglebrackets /external:W0` for third-party headers.
 - **Third-party code:** vendored headers (CLI11, Catch2) are included as `SYSTEM`; vendored sources (the SQLite amalgamation) build in their own target without the strict set. The strict set never weakens for BuCu's own code, tests included.
-- **Suppressions:** silence a warning only at the narrowest scope (one line or one function, never a file or target), with a comment that names the warning and why the code is correct. Do not cast just to quiet a warning.
+- **Suppressions:** silence a warning only at the narrowest scope (one line or one function, never a file or target), with a comment that names the warning and why the code is correct. Do not cast just to quiet a warning. A clang-tidy check is disabled in `.clang-tidy` only with a comment that gives the reason and the issue that will enable it; a single finding is suppressed with `NOLINT(<check>)` on one line or one function, with its reason, and `scripts/tidy.sh` fails on a `NOLINT` that names no check.
 - **Ownership:** RAII for every resource (SQLite handles, files, processes). No owning raw pointers. `std::string_view` where ownership is not needed, and never stored past the life of its source.
 - **Hot paths:** avoid needless allocations; measure before adding caches, custom allocators, or complex structures (`docs/performance.md`).
 - **Text:** UTF-8 in `std::string` everywhere. Convert to UTF-16 only inside `src/platform/` on Windows.

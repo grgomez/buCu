@@ -12,7 +12,7 @@
 namespace bucu::platform {
 
 // The operating-system family whose data directory rules apply. BSD uses the Linux rules.
-enum class Os {
+enum class Os : std::uint8_t {
     kLinuxOrBsd,
     kMacOs,
     kWindows,

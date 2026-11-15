@@ -96,6 +96,20 @@ TEST_CASE("insert_bookmark stores the bookmark and links its tags", "[db]") {
     CHECK(fixture.tags_of(*id) == std::vector<std::string>{"dev", "web"});
 }
 
+TEST_CASE("insert_bookmark stores the flags bit for bit, unknown and high bits included", "[db]") {
+    Fixture fixture;
+    auto bookmark = make("https://example.org/", "", "", "");
+    bookmark.flags = bucu::core::FlagSet(INT64_MIN | 6);
+
+    REQUIRE(bucu::db::insert_bookmark(fixture.database, bookmark, kNow).has_value());
+
+    auto row = Statement::prepare(bucu::db::detail::handle(fixture.database),
+                                  "SELECT flags FROM bookmark");
+    REQUIRE(row.has_value());
+    REQUIRE(row->step().value());
+    CHECK(row->column_int(0) == (INT64_MIN | 6));
+}
+
 TEST_CASE("insert_bookmark stores a bookmark with no tags", "[db]") {
     Fixture fixture;
 
@@ -133,7 +147,7 @@ TEST_CASE("a stored URL returns kDuplicateUrl with its ID and changes nothing", 
     REQUIRE_FALSE(again.has_value());
     CHECK(again.error().code == ErrorCode::kDuplicateUrl);
     REQUIRE(again.error().bookmark_id.has_value());
-    CHECK(*again.error().bookmark_id == *first);
+    CHECK(again.error().bookmark_id == *first);
     CHECK(fixture.count("bookmark") == 1);
     CHECK(fixture.count("tag") == 1);
     CHECK(fixture.count("bookmark_tag") == 1);

@@ -3,6 +3,7 @@
 #include <sqlite3.h>
 
 #include <chrono>
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
@@ -135,7 +136,7 @@ TEST_CASE("backup copies the committed data while another connection holds a wri
                                                     "https://three.example/"});
     auto opened = Database::open(copy);
     REQUIRE(opened.has_value());
-    CHECK(opened->schema_version() == 1);
+    CHECK(opened->schema_version() == bucu::db::SchemaVersion(1));
     const auto report = bucu::db::integrity_check(*opened);
     REQUIRE(report.has_value());
     CHECK(report->empty());
@@ -221,7 +222,7 @@ TEST_CASE("a backup that fails part way leaves no file and no journal, wal, or s
     auto database = Database::open(path);
     REQUIRE(database.has_value());
     // The header still promises every page; the file no longer holds them.
-    std::filesystem::resize_file(path, 4096 * 4);
+    std::filesystem::resize_file(path, std::uintmax_t{4096} * 4);
     const auto copy = dir.path() / name;
 
     const auto result = bucu::db::backup(*database, copy);

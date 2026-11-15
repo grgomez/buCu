@@ -4,6 +4,7 @@
 
 #include <optional>
 #include <string>
+#include <tuple>
 #include <utility>
 
 #include "db/handle.hpp"
@@ -24,7 +25,7 @@ std::expected<std::optional<core::BookmarkId>, Error> find_by_url(sqlite3* conne
     if (auto bound = statement->bind(1, url); !bound) {
         return std::unexpected(std::move(bound.error()));
     }
-    const auto row = statement->step();
+    auto row = statement->step();
     if (!row) {
         return std::unexpected(std::move(row.error()));
     }
@@ -49,9 +50,9 @@ std::expected<void, Error> run(Statement& statement, const Values&... values) {
     if (!bound) {
         return bound;
     }
-    const auto row = statement.step();
+    auto row = statement.step();
     // reset() only makes the statement ready again; the result of step() is the one that counts.
-    static_cast<void>(statement.reset());
+    std::ignore = statement.reset();
     if (!row) {
         return std::unexpected(std::move(row.error()));
     }
@@ -70,15 +71,14 @@ std::expected<core::BookmarkId, Error> insert_bookmark(Database& database,
         return std::unexpected(std::move(transaction.error()));
     }
 
-    const auto existing = find_by_url(connection, bookmark.url);
+    auto existing = find_by_url(connection, bookmark.url);
     if (!existing) {
         return std::unexpected(std::move(existing.error()));
     }
-    if (existing->has_value()) {
-        return std::unexpected(
-            Error{ErrorCode::kDuplicateUrl,
-                  "the URL is already stored as bookmark " + std::to_string((*existing)->value()),
-                  *existing});
+    if (const std::optional<core::BookmarkId>& holder = *existing; holder.has_value()) {
+        return std::unexpected(Error{
+            ErrorCode::kDuplicateUrl,
+            "the URL is already stored as bookmark " + std::to_string(holder->value()), holder});
     }
 
     auto insert = Statement::prepare(connection,
@@ -88,8 +88,8 @@ std::expected<core::BookmarkId, Error> insert_bookmark(Database& database,
     if (!insert) {
         return std::unexpected(std::move(insert.error()));
     }
-    if (auto done = run(*insert, bookmark.url, bookmark.title, bookmark.description, bookmark.flags,
-                        stored_time, stored_time);
+    if (auto done = run(*insert, bookmark.url, bookmark.title, bookmark.description,
+                        bookmark.flags.bits(), stored_time, stored_time);
         !done) {
         return std::unexpected(std::move(done.error()));
     }

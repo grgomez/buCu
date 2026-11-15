@@ -1,22 +1,22 @@
 #include "core/utf8.hpp"
 
 #include <cstddef>
+#include <optional>
 
 namespace bucu::core {
 
 namespace {
 
-// Decode one code point at `pos`, advancing it. Returns false on malformed input.
-bool next_code_point(std::string_view text, std::size_t& pos, char32_t& out) {
+// Decode one code point at `pos`, advancing it. Returns nothing on malformed input.
+std::optional<char32_t> next_code_point(std::string_view text, std::size_t& pos) {
     const auto byte = [&](std::size_t i) { return static_cast<unsigned char>(text[i]); };
     const unsigned lead = byte(pos);
     std::size_t length = 0;
     char32_t value = 0;
     char32_t minimum = 0;
     if (lead < 0x80) {
-        out = lead;
         ++pos;
-        return true;
+        return lead;
     }
     if (lead >= 0xC2 && lead <= 0xDF) {
         length = 2;
@@ -31,33 +31,31 @@ bool next_code_point(std::string_view text, std::size_t& pos, char32_t& out) {
         value = lead & 0x07u;
         minimum = 0x10000;
     } else {
-        return false;
+        return std::nullopt;
     }
     if (text.size() - pos < length) {
-        return false;
+        return std::nullopt;
     }
     for (std::size_t i = 1; i < length; ++i) {
         const unsigned cont = byte(pos + i);
         if ((cont & 0xC0u) != 0x80u) {
-            return false;
+            return std::nullopt;
         }
         value = (value << 6) | (cont & 0x3Fu);
     }
     if (value < minimum || value > 0x10FFFF || (value >= 0xD800 && value <= 0xDFFF)) {
-        return false;
+        return std::nullopt;
     }
-    out = value;
     pos += length;
-    return true;
+    return value;
 }
 
 }  // namespace
 
 bool is_valid_utf8(std::string_view text) {
     std::size_t pos = 0;
-    char32_t ignored = 0;
     while (pos < text.size()) {
-        if (!next_code_point(text, pos, ignored)) {
+        if (!next_code_point(text, pos)) {
             return false;
         }
     }
@@ -67,12 +65,12 @@ bool is_valid_utf8(std::string_view text) {
 std::optional<std::u32string> decode_utf8(std::string_view text) {
     std::u32string result;
     std::size_t pos = 0;
-    char32_t code_point = 0;
     while (pos < text.size()) {
-        if (!next_code_point(text, pos, code_point)) {
+        const std::optional<char32_t> code_point = next_code_point(text, pos);
+        if (!code_point) {
             return std::nullopt;
         }
-        result.push_back(code_point);
+        result.push_back(*code_point);
     }
     return result;
 }

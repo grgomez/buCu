@@ -70,6 +70,7 @@ ctest --preset debug -R '<test name regex>'            # targeted tests
 python3 -m unittest discover -s tools/tests            # workflow tool and hook tests
 cmake --preset asan-ubsan && cmake --build --preset asan-ubsan && ctest --preset asan-ubsan
 scripts/format.sh [--check]                            # clang-format
+scripts/tidy.sh [build-dir]                            # clang-tidy 19 (CLANG_TIDY=<path>), NOLINT and throw checks
 python3 tools/sdd_check.py issue <n>                   # issue body parts, size, markers
 ```
 

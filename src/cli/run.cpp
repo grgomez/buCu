@@ -77,7 +77,7 @@ int finish(int code, std::ostream& out, std::ostream& err) {
 std::optional<db::Database> open_database(const Globals& globals, const Context& context,
                                           std::ostream& err) {
     const auto location =
-        platform::resolve_database_location(context.os, context.environment, globals.db);
+        platform::resolve_database_location(context.os, context.environment.get(), globals.db);
     if (!location) {
         err << location_error_message(location.error()) << '\n';
         return std::nullopt;
@@ -208,7 +208,13 @@ int run(const std::vector<std::string>& args, std::ostream& out, std::ostream& e
             return *result;
         }
     }
-    return *parse_and_run(args, {}, false, out, err, context);
+    // Only a probe returns no value, so this run always has one.
+    const std::optional<int> code = parse_and_run(args, {}, false, out, err, context);
+    if (!code.has_value()) {
+        err << "bucu: internal error: no exit code\n";
+        return kExitFailure;
+    }
+    return *code;
 }
 
 }  // namespace bucu::cli

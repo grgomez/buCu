@@ -14,7 +14,7 @@
 
 namespace bucu::platform {
 
-bool use_color(ColorMode mode, bool stdout_is_terminal, const Environment& environment) {
+bool use_color(ColorMode mode, TerminalStatus output, const Environment& environment) {
     switch (mode) {
         case ColorMode::kAlways:
             return true;
@@ -25,26 +25,35 @@ bool use_color(ColorMode mode, bool stdout_is_terminal, const Environment& envir
     }
     const std::optional<std::string> no_color = environment.get("NO_COLOR");
     const bool no_color_set = no_color.has_value() && !no_color->empty();
-    return stdout_is_terminal && !no_color_set;
+    return output == TerminalStatus::kTerminal && !no_color_set;
 }
 
-bool is_interactive(bool stdin_is_terminal, bool stdout_is_terminal) {
-    return stdin_is_terminal && stdout_is_terminal;
+bool is_interactive(StandardStreams streams) {
+    return streams.input == TerminalStatus::kTerminal &&
+           streams.output == TerminalStatus::kTerminal;
 }
 
-bool stdin_is_terminal() {
+namespace {
+
+TerminalStatus status_of(bool attached) {
+    return attached ? TerminalStatus::kTerminal : TerminalStatus::kNotTerminal;
+}
+
+}  // namespace
+
+TerminalStatus stdin_is_terminal() {
 #ifdef _WIN32
-    return _isatty(_fileno(stdin)) != 0;
+    return status_of(_isatty(_fileno(stdin)) != 0);
 #else
-    return isatty(STDIN_FILENO) != 0;
+    return status_of(isatty(STDIN_FILENO) != 0);
 #endif
 }
 
-bool stdout_is_terminal() {
+TerminalStatus stdout_is_terminal() {
 #ifdef _WIN32
-    return _isatty(_fileno(stdout)) != 0;
+    return status_of(_isatty(_fileno(stdout)) != 0);
 #else
-    return isatty(STDOUT_FILENO) != 0;
+    return status_of(isatty(STDOUT_FILENO) != 0);
 #endif
 }
 

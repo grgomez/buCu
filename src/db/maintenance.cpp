@@ -38,7 +38,7 @@ void remove_partial_copy(const std::filesystem::path& destination) {
 // The path as UTF-8, which is what SQLite takes and what messages hold (constitution principle 12).
 std::string utf8_text(const std::filesystem::path& path) {
     const std::u8string utf8 = path.u8string();
-    return std::string(reinterpret_cast<const char*>(utf8.data()), utf8.size());
+    return std::string(utf8.begin(), utf8.end());
 }
 
 std::string message_of(sqlite3* connection, int code) {

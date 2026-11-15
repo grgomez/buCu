@@ -13,6 +13,8 @@ public:
     ConsoleSetup();
     ConsoleSetup(const ConsoleSetup&) = delete;
     ConsoleSetup& operator=(const ConsoleSetup&) = delete;
+    ConsoleSetup(ConsoleSetup&&) = delete;
+    ConsoleSetup& operator=(ConsoleSetup&&) = delete;
     ~ConsoleSetup();
 
 private:

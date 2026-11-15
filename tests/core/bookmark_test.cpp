@@ -2,51 +2,74 @@
 
 #include <cstdint>
 #include <string>
+#include <type_traits>
 
 #include "catch_amalgamated.hpp"
 
 using bucu::core::Bookmark;
 using bucu::core::clear_flag;
+using bucu::core::Flag;
+using bucu::core::FlagSet;
 using bucu::core::has_flag;
 using bucu::core::kFlagImmutableTitle;
 using bucu::core::set_flag;
 
+// A raw integer never becomes a Flag or a FlagSet by itself (US3-AC1).
+static_assert(!std::is_convertible_v<std::int64_t, Flag>);
+static_assert(!std::is_convertible_v<std::int64_t, FlagSet>);
+static_assert(!std::is_convertible_v<int, FlagSet>);
+static_assert(std::is_constructible_v<FlagSet, std::int64_t>);
+static_assert(std::is_constructible_v<Flag, std::int64_t>);
+// A flag set never becomes a raw integer or a single flag by itself.
+static_assert(!std::is_convertible_v<FlagSet, std::int64_t>);
+static_assert(!std::is_convertible_v<FlagSet, Flag>);
+static_assert(!std::is_convertible_v<Flag, std::int64_t>);
+// A single flag is a flag set of one flag.
+static_assert(std::is_convertible_v<Flag, FlagSet>);
+
 TEST_CASE("A new bookmark has no flag set and no tags", "[core][bookmark]") {
     const Bookmark bookmark;
-    CHECK(bookmark.flags == 0);
+    CHECK(bookmark.flags == FlagSet());
+    CHECK(bookmark.flags.bits() == 0);
     CHECK_FALSE(has_flag(bookmark.flags, kFlagImmutableTitle));
     CHECK(bookmark.tags.empty());
     CHECK(bookmark.url.empty());
 }
 
 TEST_CASE("The immutable-title flag is Buku's bit 1", "[core][bookmark]") {
-    CHECK(kFlagImmutableTitle == 1);
+    CHECK(kFlagImmutableTitle.bits() == 1);
+}
+
+TEST_CASE("A flag converts to a flag set of one flag", "[core][bookmark]") {
+    Bookmark bookmark;
+    bookmark.flags = kFlagImmutableTitle;
+    CHECK(bookmark.flags.bits() == 1);
 }
 
 TEST_CASE("Setting and clearing the flag gives stored values 1 and 0", "[core][bookmark]") {
-    std::int64_t flags = 0;
+    FlagSet flags;
     flags = set_flag(flags, kFlagImmutableTitle);
-    CHECK(flags == 1);
+    CHECK(flags.bits() == 1);
     CHECK(has_flag(flags, kFlagImmutableTitle));
     flags = clear_flag(flags, kFlagImmutableTitle);
-    CHECK(flags == 0);
+    CHECK(flags.bits() == 0);
     CHECK_FALSE(has_flag(flags, kFlagImmutableTitle));
 }
 
 TEST_CASE("Setting or clearing a set or clear flag changes nothing", "[core][bookmark]") {
-    CHECK(set_flag(1, kFlagImmutableTitle) == 1);
-    CHECK(clear_flag(0, kFlagImmutableTitle) == 0);
+    CHECK(set_flag(FlagSet(1), kFlagImmutableTitle).bits() == 1);
+    CHECK(clear_flag(FlagSet(0), kFlagImmutableTitle).bits() == 0);
 }
 
 TEST_CASE("Changing the flag keeps the bits BuCu does not know", "[core][bookmark]") {
-    CHECK(set_flag(6, kFlagImmutableTitle) == 7);
-    CHECK(clear_flag(7, kFlagImmutableTitle) == 6);
-    CHECK(clear_flag(5, kFlagImmutableTitle) == 4);
-    CHECK(has_flag(6, kFlagImmutableTitle) == false);
-    CHECK(has_flag(7, kFlagImmutableTitle));
+    CHECK(set_flag(FlagSet(6), kFlagImmutableTitle).bits() == 7);
+    CHECK(clear_flag(FlagSet(7), kFlagImmutableTitle).bits() == 6);
+    CHECK(clear_flag(FlagSet(5), kFlagImmutableTitle).bits() == 4);
+    CHECK(has_flag(FlagSet(6), kFlagImmutableTitle) == false);
+    CHECK(has_flag(FlagSet(7), kFlagImmutableTitle));
     constexpr std::int64_t kHighBit = INT64_MIN;
-    CHECK(set_flag(kHighBit, kFlagImmutableTitle) == (kHighBit | 1));
-    CHECK(clear_flag(kHighBit | 1, kFlagImmutableTitle) == kHighBit);
+    CHECK(set_flag(FlagSet(kHighBit), kFlagImmutableTitle).bits() == (kHighBit | 1));
+    CHECK(clear_flag(FlagSet(kHighBit | 1), kFlagImmutableTitle).bits() == kHighBit);
 }
 
 namespace {
@@ -66,7 +89,7 @@ TEST_CASE("make_bookmark normalizes the URL and keeps the text as given", "[core
     CHECK(result->title == " A Title\n");
     CHECK(result->description == "line 1\nline 2\n");
     CHECK(result->tags == TagSet{"a", "b"});
-    CHECK(result->flags == 0);
+    CHECK(result->flags.bits() == 0);
 }
 
 TEST_CASE("make_bookmark accepts an empty title and description", "[core][bookmark]") {
