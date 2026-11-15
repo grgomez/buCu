@@ -197,14 +197,15 @@ class DoneTest(unittest.TestCase):
     def test_ticked_kinds_with_a_location_pass(self):
         for evidence in ("test: a_test.py: case", "property: a_test.cpp: round trip",
                          "fuzz: fuzz/x.cpp: corpus run", "proof: proofs/x.v: lemma",
-                         "check: T004", "check: T004, T005"):
+                         "check: T004", "check: T004, T005", "manual: check 1 (owner)",
+                         "after merge (owner)"):
             text = done_body(criterion=f"- [x] US1-AC1: x Evidence: {evidence}")
             self.assertEqual(self.failures(text), [], evidence)
 
     def test_ticked_kind_without_its_location_fails(self):
         for evidence in ("test", "test: a_test.py", "property: a_test.cpp:", "check",
-                         "check: first task", "check: T4", "manual: check 1 (owner)",
-                         "after merge (owner)", "guess: x: y"):
+                         "check: first task", "check: T4", "manual", "manual: check 1",
+                         "after merge", "guess: x: y"):
             text = done_body(criterion=f"- [x] US1-AC1: x Evidence: {evidence}")
             failures = self.failures(text)
             self.assertEqual(len(failures), 1, evidence)

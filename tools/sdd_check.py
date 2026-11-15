@@ -174,9 +174,11 @@ def _check_delivered(line, ticked, label):
     found = _EVIDENCE.search(line)
     kind, rest = (found.group(1), found.group(2)) if found else (None, "")
     if ticked:
-        if kind not in _DELIVERED or not _DELIVERED[kind].match(rest):
-            return [f"ticked criterion needs `Evidence: <test|property|fuzz|proof>: <file>: <case>` "
-                    f"or `Evidence: check: <task IDs>`: {label}"]
+        form = _DELIVERED.get(kind) or _OPEN.get(kind)
+        if form is None or not form.match(rest):
+            return [f"ticked criterion needs `Evidence: <test|property|fuzz|proof>: <file>: <case>`, "
+                    f"`Evidence: check: <task IDs>`, or the owner's completed manual or "
+                    f"after merge form: {label}"]
     elif kind not in _OPEN or not _OPEN[kind].match(rest):
         return [f"unticked criterion needs `Evidence: manual: check <n> (owner)` or "
                 f"`Evidence: after merge (owner)`: {label}"]
