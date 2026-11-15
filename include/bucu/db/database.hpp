@@ -29,7 +29,7 @@ public:
     ~Database() = default;
 
     // The schema version of the open database: `kSchemaVersion` after a successful `open`.
-    SchemaVersion schema_version() const noexcept { return schema_version_; }
+    [[nodiscard]] SchemaVersion schema_version() const noexcept { return schema_version_; }
 
 private:
     struct Closer {

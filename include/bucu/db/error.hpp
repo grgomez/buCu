@@ -16,7 +16,7 @@ class SchemaVersion {
 public:
     explicit constexpr SchemaVersion(int value) noexcept : value_(value) {}
 
-    constexpr int value() const noexcept { return value_; }
+    [[nodiscard]] constexpr int value() const noexcept { return value_; }
 
     friend constexpr auto operator<=>(const SchemaVersion&, const SchemaVersion&) = default;
 

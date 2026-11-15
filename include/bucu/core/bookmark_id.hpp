@@ -12,7 +12,7 @@ class BookmarkId {
 public:
     explicit constexpr BookmarkId(std::int64_t value) noexcept : value_(value) {}
 
-    constexpr std::int64_t value() const noexcept { return value_; }
+    [[nodiscard]] constexpr std::int64_t value() const noexcept { return value_; }
 
     friend constexpr auto operator<=>(const BookmarkId&, const BookmarkId&) = default;
 
