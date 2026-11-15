@@ -20,5 +20,5 @@ Review the changes on the current branch for issue #$issue. Do not edit any file
    - Licensing: no upstream notice removed; no help text, message, or fixture copied from Buku without need and attribution (constitution principle 11).
    - Consistency: naming, patterns, and structure match the codebase (architecture §8).
    - Tests: each acceptance criterion has a test, a manual check, or the `Check:` of a `[V]` task (constitution principle 4); tests follow architecture §9; each bug fix has a regression test.
-   - Criteria evidence (`/pr` step 4): the named evidence is in the diff or the PR, and it proves the criterion. Evidence that does not prove its criterion is Critical.
+   - Criteria evidence (`/pr` step 4): the named evidence is in the diff or the PR, and it proves the criterion; the delivered kind is the declared kind (a different kind with no accepted deviation is Critical). Evidence that does not prove its criterion is Critical.
 4. Report a table with these columns: ID (R1, R2), Severity (Critical, Warning, Cleanup), Category (spec gap, plan gap, test gap, code defect, portability, convention), File, Line, PR comment. Each PR comment states the problem and a concrete fix, ready to paste.
