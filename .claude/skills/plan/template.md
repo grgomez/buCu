@@ -33,6 +33,12 @@ Write this section only when the schema, an export format, or a public header in
 - New: `docs/contracts/<kind>-<NNN>-<title>.md` (<what changes, for example schema version 1 to 2>)
 - Previous: <links to the latest record of each kind this plan changes, or "none">
 
+## Scope evidence
+
+Write this section only for Tier 0. One line per Scope bullet of the issue: its number and the kind of its evidence (a kind from [`/pr` step 4](../pr/SKILL.md)). On acceptance, `/plan` appends `Evidence: <kind>` to each bullet.
+
+1. <scope bullet>: <kind>
+
 ## Manual checks
 
 Write this section only when the change has behaviour the owner can check by hand that no automated check proves (for example opening a real browser or editor).

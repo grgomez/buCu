@@ -15,14 +15,14 @@ Plan issue #$issue. Do not write code before the owner accepts the plan.
 3. Propose the tier (`CLAUDE.md` Scope rule) with a one-line reason; the owner confirms it by accepting the plan. For Tier 2, the issue must have the `spec-approved` label and a Spec part; otherwise stop and name `/spec $issue`.
 4. List each third-party unknown the plan depends on, and run Trial (below) for each one before you enter plan mode. Trials build code, so they cannot run in plan mode.
 5. Enter plan mode (EnterPlanMode).
-6. Tier 1: draft the Spec part from [the spec template](../spec/template.md), and clarify it with the owner as `/spec` steps 5 and 6 describe. Tier 0: no Spec part; the issue body is the scope, and its "Open product questions" are asked here.
-7. Draft the Plan part from [template.md](template.md). Write an optional section only when its condition holds. Write an ADR only when the change makes a major decision. List each contract record (`docs/architecture.md` §5) and every living-document change under "Documentation updates".
+6. Tier 1: draft the Spec part from [the spec template](../spec/template.md), and clarify it with the owner as `/spec` steps 5 and 6 describe. Tier 0: no Spec part; the issue body is the scope, and its "Open product questions" are asked here. Choose a kind from `/pr` step 4 for each Scope bullet.
+7. Draft the Plan part from [template.md](template.md). Write an optional section only when its condition holds. Write an ADR only when the change makes a major decision. For Tier 0, list each Scope bullet's kind under "Scope evidence". List each contract record (`docs/architecture.md` §5) and every living-document change under "Documentation updates".
 8. Draft the Tasks part from [tasks-template.md](tasks-template.md) and count every task line. Above the size limit, run Split (below) and stop.
 9. Tier 2 (Tier 1 when the owner asks): run Analyze (below) and record its table, with the owner's decisions, in the Plan part's "Analyze" section. Apply each "fix" to the plan text before you exit.
 10. Write the plan-mode text: the lines `Issue: #$issue`, `Stage: Plan`, and `Tier: <n>`, then the Spec part (Tier 1 only), the Plan part, and the Tasks part. No `[NEEDS CLARIFICATION]` marker may remain. Exit plan mode (ExitPlanMode).
 11. When the owner rejects it, revise from their feedback and exit plan mode again.
 12. When the owner accepts: confirm that the issue has the `approved` label and the tier label. When either is missing, the approval hook failed: stop and tell the owner. Never add `approved` yourself.
-13. Write the accepted parts into the issue body ([issue-body.md](issue-body.md)). Create each "new issue" decision from Analyze with `gh issue create`, its body holding the finding and "Found by Analyze of #$issue".
+13. Write the accepted parts into the issue body ([issue-body.md](issue-body.md)). For Tier 0, append `Evidence: <kind>` to each Scope bullet in the owner's text, then run `python3 tools/sdd_check.py issue $issue` and fix any failure; it fails on a criterion with no valid kind. Create each "new issue" decision from Analyze with `gh issue create`, its body holding the finding and "Found by Analyze of #$issue".
 14. Follow `.claude/skills/implement/SKILL.md` in this session.
 
 ## Trial
@@ -42,7 +42,7 @@ Run one full review in a read-only subagent (`Plan` type, model `opus`), given t
 
 | # | Check | Severity |
 | --- | --- | --- |
-| 1 | Coverage: from the `Covers:` lines, requirements and acceptance criteria with no task, and tasks that cover nothing without a reason. | High |
+| 1 | Coverage: from the `Covers:` lines, requirements and acceptance criteria with no task, and tasks that cover nothing without a reason. Each criterion declares an `Evidence: <kind>`, and a task provides it; a `fuzz` or `proof` criterion with no test task is a finding. | High |
 | 2 | Consistency: terms, numbers, or behaviour that differ between the parts, or from the living documents. | High |
 | 3 | Ambiguity: vague or untestable content. A leftover `[NEEDS CLARIFICATION]` marker is Critical. | Medium |
 | 4 | Constitution: a principle, gate, or DO NOT item that is violated. | Critical |
