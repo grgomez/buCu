@@ -46,11 +46,12 @@ struct Fixture {
 
     static Result invoke(const std::vector<std::string>& args,
                          const bucu::platform::Environment& environment) {
-        const bucu::cli::Context context{bucu::platform::Os::kLinuxOrBsd, environment, kNow};
+        const bucu::cli::Context context{
+            .os = bucu::platform::Os::kLinuxOrBsd, .environment = environment, .now = kNow};
         std::ostringstream out;
         std::ostringstream err;
         const int code = bucu::cli::run(args, out, err, context);
-        return {code, out.str(), err.str()};
+        return {.code = code, .out = out.str(), .err = err.str()};
     }
 
     // A file that is not a SQLite database.

@@ -40,19 +40,23 @@ std::expected<Bookmark, ValidationError> make_bookmark(std::string_view url, std
         return std::unexpected(std::move(normalized.error()));
     }
     if (!is_valid_utf8(title)) {
-        return std::unexpected(
-            ValidationError{Field::kTitle, Reason::kInvalidUtf8, std::string(title)});
+        return std::unexpected(ValidationError{
+            .field = Field::kTitle, .reason = Reason::kInvalidUtf8, .value = std::string(title)});
     }
     if (!is_valid_utf8(description)) {
-        return std::unexpected(
-            ValidationError{Field::kDescription, Reason::kInvalidUtf8, std::string(description)});
+        return std::unexpected(ValidationError{.field = Field::kDescription,
+                                               .reason = Reason::kInvalidUtf8,
+                                               .value = std::string(description)});
     }
     auto parsed_tags = parse_tags(tags);
     if (!parsed_tags) {
         return std::unexpected(std::move(parsed_tags.error()));
     }
-    return Bookmark{std::move(*normalized), std::string(title), std::string(description),
-                    std::move(*parsed_tags), FlagSet()};
+    return Bookmark{.url = std::move(*normalized),
+                    .title = std::string(title),
+                    .description = std::string(description),
+                    .tags = std::move(*parsed_tags),
+                    .flags = FlagSet()};
 }
 // NOLINTEND(bugprone-easily-swappable-parameters)
 

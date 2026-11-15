@@ -39,11 +39,12 @@ struct Fixture {
 
     // `bucu <args>`, with no --db added.
     [[nodiscard]] Result invoke(const std::vector<std::string>& args) const {
-        const bucu::cli::Context context{bucu::platform::Os::kLinuxOrBsd, environment, kNow};
+        const bucu::cli::Context context{
+            .os = bucu::platform::Os::kLinuxOrBsd, .environment = environment, .now = kNow};
         std::ostringstream out;
         std::ostringstream err;
         const int code = bucu::cli::run(args, out, err, context);
-        return {code, out.str(), err.str()};
+        return {.code = code, .out = out.str(), .err = err.str()};
     }
 
     Rows rows(const char* sql) const { return bucu::test::read_rows(db, sql); }

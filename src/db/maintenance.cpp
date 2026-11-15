@@ -91,17 +91,21 @@ std::expected<std::vector<std::string>, Error> integrity_check(Database& databas
 std::expected<void, Error> backup(Database& database, const std::filesystem::path& destination) {
     std::error_code status;
     if (std::filesystem::exists(destination, status)) {
-        return std::unexpected(
-            Error{ErrorCode::kDestinationExists, "the file already exists", std::nullopt});
+        return std::unexpected(Error{.code = ErrorCode::kDestinationExists,
+                                     .message = "the file already exists",
+                                     .bookmark_id = std::nullopt});
     }
     if (status) {
-        return std::unexpected(Error{ErrorCode::kCannotOpen, status.message(), std::nullopt});
+        return std::unexpected(Error{.code = ErrorCode::kCannotOpen,
+                                     .message = status.message(),
+                                     .bookmark_id = std::nullopt});
     }
     const std::filesystem::path parent = destination.parent_path();
     if (!parent.empty() && !std::filesystem::is_directory(parent, status)) {
-        return std::unexpected(Error{ErrorCode::kCannotOpen,
-                                     "the directory " + utf8_text(parent) + " does not exist",
-                                     std::nullopt});
+        return std::unexpected(
+            Error{.code = ErrorCode::kCannotOpen,
+                  .message = "the directory " + utf8_text(parent) + " does not exist",
+                  .bookmark_id = std::nullopt});
     }
 
     const std::string name = utf8_text(destination);
@@ -113,7 +117,8 @@ std::expected<void, Error> backup(Database& database, const std::filesystem::pat
     const auto fail = [&](ErrorCode code, std::string message) {
         target.reset();
         remove_partial_copy(destination);
-        return std::unexpected(Error{code, std::move(message), std::nullopt});
+        return std::unexpected(
+            Error{.code = code, .message = std::move(message), .bookmark_id = std::nullopt});
     };
     if (opened != SQLITE_OK) {
         return fail(ErrorCode::kCannotOpen, message_of(raw, opened));

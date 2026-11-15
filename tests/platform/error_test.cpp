@@ -14,7 +14,8 @@ static_assert(std::is_same_v<std::underlying_type_t<bucu::platform::ColorMode>, 
 static_assert(std::is_same_v<std::underlying_type_t<bucu::platform::TerminalStatus>, std::uint8_t>);
 
 TEST_CASE("a platform error holds its code and message", "[platform][error]") {
-    const bucu::platform::Error error{bucu::platform::ErrorCode::kMissingVariable, "text"};
+    const bucu::platform::Error error{.code = bucu::platform::ErrorCode::kMissingVariable,
+                                      .message = "text"};
     CHECK(error.code == bucu::platform::ErrorCode::kMissingVariable);
     CHECK(error.message == "text");
 }

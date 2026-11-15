@@ -20,7 +20,8 @@ int main(int argc, char** argv) {
         const std::vector<std::string> args(rest.begin(), rest.end());
         const bucu::platform::SystemEnvironment environment;
         const auto now = std::chrono::floor<std::chrono::seconds>(std::chrono::system_clock::now());
-        const bucu::cli::Context context{bucu::platform::current_os(), environment, now};
+        const bucu::cli::Context context{
+            .os = bucu::platform::current_os(), .environment = environment, .now = now};
         return bucu::cli::run(args, std::cout, std::cerr, context);
     } catch (const std::exception& error) {
         // Reports the failure; nothing is swallowed (architecture section 7).

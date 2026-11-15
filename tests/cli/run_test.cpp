@@ -21,14 +21,16 @@ struct Result {
 
 // A context with no variables and a fixed clock, so no test depends on the machine.
 const bucu::platform::test::FakeEnvironment kEnvironment;
-const bucu::cli::Context kContext{bucu::platform::Os::kLinuxOrBsd, kEnvironment,
-                                  std::chrono::sys_seconds{std::chrono::seconds{1700000000}}};
+const bucu::cli::Context kContext{
+    .os = bucu::platform::Os::kLinuxOrBsd,
+    .environment = kEnvironment,
+    .now = std::chrono::sys_seconds{std::chrono::seconds{1700000000}}};
 
 Result invoke(const std::vector<std::string>& args) {
     std::ostringstream out;
     std::ostringstream err;
     const int code = bucu::cli::run(args, out, err, kContext);
-    return {code, out.str(), err.str()};
+    return {.code = code, .out = out.str(), .err = err.str()};
 }
 
 std::string read_golden(const std::string& name) {

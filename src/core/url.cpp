@@ -12,7 +12,7 @@ namespace bucu::core {
 namespace {
 
 ValidationError refuse(Reason reason, std::string_view url) {
-    return ValidationError{Field::kUrl, reason, std::string(url)};
+    return ValidationError{.field = Field::kUrl, .reason = reason, .value = std::string(url)};
 }
 
 // `code_points` without its leading and trailing White_Space.
