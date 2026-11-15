@@ -19,8 +19,6 @@ constexpr unsigned kLead4Max = 0xF4;  // above 0xF4 would pass U+10FFFF
 constexpr unsigned kLead2Payload = 0x1F;
 constexpr unsigned kLead3Payload = 0x0F;
 constexpr unsigned kLead4Payload = 0x07;
-constexpr unsigned kContinuationMask = 0xC0;
-constexpr unsigned kContinuationTag = 0x80;
 constexpr unsigned kContinuationPayload = 0x3F;
 constexpr unsigned kContinuationBits = 6;
 constexpr std::size_t kLength2 = 2;
@@ -70,7 +68,7 @@ std::optional<char32_t> next_code_point(std::string_view text, std::size_t& pos)
     }
     for (std::size_t i = 1; i < length; ++i) {
         const unsigned cont = byte(pos + i);
-        if ((cont & kContinuationMask) != kContinuationTag) {
+        if (!is_utf8_continuation(static_cast<unsigned char>(cont))) {
             return std::nullopt;
         }
         value = (value << kContinuationBits) | (cont & kContinuationPayload);

@@ -9,7 +9,8 @@
 
 namespace {
 
-// The most code points a tag may have (product section 4).
+// The most code points a tag may have. The value 128 pins product section 4 on purpose, so a
+// change to the limit in the code fails these tests.
 constexpr std::size_t kLimit = 128;
 constexpr std::size_t kHalfLimit = kLimit / 2;
 

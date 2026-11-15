@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 
+#include "bucu/db/error.hpp"
 #include "bucu/platform/paths.hpp"
 #include "catch_amalgamated.hpp"
 #include "cli/run.hpp"
@@ -20,7 +21,7 @@
 namespace {
 
 // A schema version above any this build knows.
-constexpr int kNewerSchema = 7;
+constexpr int kNewerSchema = bucu::db::kSchemaVersion.value() + 1;
 
 struct Result {
     int code;

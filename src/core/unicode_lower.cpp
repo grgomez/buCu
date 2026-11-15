@@ -85,6 +85,7 @@ std::string to_lower(std::string_view utf8) {
     if (!decoded) {
         return std::string(utf8);
     }
+    const std::span<const LowerMapping> lower = kLower;
     std::string out;
     out.reserve(utf8.size());
     for (std::size_t i = 0; i < decoded->size(); ++i) {
@@ -93,8 +94,8 @@ std::string to_lower(std::string_view utf8) {
             append_utf8(out, is_final_sigma(*decoded, i) ? kFinalSigma : kSmallSigma);
             continue;
         }
-        const auto* const it = std::ranges::lower_bound(kLower, cp, {}, &LowerMapping::code_point);
-        if (it == std::end(kLower) || it->code_point != cp) {
+        const auto it = std::ranges::lower_bound(lower, cp, {}, &LowerMapping::code_point);
+        if (it == std::end(lower) || it->code_point != cp) {
             append_utf8(out, cp);
             continue;
         }
@@ -106,15 +107,17 @@ std::string to_lower(std::string_view utf8) {
     return out;
 }
 
-bool is_white_space(char32_t cp) {
-    return (cp >= kTab && cp <= kCarriageReturn) || cp == kSpace || cp == kNextLine ||
-           cp == kNoBreakSpace || cp == kOghamSpaceMark || (cp >= kEnQuad && cp <= kHairSpace) ||
-           cp == kLineSeparator || cp == kParagraphSeparator || cp == kNarrowNoBreakSpace ||
-           cp == kMediumMathematicalSpace || cp == kIdeographicSpace;
+bool is_white_space(char32_t code_point) {
+    return (code_point >= kTab && code_point <= kCarriageReturn) || code_point == kSpace ||
+           code_point == kNextLine || code_point == kNoBreakSpace ||
+           code_point == kOghamSpaceMark || (code_point >= kEnQuad && code_point <= kHairSpace) ||
+           code_point == kLineSeparator || code_point == kParagraphSeparator ||
+           code_point == kNarrowNoBreakSpace || code_point == kMediumMathematicalSpace ||
+           code_point == kIdeographicSpace;
 }
 
-bool is_control(char32_t cp) {
-    return cp <= kLastC0Control || (cp >= kDelete && cp <= kLastC1Control);
+bool is_control(char32_t code_point) {
+    return code_point <= kLastC0Control || (code_point >= kDelete && code_point <= kLastC1Control);
 }
 
 }  // namespace bucu::core

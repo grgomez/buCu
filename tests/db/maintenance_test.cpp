@@ -224,7 +224,7 @@ TEST_CASE("a backup that fails part way leaves no file and no journal, wal, or s
     REQUIRE(database.has_value());
     constexpr std::uintmax_t kPageSize = 4096;
     // The header still promises every page; the file no longer holds them.
-    std::filesystem::resize_file(path, std::uintmax_t{kPageSize} * 4);
+    std::filesystem::resize_file(path, kPageSize * 4);
     const auto copy = dir.path() / name;
 
     const auto result = bucu::db::backup(*database, copy);

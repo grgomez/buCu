@@ -6,6 +6,15 @@
 
 namespace bucu::core {
 
+// A UTF-8 continuation byte is 10xxxxxx (RFC 3629).
+inline constexpr unsigned kContinuationMask = 0xC0;
+inline constexpr unsigned kContinuationTag = 0x80;
+
+// True when `byte` is a continuation byte, not the first byte of a code point.
+constexpr bool is_utf8_continuation(unsigned char byte) {
+    return (byte & kContinuationMask) == kContinuationTag;
+}
+
 // True when `text` is well-formed UTF-8 (RFC 3629): no overlong forms, no surrogates, nothing
 // above U+10FFFF.
 bool is_valid_utf8(std::string_view text);
