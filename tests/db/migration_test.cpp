@@ -63,13 +63,13 @@ struct Connection {
     void exec(const std::string& sql) const {
         REQUIRE(sqlite3_exec(handle, sql.c_str(), nullptr, nullptr, nullptr) == SQLITE_OK);
     }
-    std::int64_t table_count() const {
+    [[nodiscard]] std::int64_t table_count() const {
         auto statement = Statement::prepare(handle, "SELECT count(*) FROM sqlite_master");
         REQUIRE(statement.has_value());
         REQUIRE(statement->step().value());
         return statement->column_int(0);
     }
-    int version() const {
+    [[nodiscard]] int version() const {
         auto statement = Statement::prepare(handle, "PRAGMA user_version");
         REQUIRE(statement.has_value());
         REQUIRE(statement->step().value());

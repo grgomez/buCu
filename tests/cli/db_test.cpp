@@ -36,10 +36,10 @@ struct Fixture {
     bucu::platform::test::FakeEnvironment environment;
     std::filesystem::path db = dir.path() / "bookmarks.db";
 
-    std::string db_text() const { return bucu::test::utf8_path(db); }
+    [[nodiscard]] std::string db_text() const { return bucu::test::utf8_path(db); }
 
     // `bucu --db <db> <args>`
-    Result bucu(std::vector<std::string> args) const {
+    [[nodiscard]] Result bucu(std::vector<std::string> args) const {
         args.insert(args.begin(), {"--db", db_text()});
         return invoke(args, environment);
     }

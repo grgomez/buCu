@@ -11,7 +11,7 @@
 
 namespace bucu::platform {
 
-inline std::wstring wide_from_utf8(std::string_view text) {
+[[nodiscard]] inline std::wstring wide_from_utf8(std::string_view text) {
     if (text.empty()) {
         return {};
     }
@@ -23,7 +23,7 @@ inline std::wstring wide_from_utf8(std::string_view text) {
     return wide;
 }
 
-inline std::string utf8_from_wide(std::wstring_view text) {
+[[nodiscard]] inline std::string utf8_from_wide(std::wstring_view text) {
     if (text.empty()) {
         return {};
     }

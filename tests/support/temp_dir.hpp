@@ -27,7 +27,7 @@ public:
         std::filesystem::remove_all(path_, ignored);
     }
 
-    const std::filesystem::path& path() const { return path_; }
+    [[nodiscard]] const std::filesystem::path& path() const { return path_; }
 
 private:
     std::filesystem::path path_;

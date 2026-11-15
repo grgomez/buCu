@@ -34,7 +34,7 @@ struct Fixture {
         REQUIRE(statement->step().has_value());
     }
 
-    std::int64_t count() const {
+    [[nodiscard]] std::int64_t count() const {
         auto statement = Statement::prepare(connection, "SELECT count(*) FROM item");
         REQUIRE(statement.has_value());
         REQUIRE(statement->step().value());
@@ -42,7 +42,7 @@ struct Fixture {
     }
 
 private:
-    Database open_database() const {
+    [[nodiscard]] Database open_database() const {
         auto opened = Database::open(dir.path() / "scratch.db");
         REQUIRE(opened.has_value());
         return std::move(*opened);

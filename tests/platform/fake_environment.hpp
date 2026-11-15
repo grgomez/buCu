@@ -18,7 +18,7 @@ public:
     explicit FakeEnvironment(std::map<std::string, std::string, std::less<>> values)
         : values_(std::move(values)) {}
 
-    std::optional<std::string> get(std::string_view name) const override {
+    [[nodiscard]] std::optional<std::string> get(std::string_view name) const override {
         const auto found = values_.find(name);
         if (found == values_.end()) {
             return std::nullopt;

@@ -35,7 +35,7 @@ public:
         fs::remove_all(path_, ignored);
     }
 
-    const fs::path& path() const { return path_; }
+    [[nodiscard]] const fs::path& path() const { return path_; }
 
 private:
     fs::path path_;

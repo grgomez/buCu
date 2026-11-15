@@ -57,7 +57,7 @@ struct Fixture {
     }
 
 private:
-    Database open_database() const {
+    [[nodiscard]] Database open_database() const {
         auto opened = Database::open(dir.path() / "bookmarks.db");
         REQUIRE(opened.has_value());
         return std::move(*opened);
