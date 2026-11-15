@@ -1,6 +1,6 @@
 # ADR 0006: Coding standard: Google C++ Style Guide and C++ Core Guidelines
 
-- Status: Accepted
+- Status: Accepted, amended by [ADR 0007](0007-readability-modernize-misc-checks.md)
 - Date: 2026-11-14
 - Issue: #56
 - Amends: ADR 0001 (the C++ version: C++23, not C++20)

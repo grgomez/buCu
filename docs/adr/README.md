@@ -9,4 +9,5 @@ Read this index in every session. Read an ADR only when the issue touches its de
 | [0003](0003-plan-mode-sdd-workflow.md) | SDD with Claude Code plan mode as the approval gate; specs live in the issue body | Accepted |
 | [0004](0004-vendored-dependencies.md) | Vendor SQLite, CLI11, and Catch2 in `third_party/` | Accepted |
 | [0005](0005-libcurl-networking.md) | libcurl for the optional title and description fetch | Accepted |
-| [0006](0006-coding-standard-google-and-core-guidelines.md) | Google C++ Style Guide and C++ Core Guidelines as the coding standard, with recorded exceptions and a clang-tidy gate; amends ADR 0001 (C++23) | Accepted |
+| [0006](0006-coding-standard-google-and-core-guidelines.md) | Google C++ Style Guide and C++ Core Guidelines as the coding standard, with recorded exceptions and a clang-tidy gate; amends ADR 0001 (C++23) | Accepted, amended by [0007](0007-readability-modernize-misc-checks.md) |
+| [0007](0007-readability-modernize-misc-checks.md) | Enable the readability, modernize, and misc clang-tidy families with six recorded exclusions; allow a whole-file `NOLINT` pair in generated tables; amends ADR 0006 | Accepted |
