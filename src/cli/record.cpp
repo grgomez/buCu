@@ -25,12 +25,14 @@ void append_value(std::string& out, std::string_view value) {
     }
 }
 
-// A labelled line: three spaces, the label padded to 7 characters, then the value.
+constexpr std::size_t kLabelWidth = 7;
+
+// A labelled line: three spaces, the label padded to kLabelWidth characters, then the value.
 // NOLINTNEXTLINE(bugprone-easily-swappable-parameters): the label is always a literal
 void append_field(std::string& out, std::string_view label, std::string_view value) {
     out.append("   ");
     out.append(label);
-    out.append(7 - label.size(), ' ');
+    out.append(kLabelWidth - label.size(), ' ');
     append_value(out, value);
 }
 
