@@ -104,12 +104,12 @@ std::expected<Location, Error> resolve_database_location(
 std::filesystem::path path_from_utf8(std::string_view text) {
     // char8_t and char share size and alignment; the bytes are the same UTF-8 text.
     const std::u8string utf8(text.begin(), text.end());
-    return std::filesystem::path(utf8);
+    return {utf8};
 }
 
 std::string utf8_from_path(const std::filesystem::path& path) {
     const std::u8string utf8 = path.u8string();
-    return std::string(utf8.begin(), utf8.end());
+    return {utf8.begin(), utf8.end()};
 }
 
 std::expected<std::filesystem::path, Error> prepare_database_location(const Location& location) {

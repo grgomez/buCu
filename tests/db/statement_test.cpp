@@ -52,7 +52,7 @@ private:
 }  // namespace
 
 TEST_CASE("a statement binds values, steps rows, and reads columns", "[db]") {
-    Fixture fixture;
+    const Fixture fixture;
     auto insert =
         Statement::prepare(fixture.connection, "INSERT INTO item (name, note) VALUES (?1, ?2)");
     REQUIRE(insert.has_value());
@@ -74,7 +74,7 @@ TEST_CASE("a statement binds values, steps rows, and reads columns", "[db]") {
 }
 
 TEST_CASE("a statement can be reset and run again with new values", "[db]") {
-    Fixture fixture;
+    const Fixture fixture;
     auto insert = Statement::prepare(fixture.connection, "INSERT INTO item (name) VALUES (?1)");
     REQUIRE(insert.has_value());
     for (const char* name : {"one", "two"}) {
@@ -86,7 +86,7 @@ TEST_CASE("a statement can be reset and run again with new values", "[db]") {
 }
 
 TEST_CASE("preparing bad SQL returns an error with SQLite's message", "[db]") {
-    Fixture fixture;
+    const Fixture fixture;
 
     auto statement = Statement::prepare(fixture.connection, "SELEC nothing");
 
@@ -96,7 +96,7 @@ TEST_CASE("preparing bad SQL returns an error with SQLite's message", "[db]") {
 }
 
 TEST_CASE("a failing step returns an error with SQLite's message", "[db]") {
-    Fixture fixture;
+    const Fixture fixture;
     fixture.run("INSERT INTO item (name) VALUES ('same')");
     auto insert = Statement::prepare(fixture.connection, "INSERT INTO item (name) VALUES ('same')");
     REQUIRE(insert.has_value());
@@ -109,7 +109,7 @@ TEST_CASE("a failing step returns an error with SQLite's message", "[db]") {
 }
 
 TEST_CASE("a transaction commits its changes", "[db]") {
-    Fixture fixture;
+    const Fixture fixture;
     {
         auto transaction = Transaction::begin(fixture.connection);
         REQUIRE(transaction.has_value());
@@ -120,7 +120,7 @@ TEST_CASE("a transaction commits its changes", "[db]") {
 }
 
 TEST_CASE("a transaction that is not committed rolls back", "[db]") {
-    Fixture fixture;
+    const Fixture fixture;
     {
         auto transaction = Transaction::begin(fixture.connection);
         REQUIRE(transaction.has_value());

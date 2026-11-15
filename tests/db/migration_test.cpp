@@ -229,7 +229,7 @@ TEST_CASE("open fails with kMigrationFailed when a step fails, and changes nothi
     }
     std::vector<std::string_view> steps(bucu::db::migrations().begin(),
                                         bucu::db::migrations().end());
-    steps.push_back("CREATE TABLE extra (a); INSERT INTO no_such_table VALUES (1);");
+    steps.emplace_back("CREATE TABLE extra (a); INSERT INTO no_such_table VALUES (1);");
 
     const auto connection = bucu::db::detail::open_connection(path, steps);
 

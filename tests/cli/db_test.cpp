@@ -231,7 +231,7 @@ void fill(const Fixture& fixture) {
 }
 
 std::string read_bytes(const std::filesystem::path& path) {
-    std::ifstream file(path, std::ios::binary);
+    const std::ifstream file(path, std::ios::binary);
     std::ostringstream content;
     content << file.rdbuf();
     return content.str();

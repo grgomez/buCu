@@ -1,5 +1,6 @@
 #include "bucu/core/url.hpp"
 
+#include <algorithm>
 #include <cstddef>
 #include <string>
 #include <string_view>
@@ -47,12 +48,9 @@ bool is_scheme(std::string_view text) {
     if (text.empty() || !is_ascii_alpha(text[0])) {
         return false;
     }
-    for (const char c : text) {
-        if (!is_ascii_alpha(c) && !is_ascii_digit(c) && c != '+' && c != '-' && c != '.') {
-            return false;
-        }
-    }
-    return true;
+    return std::ranges::all_of(text, [](char c) {
+        return is_ascii_alpha(c) || is_ascii_digit(c) || c == '+' || c == '-' || c == '.';
+    });
 }
 
 bool equals_ignoring_ascii_case(std::string_view text, std::string_view lower) {
@@ -153,34 +151,34 @@ std::string rebuild(const Parts& parts) {
 
 }  // namespace
 
-std::expected<std::string, ValidationError> normalize_url(std::string_view input) {
-    const auto decoded = decode_utf8(input);
+std::expected<std::string, ValidationError> normalize_url(std::string_view url) {
+    const auto decoded = decode_utf8(url);
     if (!decoded) {
-        return std::unexpected(refuse(Reason::kInvalidUtf8, input));
+        return std::unexpected(refuse(Reason::kInvalidUtf8, url));
     }
     const std::u32string_view trimmed = trim(*decoded);
     if (trimmed.empty()) {
-        return std::unexpected(refuse(Reason::kEmpty, input));
+        return std::unexpected(refuse(Reason::kEmpty, url));
     }
-    std::string url;
+    std::string text;
     for (const char32_t cp : trimmed) {
         if (is_white_space(cp)) {
-            return std::unexpected(refuse(Reason::kWhitespace, input));
+            return std::unexpected(refuse(Reason::kWhitespace, url));
         }
         if (is_control(cp)) {
-            return std::unexpected(refuse(Reason::kControlCharacter, input));
+            return std::unexpected(refuse(Reason::kControlCharacter, url));
         }
-        append_utf8(url, cp);
+        append_utf8(text, cp);
     }
-    const std::size_t colon = url.find(':');
-    if (colon == std::string_view::npos || lacks_scheme(url, colon) ||
-        !is_scheme(url.substr(0, colon)) || colon + 1 == url.size()) {
-        return std::unexpected(refuse(Reason::kNoScheme, input));
+    const std::size_t colon = text.find(':');
+    if (colon == std::string_view::npos || lacks_scheme(text, colon) ||
+        !is_scheme(text.substr(0, colon)) || colon + 1 == text.size()) {
+        return std::unexpected(refuse(Reason::kNoScheme, url));
     }
-    const Parts parts = split(url, colon);
+    const Parts parts = split(text, colon);
     if (parts.has_authority && parts.host.empty() &&
         !equals_ignoring_ascii_case(parts.scheme, "file")) {
-        return std::unexpected(refuse(Reason::kEmptyHost, input));
+        return std::unexpected(refuse(Reason::kEmptyHost, url));
     }
     return rebuild(parts);
 }

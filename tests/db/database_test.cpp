@@ -39,7 +39,7 @@ std::string query_text(Database& database, const char* sql) {
 }
 
 std::string read_bytes(const std::filesystem::path& path) {
-    std::ifstream file(path, std::ios::binary);
+    const std::ifstream file(path, std::ios::binary);
     std::ostringstream content;
     content << file.rdbuf();
     return content.str();
@@ -155,7 +155,7 @@ TEST_CASE("open refuses a write-protected version 1 database and leaves it alone
     }
     const std::string before = read_bytes(path);
     // Restores write access at the end so the directory can be removed on every platform.
-    struct Restore {
+    const struct Restore {
         fs::path file;
         explicit Restore(fs::path path) : file(std::move(path)) {}
         Restore(const Restore&) = delete;

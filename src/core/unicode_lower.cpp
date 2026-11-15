@@ -54,9 +54,7 @@ constexpr char32_t kDelete = 0x007F;  // U+007F to U+009F: delete and the C1 con
 constexpr char32_t kLastC1Control = 0x009F;
 
 bool in_ranges(std::span<const CodePointRange> ranges, char32_t code_point) {
-    const auto it = std::upper_bound(
-        std::begin(ranges), std::end(ranges), code_point,
-        [](char32_t value, const CodePointRange& range) { return value < range.first; });
+    const auto it = std::ranges::upper_bound(ranges, code_point, {}, &CodePointRange::first);
     return it != std::begin(ranges) && code_point <= std::prev(it)->last;
 }
 
@@ -95,9 +93,7 @@ std::string to_lower(std::string_view utf8) {
             append_utf8(out, is_final_sigma(*decoded, i) ? kFinalSigma : kSmallSigma);
             continue;
         }
-        const auto it = std::lower_bound(
-            std::begin(kLower), std::end(kLower), cp,
-            [](const LowerMapping& row, char32_t value) { return row.code_point < value; });
+        const auto* const it = std::ranges::lower_bound(kLower, cp, {}, &LowerMapping::code_point);
         if (it == std::end(kLower) || it->code_point != cp) {
             append_utf8(out, cp);
             continue;

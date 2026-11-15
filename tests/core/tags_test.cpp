@@ -11,6 +11,7 @@ namespace {
 
 // The most code points a tag may have (product section 4).
 constexpr std::size_t kLimit = 128;
+constexpr std::size_t kHalfLimit = kLimit / 2;
 
 using bucu::core::parse_tags;
 using bucu::core::TagSet;
@@ -132,19 +133,19 @@ TEST_CASE("A tag may have 128 code points and no more", "[core][tags]") {
 
 TEST_CASE("The tag limit counts code points after lowercasing", "[core][tags]") {
     // U+0130 lowercases to two code points: 64 of them make 128, 65 make 130.
-    CHECK(parsed(repeat(U"İ", kLimit / 2)).size() == 1);
-    check_tag_refused(repeat(U"İ", kLimit / 2 + 1), Reason::kTooLong, repeat(U"i̇", kLimit / 2 + 1));
+    CHECK(parsed(repeat(U"İ", kHalfLimit)).size() == 1);
+    check_tag_refused(repeat(U"İ", kHalfLimit + 1), Reason::kTooLong, repeat(U"i̇", kHalfLimit + 1));
     // U+023A grows from two bytes to three but stays one code point.
     CHECK(parsed(repeat(U"Ⱥ", kLimit)).size() == 1);
     check_tag_refused(repeat(U"Ⱥ", kLimit + 1), Reason::kTooLong, repeat(U"ⱥ", kLimit + 1));
 }
 
 TEST_CASE("Spaces inside a tag count toward the limit after collapsing", "[core][tags]") {
-    const std::string half(kLimit / 2, 'a');
-    const std::string spaced = half + "     " + std::string(kLimit / 2 - 1, 'b');
+    const std::string half(kHalfLimit, 'a');
+    const std::string spaced = half + "     " + std::string(kHalfLimit - 1, 'b');
     CHECK(parsed(spaced).size() == 1);  // half + 1 + (half - 1) = the limit
-    const std::string over = half + "     " + std::string(kLimit / 2, 'b');
-    check_tag_refused(over, Reason::kTooLong, half + " " + std::string(kLimit / 2, 'b'));
+    const std::string over = half + "     " + std::string(kHalfLimit, 'b');
+    check_tag_refused(over, Reason::kTooLong, half + " " + std::string(kHalfLimit, 'b'));
 }
 
 TEST_CASE("Adding tags is a union", "[core][tags]") {

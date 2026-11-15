@@ -79,7 +79,7 @@ std::string Statement::column_text(int index) const {
     }
     const int size = sqlite3_column_bytes(statement_.get(), index);
     const std::span<const unsigned char> bytes(text, static_cast<std::size_t>(size));
-    return std::string(bytes.begin(), bytes.end());
+    return {bytes.begin(), bytes.end()};
 }
 
 }  // namespace bucu::db

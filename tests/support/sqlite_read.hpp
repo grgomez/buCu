@@ -18,7 +18,7 @@ inline std::string column_text(sqlite3_stmt* statement, int column) {
     const unsigned char* text = sqlite3_column_text(statement, column);
     const int size = sqlite3_column_bytes(statement, column);
     const std::span<const unsigned char> bytes(text, static_cast<std::size_t>(size));
-    return std::string(bytes.begin(), bytes.end());
+    return {bytes.begin(), bytes.end()};
 }
 
 // Every row of `sql` on the database at `path`, each column as text (NULL as empty). Opens its own

@@ -36,7 +36,7 @@ private:
 // The path as UTF-8 in a std::string, the way Database::open hands it to SQLite.
 inline std::string utf8_path(const std::filesystem::path& path) {
     const std::u8string utf8 = path.u8string();
-    return std::string(utf8.begin(), utf8.end());
+    return {utf8.begin(), utf8.end()};
 }
 
 }  // namespace bucu::test

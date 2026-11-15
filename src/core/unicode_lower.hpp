@@ -12,9 +12,9 @@ namespace bucu::core {
 std::string to_lower(std::string_view utf8);
 
 // The Unicode White_Space property (Unicode 18.0.0).
-bool is_white_space(char32_t code_point);
+bool is_white_space(char32_t cp);
 
 // General category Cc: U+0000 to U+001F and U+007F to U+009F.
-bool is_control(char32_t code_point);
+bool is_control(char32_t cp);
 
 }  // namespace bucu::core
