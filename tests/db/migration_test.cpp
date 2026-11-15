@@ -157,12 +157,16 @@ TEST_CASE("a step that fails part-way rolls back to the version and rows from be
     CHECK(scalar(*database, "SELECT count(*) FROM tag WHERE name = 'kept'") == 1);
 }
 
+constexpr int kLongWaitMs = 10000;  // long enough that the lock is released first
+constexpr int kShortWaitMs = 50;    // short enough that the lock wait runs out
+constexpr int kStartDelayMs = 200;  // lets the runner start waiting
+
 TEST_CASE("a runner that waited for the lock finds version 1 and applies no step", "[db]") {
     const TempDir dir;
     const auto path = dir.path() / "shared.db";
     const Connection other(path);
     const Connection runner(path);
-    sqlite3_busy_timeout(runner.handle, 10000);
+    sqlite3_busy_timeout(runner.handle, kLongWaitMs);
     other.exec("BEGIN IMMEDIATE");
     other.exec(std::string(bucu::db::migrations()[0]));
     other.exec("PRAGMA user_version = 1");
@@ -170,7 +174,7 @@ TEST_CASE("a runner that waited for the lock finds version 1 and applies no step
     std::expected<void, bucu::db::Error> result;
     std::thread waiting([&] { result = bucu::db::migrate(runner.handle, bucu::db::migrations()); });
     // Gives the runner time to start waiting; the outcome is the same if it starts later.
-    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    std::this_thread::sleep_for(std::chrono::milliseconds(kStartDelayMs));
     other.exec("COMMIT");
     waiting.join();
 
@@ -185,7 +189,7 @@ TEST_CASE("a runner whose lock wait runs out returns kMigrationFailed and change
     const auto path = dir.path() / "shared.db";
     const Connection other(path);
     const Connection runner(path);
-    sqlite3_busy_timeout(runner.handle, 50);
+    sqlite3_busy_timeout(runner.handle, kShortWaitMs);
     other.exec("BEGIN IMMEDIATE");
 
     const auto result = bucu::db::migrate(runner.handle, bucu::db::migrations());
@@ -206,7 +210,7 @@ TEST_CASE("a runner on an up-to-date database does not wait for another writer",
     }
     const Connection other(path);
     const Connection runner(path);
-    sqlite3_busy_timeout(runner.handle, 50);
+    sqlite3_busy_timeout(runner.handle, kShortWaitMs);
     other.exec("BEGIN IMMEDIATE");
 
     const auto result = bucu::db::migrate(runner.handle, bucu::db::migrations());

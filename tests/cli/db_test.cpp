@@ -19,6 +19,9 @@
 
 namespace {
 
+// A schema version above any this build knows.
+constexpr int kNewerSchema = 7;
+
 struct Result {
     int code;
     std::string out;
@@ -150,7 +153,7 @@ TEST_CASE("db version on a file that is not a database exits 1 and names the fil
 TEST_CASE("db version on a newer schema exits 1, names the file, and says both versions",
           "[cli][db]") {
     const Fixture fixture;
-    fixture.write_schema_version(7);
+    fixture.write_schema_version(kNewerSchema);
 
     const Result result = fixture.bucu({"db", "version"});
 
@@ -213,7 +216,7 @@ TEST_CASE("db check on a file that is not a database exits 1 and names the file"
 
 TEST_CASE("db check on a newer schema exits 1 and names the file", "[cli][db]") {
     const Fixture fixture;
-    fixture.write_schema_version(7);
+    fixture.write_schema_version(kNewerSchema);
 
     check_names_file(fixture.bucu({"db", "check"}), fixture);
 }
@@ -323,7 +326,7 @@ TEST_CASE("db backup of a file that is not a database, or a newer schema, exits 
         CAPTURE(newer);
         const Fixture fixture;
         if (newer) {
-            fixture.write_schema_version(7);
+            fixture.write_schema_version(kNewerSchema);
         } else {
             fixture.write_text_file();
         }

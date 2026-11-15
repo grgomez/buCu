@@ -79,11 +79,16 @@ TEST_CASE("White_Space is the 25 Unicode code points", "[core][lower]") {
     }
 }
 
+// The code point ranges of general category Cc.
+constexpr char32_t kLastC0Control = 0x1F;
+constexpr char32_t kDelete = 0x7F;
+constexpr char32_t kLastC1Control = 0x9F;
+
 TEST_CASE("Control is general category Cc", "[core][lower]") {
-    for (char32_t cp = 0; cp <= 0x1F; ++cp) {
+    for (char32_t cp = 0; cp <= kLastC0Control; ++cp) {
         CHECK(is_control(cp));
     }
-    for (char32_t cp = 0x7F; cp <= 0x9F; ++cp) {
+    for (char32_t cp = kDelete; cp <= kLastC1Control; ++cp) {
         CHECK(is_control(cp));
     }
     for (const char32_t cp : {char32_t{0x20}, char32_t{'a'}, char32_t{0x7E}, char32_t{0xA0},

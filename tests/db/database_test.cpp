@@ -2,6 +2,7 @@
 
 #include <sqlite3.h>
 
+#include <cstddef>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
@@ -131,7 +132,8 @@ TEST_CASE("open refuses a file that is not a SQLite database and leaves it alone
     const auto path = dir.path() / "notes.txt";
     {
         std::ofstream file(path, std::ios::binary);
-        file << std::string(300, 'x') << "\nthis is plain text, not a database\n";
+        constexpr std::size_t kTextLength = 300;
+        file << std::string(kTextLength, 'x') << "\nthis is plain text, not a database\n";
     }
     const std::string before = read_bytes(path);
 

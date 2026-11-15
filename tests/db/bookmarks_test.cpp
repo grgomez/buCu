@@ -99,7 +99,8 @@ TEST_CASE("insert_bookmark stores the bookmark and links its tags", "[db]") {
 TEST_CASE("insert_bookmark stores the flags bit for bit, unknown and high bits included", "[db]") {
     Fixture fixture;
     auto bookmark = make("https://example.org/", "", "", "");
-    bookmark.flags = bucu::core::FlagSet(INT64_MIN | 6);
+    constexpr std::int64_t kUnknownFlagBits = 6;
+    bookmark.flags = bucu::core::FlagSet(INT64_MIN | kUnknownFlagBits);
 
     REQUIRE(bucu::db::insert_bookmark(fixture.database, bookmark, kNow).has_value());
 
