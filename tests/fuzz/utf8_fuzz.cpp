@@ -8,7 +8,11 @@
 #include "core/unicode_lower.hpp"
 #include "core/utf8.hpp"
 
+// libFuzzer requires this exact entry-point name.
+// NOLINTNEXTLINE(readability-identifier-naming)
 extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t size) {
+    // libFuzzer passes bytes as uint8_t; std::string_view takes char.
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     const std::string_view text(reinterpret_cast<const char*>(data), size);
     const bool valid = bucu::core::is_valid_utf8(text);
 
