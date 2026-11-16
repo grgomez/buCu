@@ -22,7 +22,7 @@ Plan issue #$issue. Do not write code before the owner accepts the plan.
 10. Write the plan-mode text: the lines `Issue: #$issue`, `Stage: Plan`, and `Tier: <n>`, then the Spec part (Tier 1 only), the Plan part, and the Tasks part. No `[NEEDS CLARIFICATION]` marker may remain. Exit plan mode (ExitPlanMode).
 11. When the owner rejects it, revise from their feedback and exit plan mode again.
 12. When the owner accepts: confirm that the issue has the `approved` label and the tier label. When either is missing, the approval hook failed: stop and tell the owner. Never add `approved` yourself.
-13. Write the accepted parts into the issue body ([issue-body.md](issue-body.md)). For Tier 0, append `Evidence: <kind>` to each Scope bullet in the owner's text, then run `python3 tools/sdd_check.py issue $issue` and fix any failure; it fails on a criterion with no valid kind. Create each "new issue" decision from Analyze with `gh issue create`, its body holding the finding and "Found by Analyze of #$issue".
+13. Write the accepted parts into the issue body ([issue-body.md](issue-body.md)). For Tier 0, turn each Scope bullet into a `- [ ]` checkbox and append `Evidence: <kind>` to it, keeping the owner's text, then run `python3 tools/sdd_check.py issue $issue` and fix any failure; it fails on a criterion with no valid kind or with no checkbox. Create each "new issue" decision from Analyze with `gh issue create`, its body holding the finding and "Found by Analyze of #$issue".
 14. Follow `.claude/skills/implement/SKILL.md` in this session.
 
 ## Trial

@@ -270,10 +270,24 @@ def check_declared(body, tier):
     return failures
 
 
+_NAMED_CRITERION = re.compile(r"^\s*(?:- )?(?:\[[^\]]*\] )?US\d+-AC\d+:")
+
+
+def check_checkboxes(body, tier):
+    """Return a failure for each Scope bullet (Tier 0) or `USn-ACm:` Spec line with no checkbox."""
+    if tier == 0:
+        lines = [line for line in scope_bullets(body) if not _CHECKBOX.match(line)]
+    else:
+        lines = [line for line in split_parts(body).get("SPEC", "").splitlines()
+                 if _NAMED_CRITERION.match(line) and not _CRITERION.match(line)]
+    return [f"criterion has no checkbox: {line.strip()[:60]}" for line in lines]
+
+
 def check_issue(number, gh):
     """Return the `issue` failures for issue `number`."""
     body, names = read_issue(number, gh)
     failures = check_parts(body, names) + check_size(body) + check_declared(body, tier_of(names))
+    failures += check_checkboxes(body, tier_of(names))
     return [f"issue #{number}: {f}" for f in failures]
 
 
