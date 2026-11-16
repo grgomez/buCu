@@ -15,3 +15,4 @@ endfunction()
 
 bucu_fuzz_target(utf8)
 bucu_fuzz_target(url)
+bucu_fuzz_target(tags)
