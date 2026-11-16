@@ -10,6 +10,7 @@
 
 #include "core/unicode_lower.hpp"
 #include "core/utf8.hpp"
+#include "property_support.hpp"
 
 namespace {
 
@@ -20,6 +21,19 @@ using bucu::core::is_white_space;
 using bucu::core::parse_tags;
 using bucu::core::TagSet;
 using bucu::core::to_lower;
+using bucu::core::test::code_point_in;
+using bucu::core::test::encode;
+using bucu::core::test::kDottedCapitalI;
+using bucu::core::test::kFirstAfterC1Controls;
+using bucu::core::test::kFirstCyrillic;
+using bucu::core::test::kFirstGreek;
+using bucu::core::test::kFirstPrintableAscii;
+using bucu::core::test::kFirstSurrogate;
+using bucu::core::test::kLastCyrillic;
+using bucu::core::test::kLastGreek;
+using bucu::core::test::kLastPrintableAscii;
+using bucu::core::test::kLastSurrogate;
+using bucu::core::test::kMaxScalarValue;
 
 // The most code points a tag may have (product section 4 Tags), pinned here on purpose.
 constexpr std::size_t kTagLimit = 128;
@@ -29,18 +43,9 @@ constexpr int kWordSize = 8;
 constexpr int kWordsPerTag = 4;
 constexpr int kTagsPerInput = 6;
 
-// Code point ranges a tag may hold as they are.
-constexpr std::uint32_t kFirstPrintableAscii = 0x20;
-constexpr std::uint32_t kLastPrintableAscii = 0x7E;
-constexpr std::uint32_t kFirstGreek = 0x370;
-constexpr std::uint32_t kLastGreek = 0x3FF;
-constexpr std::uint32_t kFirstCyrillic = 0x400;
-constexpr std::uint32_t kLastCyrillic = 0x4FF;
-constexpr std::uint32_t kFirstAfterC1Controls = 0xA1;
-constexpr std::uint32_t kLastBeforeSurrogates = 0xD7FF;
-constexpr std::uint32_t kFirstAfterSurrogates = 0xE000;
-constexpr std::uint32_t kMaxScalarValue = 0x10FFFF;
-constexpr char32_t kDottedCapitalI = 0x0130;  // lowercases to two code points
+// The scalar values on either side of the surrogates, for the any-scalar-value range.
+constexpr std::uint32_t kLastBeforeSurrogates = kFirstSurrogate - 1;
+constexpr std::uint32_t kFirstAfterSurrogates = kLastSurrogate + 1;
 
 // White_Space code points other than the ASCII ones: no-break space, em space, ideographic
 // space, and next line.
@@ -48,11 +53,6 @@ constexpr char32_t kNoBreakSpace = 0x00A0;
 constexpr char32_t kEmSpace = 0x2003;
 constexpr char32_t kIdeographicSpace = 0x3000;
 constexpr char32_t kNextLine = 0x0085;
-
-rc::Gen<char32_t> code_point_in(std::uint32_t first, std::uint32_t last) {
-    return rc::gen::map(rc::gen::inRange<std::uint32_t>(first, last + 1),
-                        [](std::uint32_t v) { return static_cast<char32_t>(v); });
-}
 
 // A code point a tag may hold as it is: not a comma, not white space, not a control character.
 // Upper-case ASCII, Greek (the sigma included), the dotted capital I, Cyrillic, and any scalar
@@ -73,26 +73,14 @@ rc::Gen<char32_t> tag_code_point() {
 rc::Gen<std::string> white_space() {
     const auto one = rc::gen::element(U' ', U'\t', U'\n', U'\r', kNoBreakSpace, kEmSpace,
                                       kIdeographicSpace, kNextLine);
-    return rc::gen::map(rc::gen::container<std::vector<char32_t>>(one), [](const auto& list) {
-        std::string out;
-        for (const char32_t cp : list) {
-            append_utf8(out, cp);
-        }
-        return out;
-    });
+    return rc::gen::map(rc::gen::container<std::vector<char32_t>>(one), encode);
 }
 
 rc::Gen<std::string> word() {
     return rc::gen::map(
         rc::gen::resize(kWordSize, rc::gen::nonEmpty(rc::gen::container<std::vector<char32_t>>(
                                        tag_code_point()))),
-        [](const auto& list) {
-            std::string out;
-            for (const char32_t cp : list) {
-                append_utf8(out, cp);
-            }
-            return out;
-        });
+        encode);
 }
 
 // One tag as typed: words with white space between them and around them. It may be empty.

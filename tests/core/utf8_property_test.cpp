@@ -11,12 +11,18 @@
 #include <rapidcheck/catch.h>
 
 #include "core/utf8.hpp"
+#include "property_support.hpp"
 
 namespace {
 
 using bucu::core::append_utf8;
 using bucu::core::decode_utf8;
 using bucu::core::is_valid_utf8;
+using bucu::core::test::code_point_in;
+using bucu::core::test::encode;
+using bucu::core::test::kFirstSurrogate;
+using bucu::core::test::kLastSurrogate;
+using bucu::core::test::kMaxScalarValue;
 
 // Code point boundaries of the UTF-8 length classes (RFC 3629).
 constexpr std::uint32_t kLastOneByte = 0x7F;
@@ -25,9 +31,6 @@ constexpr std::uint32_t kLastTwoByte = 0x7FF;
 constexpr std::uint32_t kFirstThreeByte = 0x800;
 constexpr std::uint32_t kLastThreeByte = 0xFFFF;
 constexpr std::uint32_t kFirstFourByte = 0x10000;
-constexpr std::uint32_t kMaxScalarValue = 0x10FFFF;
-constexpr std::uint32_t kFirstSurrogate = 0xD800;
-constexpr std::uint32_t kLastSurrogate = 0xDFFF;
 constexpr std::uint32_t kAfterSurrogates = kLastSurrogate + 1;
 
 // Bytes that make a sequence malformed (RFC 3629).
@@ -52,11 +55,6 @@ constexpr unsigned kLastByte = 0xFF;
 constexpr std::size_t kLeastBytesCut = 1;
 constexpr std::size_t kMostBytesCut = 3;
 
-rc::Gen<char32_t> code_point_in(std::uint32_t first, std::uint32_t last) {
-    return rc::gen::map(rc::gen::inRange<std::uint32_t>(first, last + 1),
-                        [](std::uint32_t v) { return static_cast<char32_t>(v); });
-}
-
 char byte_value(unsigned value) { return static_cast<char>(value); }
 
 // A Unicode scalar value: every code point except the surrogates. The five ranges give each
@@ -67,14 +65,6 @@ rc::Gen<char32_t> scalar_value() {
                           code_point_in(kFirstThreeByte, kFirstSurrogate - 1),
                           code_point_in(kAfterSurrogates, kLastThreeByte),
                           code_point_in(kFirstFourByte, kMaxScalarValue));
-}
-
-std::string encode(const std::vector<char32_t>& code_points) {
-    std::string out;
-    for (const char32_t cp : code_points) {
-        append_utf8(out, cp);
-    }
-    return out;
 }
 
 // Well-formed text of any length, including empty.

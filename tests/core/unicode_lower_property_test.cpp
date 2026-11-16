@@ -11,45 +11,43 @@
 
 #include "core/unicode_lower.hpp"
 #include "core/utf8.hpp"
+#include "property_support.hpp"
 
 namespace {
 
 using bucu::core::append_utf8;
 using bucu::core::is_valid_utf8;
 using bucu::core::to_lower;
+using bucu::core::test::code_point_in;
+using bucu::core::test::encode;
+using bucu::core::test::kDottedCapitalI;
+using bucu::core::test::kFirstCyrillic;
+using bucu::core::test::kFirstGreek;
+using bucu::core::test::kFirstPrintableAscii;
+using bucu::core::test::kFirstSurrogate;
+using bucu::core::test::kLastGreek;
+using bucu::core::test::kLastLatinExtendedB;
+using bucu::core::test::kLastPrintableAscii;
+using bucu::core::test::kLastSurrogate;
+using bucu::core::test::kMaxScalarValue;
 
 // Code point ranges where lowercasing has work to do, and the boundaries of the scalar values.
-constexpr std::uint32_t kFirstPrintableAscii = 0x20;
-constexpr std::uint32_t kLastPrintableAscii = 0x7E;
 constexpr std::uint32_t kFirstLatinLetter = 0xC0;
-constexpr std::uint32_t kLastLatinExtendedB = 0x24F;
 constexpr std::uint32_t kFirstCombiningMark = 0x300;
 constexpr std::uint32_t kLastCombiningMark = 0x36F;
-constexpr std::uint32_t kFirstGreek = 0x370;
-constexpr std::uint32_t kLastGreek = 0x3FF;
-constexpr std::uint32_t kFirstCyrillic = 0x400;
 constexpr std::uint32_t kLastCyrillicSupplement = 0x52F;
 constexpr std::uint32_t kFirstArmenian = 0x530;
 constexpr std::uint32_t kLastArmenian = 0x58F;
 constexpr std::uint32_t kFirstGeorgian = 0x10A0;
 constexpr std::uint32_t kLastGeorgian = 0x10FF;
-constexpr std::uint32_t kFirstSurrogate = 0xD800;
-constexpr std::uint32_t kLastSurrogate = 0xDFFF;
-constexpr std::uint32_t kMaxScalarValue = 0x10FFFF;
 constexpr char32_t kCapitalSigma = 0x03A3;  // depends on its neighbours (Final_Sigma)
 constexpr char32_t kFinalSmallSigma = 0x03C2;
-constexpr char32_t kDottedCapitalI = 0x0130;  // has its own example test
 
 // Bytes that never start a code point: a continuation byte, and the bytes F8 to FF.
 constexpr unsigned kFirstContinuationByte = 0x80;
 constexpr unsigned kAfterContinuationBytes = 0xC0;
 constexpr unsigned kFirstNeverLeadByte = 0xF8;
 constexpr unsigned kAfterLastByte = 0x100;
-
-rc::Gen<char32_t> code_point_in(std::uint32_t first, std::uint32_t last) {
-    return rc::gen::map(rc::gen::inRange<std::uint32_t>(first, last + 1),
-                        [](std::uint32_t v) { return static_cast<char32_t>(v); });
-}
 
 // A code point from the ranges where lowercasing has work to do (Latin, Greek, Cyrillic,
 // Armenian, Georgian, the case-ignorable combining marks), the sigma and dotted capital I that
@@ -65,14 +63,6 @@ rc::Gen<char32_t> text_code_point() {
                           rc::gen::element(kCapitalSigma, kDottedCapitalI, kFinalSmallSigma),
                           code_point_in(0, kFirstSurrogate - 1),
                           code_point_in(kLastSurrogate + 1, kMaxScalarValue));
-}
-
-std::string encode(const std::vector<char32_t>& code_points) {
-    std::string out;
-    for (const char32_t cp : code_points) {
-        append_utf8(out, cp);
-    }
-    return out;
 }
 
 rc::Gen<std::string> valid_text() {
