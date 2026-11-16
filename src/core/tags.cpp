@@ -85,7 +85,8 @@ TagSet add_tags(TagSet tags, const TagSet& added) {
     return tags;
 }
 
-// The names tell the two sets apart, and `removed` is only read.
+// bugprone-easily-swappable-parameters: the names tell the two sets apart, and `removed` is only
+// read.
 // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
 TagSet remove_tags(TagSet tags, const TagSet& removed) {
     for (const std::string& tag : removed) {
