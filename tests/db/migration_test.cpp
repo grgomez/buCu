@@ -8,6 +8,7 @@
 #include <map>
 #include <string>
 #include <thread>
+#include <utility>
 #include <vector>
 
 #include "bucu/db/database.hpp"
@@ -48,11 +49,34 @@ std::vector<std::string> columns_of(Database& database, const std::string& table
     return names;
 }
 
-// A plain connection to `path` for the second-process scenarios, closed at the end of the scope.
+// Owns a thread and joins it at the end of the scope when it is still running, so a failed
+// REQUIRE reports its check instead of calling std::terminate.
+struct JoiningThread {
+    std::thread thread;
+    template <typename Function>
+    explicit JoiningThread(Function&& function) : thread(std::forward<Function>(function)) {}
+    JoiningThread(const JoiningThread&) = delete;
+    JoiningThread& operator=(const JoiningThread&) = delete;
+    JoiningThread(JoiningThread&&) = delete;
+    JoiningThread& operator=(JoiningThread&&) = delete;
+    ~JoiningThread() {
+        if (thread.joinable()) {
+            thread.join();
+        }
+    }
+
+    void join() { thread.join(); }
+};
+
+// How long a test connection waits for a lock, as a real one does (database-schema §1).
+constexpr int kBusyWaitMs = 5000;
+
+// A connection to `path` for the second-process scenarios, closed at the end of the scope.
 struct Connection {
     sqlite3* handle = nullptr;
     explicit Connection(const std::filesystem::path& path) {
         REQUIRE(sqlite3_open(bucu::test::utf8_path(path).c_str(), &handle) == SQLITE_OK);
+        sqlite3_busy_timeout(handle, kBusyWaitMs);
     }
     Connection(const Connection&) = delete;
     Connection& operator=(const Connection&) = delete;
@@ -157,9 +181,10 @@ TEST_CASE("a step that fails part-way rolls back to the version and rows from be
     CHECK(scalar(*database, "SELECT count(*) FROM tag WHERE name = 'kept'") == 1);
 }
 
-constexpr int kLongWaitMs = 10000;  // long enough that the lock is released first
-constexpr int kShortWaitMs = 50;    // short enough that the lock wait runs out
-constexpr int kStartDelayMs = 200;  // lets the runner start waiting
+constexpr int kLongWaitMs = 10000;    // long enough that the lock is released first
+constexpr int kShortWaitMs = 50;      // short enough that the lock wait runs out
+constexpr int kStartDelayMs = 200;    // lets the runner start waiting
+constexpr int kReleaseDelayMs = 100;  // lets COMMIT start waiting for the reader
 
 TEST_CASE("a runner that waited for the lock finds version 1 and applies no step", "[db]") {
     const TempDir dir;
@@ -172,7 +197,8 @@ TEST_CASE("a runner that waited for the lock finds version 1 and applies no step
     other.exec("PRAGMA user_version = 1");
 
     std::expected<void, bucu::db::Error> result;
-    std::thread waiting([&] { result = bucu::db::migrate(runner.handle, bucu::db::migrations()); });
+    JoiningThread waiting(
+        [&] { result = bucu::db::migrate(runner.handle, bucu::db::migrations()); });
     // Gives the runner time to start waiting; the outcome is the same if it starts later.
     std::this_thread::sleep_for(std::chrono::milliseconds(kStartDelayMs));
     other.exec("COMMIT");
@@ -181,6 +207,29 @@ TEST_CASE("a runner that waited for the lock finds version 1 and applies no step
     // Running step 1 again would fail on the tables the other connection created.
     CHECK(result.has_value());
     CHECK(runner.version() == 1);
+}
+
+TEST_CASE("a test connection waits for a reader before it commits", "[db]") {
+    const TempDir dir;
+    const auto path = dir.path() / "shared.db";
+    const Connection other(path);
+    const Connection reader(path);
+    other.exec("BEGIN IMMEDIATE");
+    other.exec(std::string(bucu::db::migrations()[0]));
+    reader.exec("BEGIN");
+    reader.exec("SELECT count(*) FROM sqlite_master");
+    // Ends the reader's transaction shortly after COMMIT starts waiting for it.
+    int released = SQLITE_ERROR;
+    JoiningThread release([&] {
+        std::this_thread::sleep_for(std::chrono::milliseconds(kReleaseDelayMs));
+        released = sqlite3_exec(reader.handle, "COMMIT", nullptr, nullptr, nullptr);
+    });
+
+    other.exec("COMMIT");
+    release.join();
+
+    CHECK(released == SQLITE_OK);
+    CHECK(reader.table_count() > 0);  // the commit reached the file
 }
 
 TEST_CASE("a runner whose lock wait runs out returns kMigrationFailed and changes nothing",
