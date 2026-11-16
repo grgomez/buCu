@@ -12,7 +12,7 @@ Sections marked "(added by #N)" describe a part that issue #N builds. Until that
 
 BuCu is a fast, portable command-line bookmark manager, a C++ port of Buku by Arun Prakash Jana. It serves people who keep bookmarks in a terminal-friendly, local database and want quick startup, low memory use, and scripting-friendly output. Everything is stored locally in one SQLite file; nothing is synchronized to a cloud.
 
-The first milestone is a robust core, not full Buku compatibility. Buku compatibility grows incrementally (`README.md` Roadmap).
+The first milestone is a robust core. The long-term goal is feature parity with Buku, reached incrementally (`README.md` Roadmap).
 
 ## 2. Glossary
 

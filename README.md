@@ -33,6 +33,8 @@ Each issue owns its scope; the issue state is the source of truth.
 - [#16](https://github.com/grgomez/buCu/issues/16) Title and description fetch with libcurl
 - [#17](https://github.com/grgomez/buCu/issues/17) HTML (Netscape) bookmark import and export
 - [#18](https://github.com/grgomez/buCu/issues/18) Markdown import and export
+- [#46](https://github.com/grgomez/buCu/issues/46) Tag listing, rename, and delete across bookmarks
+- [#47](https://github.com/grgomez/buCu/issues/47) Interactive prompt after results
 
 ### Later
 
@@ -49,6 +51,12 @@ Each issue owns its scope; the issue state is the source of truth.
 - [#29](https://github.com/grgomez/buCu/issues/29) Optional Buku CLI compatibility mode
 - [#30](https://github.com/grgomez/buCu/issues/30) BSD build in CI
 - [#31](https://github.com/grgomez/buCu/issues/31) Merging databases between machines
+- [#48](https://github.com/grgomez/buCu/issues/48) Bulk title refresh with redirect and error handling
+- [#49](https://github.com/grgomez/buCu/issues/49) Tag suggestions, custom colours, and skipping confirmations
+- [#50](https://github.com/grgomez/buCu/issues/50) Piped standard input
+- [#51](https://github.com/grgomez/buCu/issues/51) Debug logging and release version check
+- [#52](https://github.com/grgomez/buCu/issues/52) Man page with examples
+- [#53](https://github.com/grgomez/buCu/issues/53) Library use of BuCu
 
 ## Setup (development)
 
