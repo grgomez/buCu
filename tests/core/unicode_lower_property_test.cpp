@@ -11,12 +11,15 @@
 
 #include "core/unicode_lower.hpp"
 #include "core/utf8.hpp"
+#include "property_support.hpp"
 
 namespace {
 
 using bucu::core::append_utf8;
 using bucu::core::is_valid_utf8;
 using bucu::core::to_lower;
+using bucu::core::test::code_point_in;
+using bucu::core::test::encode;
 
 // Code point ranges where lowercasing has work to do, and the boundaries of the scalar values.
 constexpr std::uint32_t kFirstPrintableAscii = 0x20;
@@ -46,11 +49,6 @@ constexpr unsigned kAfterContinuationBytes = 0xC0;
 constexpr unsigned kFirstNeverLeadByte = 0xF8;
 constexpr unsigned kAfterLastByte = 0x100;
 
-rc::Gen<char32_t> code_point_in(std::uint32_t first, std::uint32_t last) {
-    return rc::gen::map(rc::gen::inRange<std::uint32_t>(first, last + 1),
-                        [](std::uint32_t v) { return static_cast<char32_t>(v); });
-}
-
 // A code point from the ranges where lowercasing has work to do (Latin, Greek, Cyrillic,
 // Armenian, Georgian, the case-ignorable combining marks), the sigma and dotted capital I that
 // have rules of their own, or any scalar value of the Basic Multilingual Plane or beyond.
@@ -65,14 +63,6 @@ rc::Gen<char32_t> text_code_point() {
                           rc::gen::element(kCapitalSigma, kDottedCapitalI, kFinalSmallSigma),
                           code_point_in(0, kFirstSurrogate - 1),
                           code_point_in(kLastSurrogate + 1, kMaxScalarValue));
-}
-
-std::string encode(const std::vector<char32_t>& code_points) {
-    std::string out;
-    for (const char32_t cp : code_points) {
-        append_utf8(out, cp);
-    }
-    return out;
 }
 
 rc::Gen<std::string> valid_text() {
