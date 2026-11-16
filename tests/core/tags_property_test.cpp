@@ -10,6 +10,7 @@
 
 #include "core/unicode_lower.hpp"
 #include "core/utf8.hpp"
+#include "property_support.hpp"
 
 namespace {
 
@@ -20,6 +21,8 @@ using bucu::core::is_white_space;
 using bucu::core::parse_tags;
 using bucu::core::TagSet;
 using bucu::core::to_lower;
+using bucu::core::test::code_point_in;
+using bucu::core::test::encode;
 
 // The most code points a tag may have (product section 4 Tags), pinned here on purpose.
 constexpr std::size_t kTagLimit = 128;
@@ -49,11 +52,6 @@ constexpr char32_t kEmSpace = 0x2003;
 constexpr char32_t kIdeographicSpace = 0x3000;
 constexpr char32_t kNextLine = 0x0085;
 
-rc::Gen<char32_t> code_point_in(std::uint32_t first, std::uint32_t last) {
-    return rc::gen::map(rc::gen::inRange<std::uint32_t>(first, last + 1),
-                        [](std::uint32_t v) { return static_cast<char32_t>(v); });
-}
-
 // A code point a tag may hold as it is: not a comma, not white space, not a control character.
 // Upper-case ASCII, Greek (the sigma included), the dotted capital I, Cyrillic, and any scalar
 // value are all there.
@@ -73,26 +71,14 @@ rc::Gen<char32_t> tag_code_point() {
 rc::Gen<std::string> white_space() {
     const auto one = rc::gen::element(U' ', U'\t', U'\n', U'\r', kNoBreakSpace, kEmSpace,
                                       kIdeographicSpace, kNextLine);
-    return rc::gen::map(rc::gen::container<std::vector<char32_t>>(one), [](const auto& list) {
-        std::string out;
-        for (const char32_t cp : list) {
-            append_utf8(out, cp);
-        }
-        return out;
-    });
+    return rc::gen::map(rc::gen::container<std::vector<char32_t>>(one), encode);
 }
 
 rc::Gen<std::string> word() {
     return rc::gen::map(
         rc::gen::resize(kWordSize, rc::gen::nonEmpty(rc::gen::container<std::vector<char32_t>>(
                                        tag_code_point()))),
-        [](const auto& list) {
-            std::string out;
-            for (const char32_t cp : list) {
-                append_utf8(out, cp);
-            }
-            return out;
-        });
+        encode);
 }
 
 // One tag as typed: words with white space between them and around them. It may be empty.

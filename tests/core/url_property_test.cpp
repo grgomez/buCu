@@ -10,13 +10,15 @@
 
 #include "core/unicode_lower.hpp"
 #include "core/utf8.hpp"
+#include "property_support.hpp"
 
 namespace {
 
-using bucu::core::append_utf8;
 using bucu::core::is_control;
 using bucu::core::is_white_space;
 using bucu::core::normalize_url;
+using bucu::core::test::code_point_in;
+using bucu::core::test::encode;
 
 // How long the generated pieces get (the generator size, not a rule).
 constexpr int kSchemeTailSize = 6;
@@ -71,14 +73,10 @@ rc::Gen<std::string> scheme() {
 }
 
 rc::Gen<char32_t> host_code_point() {
-    const auto in = [](std::uint32_t first, std::uint32_t last) {
-        return rc::gen::map(rc::gen::inRange<std::uint32_t>(first, last + 1),
-                            [](std::uint32_t v) { return static_cast<char32_t>(v); });
-    };
-    const auto non_ascii =
-        rc::gen::oneOf(in(kFirstAfterC1Controls, kLastLatinExtendedB), in(kFirstGreek, kLastGreek),
-                       in(kFirstCyrillic, kLastCyrillic), rc::gen::just(kDottedCapitalI),
-                       in(kFirstCjkSample, kLastCjkSample));
+    const auto non_ascii = rc::gen::oneOf(
+        code_point_in(kFirstAfterC1Controls, kLastLatinExtendedB),
+        code_point_in(kFirstGreek, kLastGreek), code_point_in(kFirstCyrillic, kLastCyrillic),
+        rc::gen::just(kDottedCapitalI), code_point_in(kFirstCjkSample, kLastCjkSample));
     return rc::gen::suchThat(non_ascii,
                              [](char32_t cp) { return !is_white_space(cp) && !is_control(cp); });
 }
@@ -91,13 +89,7 @@ rc::Gen<std::string> host() {
         rc::gen::map(rc::gen::resize(kHostUnicodeSize,
                                      rc::gen::nonEmpty(rc::gen::container<std::vector<char32_t>>(
                                          host_code_point()))),
-                     [](const auto& code_points) {
-                         std::string out;
-                         for (const char32_t cp : code_points) {
-                             append_utf8(out, cp);
-                         }
-                         return out;
-                     }));
+                     encode));
     const auto ipv6 = rc::gen::map(from_alphabet("0123456789abcdefABCDEF:", kIpv6Size),
                                    [](const std::string& digits) { return "[" + digits + "]"; });
     return rc::gen::oneOf(name, ipv6);
