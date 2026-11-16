@@ -71,6 +71,7 @@ python3 -m unittest discover -s tools/tests            # workflow tool and hook 
 cmake --preset asan-ubsan && cmake --build --preset asan-ubsan && ctest --preset asan-ubsan
 scripts/format.sh [--check]                            # clang-format
 scripts/tidy.sh [build-dir]                            # clang-tidy 19 (CLANG_TIDY=<path>), NOLINT, magic-number NOLINTBEGIN, and throw checks
+scripts/fuzz.sh [seconds]                                  # libFuzzer targets (LLVM Clang), seconds per target, default 60
 python3 tools/sdd_check.py issue <n>                   # issue body parts, size, markers
 ```
 
