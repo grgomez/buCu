@@ -177,7 +177,8 @@ TEST_CASE("a runner that waited for the lock finds version 1 and applies no step
     other.exec("PRAGMA user_version = 1");
 
     std::expected<void, bucu::db::Error> result;
-    std::thread waiting([&] { result = bucu::db::migrate(runner.handle, bucu::db::migrations()); });
+    std::jthread waiting(
+        [&] { result = bucu::db::migrate(runner.handle, bucu::db::migrations()); });
     // Gives the runner time to start waiting; the outcome is the same if it starts later.
     std::this_thread::sleep_for(std::chrono::milliseconds(kStartDelayMs));
     other.exec("COMMIT");
