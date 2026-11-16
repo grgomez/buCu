@@ -26,7 +26,7 @@ We will use seven evidence kinds: `test`, `property`, `fuzz`, `proof`, `check`, 
 
 A property test counts as the test of constitution principle 4. A fuzz target or proof harness is a `[V]` task that sits beside a test of the same behaviour.
 
-`tools/sdd_check.py issue` fails on a criterion with no valid kind or with no checkbox. `tools/sdd_check.py pr` fails on a ticked `test`, `property`, `fuzz`, `proof`, or `check` line without its location, and on an unticked line that is not a completed `manual` or `after merge` form. A ticked completed `manual` or `after merge` line passes, because the owner checked it.
+`tools/sdd_check.py issue` fails on a criterion with no valid kind or with no checkbox. `tools/sdd_check.py pr` fails on a criterion with no checkbox, in any tier; on a ticked `test`, `property`, `fuzz`, `proof`, or `check` line without its location; and on an unticked line that is not a completed `manual` or `after merge` form. A ticked completed `manual` or `after merge` line passes, because the owner checked it.
 
 ## Consequences
 

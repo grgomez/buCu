@@ -189,6 +189,21 @@ class CheckboxTest(unittest.TestCase):
         sdd_check.main(["pr", "9"], gh=gh, err=err)
         self.assertEqual(err.getvalue().count("criterion has no checkbox"), 1)
 
+    def test_pr_mode_reports_a_tier1_spec_line_without_box_once(self):
+        text = done_body(criterion="- US1-AC1: x Evidence: test: a_test.py: case")
+        gh = CommandLineTest().fake_gh(text, labels(1))
+        err = io.StringIO()
+        self.assertEqual(sdd_check.main(["pr", "9"], gh=gh, err=err), 1)
+        self.assertEqual(err.getvalue().count("criterion has no checkbox"), 1)
+
+    def test_issue_mode_reports_a_boxless_spec_line_without_evidence_once_each(self):
+        spec = "<!-- SPEC:START -->\n# Spec\n### US1: a\n- US1-AC1: x\n<!-- SPEC:END -->\n"
+        gh = CommandLineTest().fake_gh(body(spec=spec), labels(1))
+        err = io.StringIO()
+        self.assertEqual(sdd_check.main(["issue", "7"], gh=gh, err=err), 1)
+        self.assertEqual(err.getvalue().count("criterion has no checkbox"), 1)
+        self.assertEqual(err.getvalue().count("declares no valid `Evidence: <kind>`"), 1)
+
     def spec_failures(self, criterion):
         spec = f"<!-- SPEC:START -->\n# Spec\n### US1: a\n{criterion}\n<!-- SPEC:END -->\n"
         return sdd_check.check_checkboxes(body(spec=spec), 1)
@@ -199,6 +214,17 @@ class CheckboxTest(unittest.TestCase):
             self.assertEqual(len(failures), 1, line)
             self.assertIn("criterion has no checkbox", failures[0])
             self.assertIn("US1-AC1", failures[0])
+
+    def test_indented_boxed_criterion_is_not_boxless_and_is_counted(self):
+        self.assertEqual(self.spec_failures("  - [ ] US1-AC1: x Evidence: test"), [])
+        criteria = "\n".join(f"  - [ ] US1-AC{n}: x Evidence: test" for n in range(1, 14))
+        spec = f"<!-- SPEC:START -->\n# Spec\n### US1: a\n{criteria}\n<!-- SPEC:END -->\n"
+        self.assertTrue(any("13 criteria" in f for f in sdd_check.check_size(body(spec=spec))))
+
+    def test_boxless_spec_criterion_counts_toward_the_size_limit(self):
+        criteria = "\n".join(f"- US1-AC{n}: x Evidence: test" for n in range(1, 14))
+        spec = f"<!-- SPEC:START -->\n# Spec\n### US1: a\n{criteria}\n<!-- SPEC:END -->\n"
+        self.assertTrue(any("13 criteria" in f for f in sdd_check.check_size(body(spec=spec))))
 
     def test_spec_boxed_criterion_and_prose_pass(self):
         self.assertEqual(self.spec_failures("- [ ] US1-AC1: x Evidence: test"), [])

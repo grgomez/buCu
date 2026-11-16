@@ -95,7 +95,7 @@ def check_parts(body, names):
 
 _LIMITS = (("user stories", 3), ("criteria", 12), ("tasks", 12))
 _STORY = re.compile(r"^#{2,3} US\d+\b", re.M)
-_CRITERION = re.compile(r"^- \[[ xX]\] US\d+-AC\d+:", re.M)
+_CRITERION = re.compile(r"^[ \t]*- \[[ xX]\] US\d+-AC\d+:", re.M)
 _TASK = re.compile(r"^- \[[ xX]\] T\d{3}\b", re.M)
 _OPEN_MARKER = re.compile(r"\[NEEDS CLARIFICATION:")
 
@@ -133,7 +133,7 @@ def check_size(body):
     """
     parts = split_parts(body)
     if "SPEC" in parts:
-        counts = (len(_STORY.findall(parts["SPEC"])), len(_CRITERION.findall(parts["SPEC"])))
+        counts = (len(_STORY.findall(parts["SPEC"])), len(criteria_lines(body, 1)))
     else:
         counts = (len(_STORY.findall(parts.get("TASKS", ""))), len(scope_bullets(body)))
     counts += (len(_TASK.findall(parts.get("TASKS", ""))),)
@@ -253,12 +253,15 @@ def read_issue(number, gh):
     return data["body"] or "", [label["name"] for label in data["labels"]]
 
 
+_NAMED_CRITERION = re.compile(r"^\s*(?:- )?(?:\[[^\]]*\] )?US\d+-AC\d+:")
+
+
 def criteria_lines(body, tier):
-    """Return the acceptance criteria lines: the Spec part's, or the Scope bullets for Tier 0."""
+    """Return the criteria lines, boxed or not: the Spec part's, or the Scope bullets for Tier 0."""
     if tier == 0:
         return scope_bullets(body)
     return [line for line in split_parts(body).get("SPEC", "").splitlines()
-            if _CRITERION.match(line)]
+            if _NAMED_CRITERION.match(line)]
 
 
 def check_declared(body, tier):
@@ -270,16 +273,9 @@ def check_declared(body, tier):
     return failures
 
 
-_NAMED_CRITERION = re.compile(r"^\s*(?:- )?(?:\[[^\]]*\] )?US\d+-AC\d+:")
-
-
 def check_checkboxes(body, tier):
     """Return a failure for each Scope bullet (Tier 0) or `USn-ACm:` Spec line with no checkbox."""
-    if tier == 0:
-        lines = [line for line in scope_bullets(body) if not _CHECKBOX.match(line)]
-    else:
-        lines = [line for line in split_parts(body).get("SPEC", "").splitlines()
-                 if _NAMED_CRITERION.match(line) and not _CRITERION.match(line)]
+    lines = [line for line in criteria_lines(body, tier) if not _CHECKBOX.match(line)]
     return [f"criterion has no checkbox: {line.strip()[:60]}" for line in lines]
 
 
