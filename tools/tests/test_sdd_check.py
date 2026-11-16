@@ -189,6 +189,22 @@ class CheckboxTest(unittest.TestCase):
         sdd_check.main(["pr", "9"], gh=gh, err=err)
         self.assertEqual(err.getvalue().count("criterion has no checkbox"), 1)
 
+    def spec_failures(self, criterion):
+        spec = f"<!-- SPEC:START -->\n# Spec\n### US1: a\n{criterion}\n<!-- SPEC:END -->\n"
+        return sdd_check.check_checkboxes(body(spec=spec), 1)
+
+    def test_spec_criterion_without_box_fails(self):
+        for line in ("US1-AC1: x Evidence: test", "- US1-AC1: x Evidence: test"):
+            failures = self.spec_failures(line)
+            self.assertEqual(len(failures), 1, line)
+            self.assertIn("criterion has no checkbox", failures[0])
+            self.assertIn("US1-AC1", failures[0])
+
+    def test_spec_boxed_criterion_and_prose_pass(self):
+        self.assertEqual(self.spec_failures("- [ ] US1-AC1: x Evidence: test"), [])
+        self.assertEqual(self.spec_failures("- [x] US1-AC1: x Evidence: test: a: b"), [])
+        self.assertEqual(self.spec_failures("See US1-AC1: for the rule."), [])
+
 
 def done_body(task="- [x] T001 x", criterion="- [x] US1-AC1: x Evidence: test: a_test.py: case"):
     spec = f"<!-- SPEC:START -->\n# Spec\n### US1: a\n{criterion}\n<!-- SPEC:END -->\n"
