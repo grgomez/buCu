@@ -54,6 +54,19 @@
       }
     },
     {
+      "name": "fuzz",
+      "inherits": "base",
+      "condition": {
+        "type": "notEquals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "BUCU_FUZZ": "ON"
+      }
+    },
+    {
       "name": "tsan",
       "inherits": "base",
       "condition": {
@@ -86,6 +99,15 @@
     {
       "name": "asan-ubsan",
       "configurePreset": "asan-ubsan",
+      "condition": {
+        "type": "notEquals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      }
+    },
+    {
+      "name": "fuzz",
+      "configurePreset": "fuzz",
       "condition": {
         "type": "notEquals",
         "lhs": "${hostSystemName}",
@@ -127,6 +149,18 @@
     {
       "name": "asan-ubsan",
       "configurePreset": "asan-ubsan",
+      "condition": {
+        "type": "notEquals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      },
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "fuzz",
+      "configurePreset": "fuzz",
       "condition": {
         "type": "notEquals",
         "lhs": "${hostSystemName}",

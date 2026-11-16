@@ -3,3 +3,7 @@ add_subdirectory(cli)
 add_subdirectory(core)
 add_subdirectory(db)
 add_subdirectory(platform)
+
+if(BUCU_FUZZ)
+    add_subdirectory(fuzz)
+endif()
