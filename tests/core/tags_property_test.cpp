@@ -23,6 +23,15 @@ using bucu::core::TagSet;
 using bucu::core::to_lower;
 using bucu::core::test::code_point_in;
 using bucu::core::test::encode;
+using bucu::core::test::kDottedCapitalI;
+using bucu::core::test::kFirstAfterC1Controls;
+using bucu::core::test::kFirstCyrillic;
+using bucu::core::test::kFirstGreek;
+using bucu::core::test::kFirstPrintableAscii;
+using bucu::core::test::kLastCyrillic;
+using bucu::core::test::kLastGreek;
+using bucu::core::test::kLastPrintableAscii;
+using bucu::core::test::kMaxScalarValue;
 
 // The most code points a tag may have (product section 4 Tags), pinned here on purpose.
 constexpr std::size_t kTagLimit = 128;
@@ -33,17 +42,8 @@ constexpr int kWordsPerTag = 4;
 constexpr int kTagsPerInput = 6;
 
 // Code point ranges a tag may hold as they are.
-constexpr std::uint32_t kFirstPrintableAscii = 0x20;
-constexpr std::uint32_t kLastPrintableAscii = 0x7E;
-constexpr std::uint32_t kFirstGreek = 0x370;
-constexpr std::uint32_t kLastGreek = 0x3FF;
-constexpr std::uint32_t kFirstCyrillic = 0x400;
-constexpr std::uint32_t kLastCyrillic = 0x4FF;
-constexpr std::uint32_t kFirstAfterC1Controls = 0xA1;
 constexpr std::uint32_t kLastBeforeSurrogates = 0xD7FF;
 constexpr std::uint32_t kFirstAfterSurrogates = 0xE000;
-constexpr std::uint32_t kMaxScalarValue = 0x10FFFF;
-constexpr char32_t kDottedCapitalI = 0x0130;  // lowercases to two code points
 
 // White_Space code points other than the ASCII ones: no-break space, em space, ideographic
 // space, and next line.

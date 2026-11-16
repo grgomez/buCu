@@ -20,6 +20,9 @@ using bucu::core::decode_utf8;
 using bucu::core::is_valid_utf8;
 using bucu::core::test::code_point_in;
 using bucu::core::test::encode;
+using bucu::core::test::kFirstSurrogate;
+using bucu::core::test::kLastSurrogate;
+using bucu::core::test::kMaxScalarValue;
 
 // Code point boundaries of the UTF-8 length classes (RFC 3629).
 constexpr std::uint32_t kLastOneByte = 0x7F;
@@ -28,9 +31,6 @@ constexpr std::uint32_t kLastTwoByte = 0x7FF;
 constexpr std::uint32_t kFirstThreeByte = 0x800;
 constexpr std::uint32_t kLastThreeByte = 0xFFFF;
 constexpr std::uint32_t kFirstFourByte = 0x10000;
-constexpr std::uint32_t kMaxScalarValue = 0x10FFFF;
-constexpr std::uint32_t kFirstSurrogate = 0xD800;
-constexpr std::uint32_t kLastSurrogate = 0xDFFF;
 constexpr std::uint32_t kAfterSurrogates = kLastSurrogate + 1;
 
 // Bytes that make a sequence malformed (RFC 3629).

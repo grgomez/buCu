@@ -19,6 +19,13 @@ using bucu::core::is_white_space;
 using bucu::core::normalize_url;
 using bucu::core::test::code_point_in;
 using bucu::core::test::encode;
+using bucu::core::test::kDottedCapitalI;
+using bucu::core::test::kFirstAfterC1Controls;
+using bucu::core::test::kFirstCyrillic;
+using bucu::core::test::kFirstGreek;
+using bucu::core::test::kLastCyrillic;
+using bucu::core::test::kLastGreek;
+using bucu::core::test::kLastLatinExtendedB;
 
 // How long the generated pieces get (the generator size, not a rule).
 constexpr int kSchemeTailSize = 6;
@@ -32,15 +39,8 @@ constexpr int kOpaqueRestSize = 12;
 constexpr int kPieceCount = 12;
 
 // Non-ASCII code point ranges a host may hold.
-constexpr std::uint32_t kFirstAfterC1Controls = 0xA1;
-constexpr std::uint32_t kLastLatinExtendedB = 0x24F;
-constexpr std::uint32_t kFirstGreek = 0x370;
-constexpr std::uint32_t kLastGreek = 0x3FF;
-constexpr std::uint32_t kFirstCyrillic = 0x400;
-constexpr std::uint32_t kLastCyrillic = 0x4FF;
 constexpr std::uint32_t kFirstCjkSample = 0x4E00;
 constexpr std::uint32_t kLastCjkSample = 0x4FFF;
-constexpr char32_t kDottedCapitalI = 0x0130;  // lowercases to two code points
 
 std::string join(const std::vector<std::string>& parts) {
     std::string out;
