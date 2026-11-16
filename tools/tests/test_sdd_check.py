@@ -189,6 +189,13 @@ class CheckboxTest(unittest.TestCase):
         sdd_check.main(["pr", "9"], gh=gh, err=err)
         self.assertEqual(err.getvalue().count("criterion has no checkbox"), 1)
 
+    def test_pr_mode_reports_a_tier1_spec_line_without_box_once(self):
+        text = done_body(criterion="- US1-AC1: x Evidence: test: a_test.py: case")
+        gh = CommandLineTest().fake_gh(text, labels(1))
+        err = io.StringIO()
+        self.assertEqual(sdd_check.main(["pr", "9"], gh=gh, err=err), 1)
+        self.assertEqual(err.getvalue().count("criterion has no checkbox"), 1)
+
     def spec_failures(self, criterion):
         spec = f"<!-- SPEC:START -->\n# Spec\n### US1: a\n{criterion}\n<!-- SPEC:END -->\n"
         return sdd_check.check_checkboxes(body(spec=spec), 1)
