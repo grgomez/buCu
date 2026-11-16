@@ -1,7 +1,8 @@
 #!/bin/sh
 # Static analysis for BuCu (architecture section 8, ADR 0006). Runs clang-tidy over every src/
-# and tests/ translation unit, then two text checks: a NOLINT must name its check, and no BuCu
-# code throws (architecture section 7). Third-party code is never analysed.
+# and tests/ translation unit, then three text checks: a NOLINT must name its check, no
+# NOLINTBEGIN pair silences a magic-number check, and no BuCu code throws (architecture
+# section 7). Third-party code is never analysed.
 #
 # usage: scripts/tidy.sh [build-dir]   (default build/debug; it needs compile_commands.json)
 # CLANG_TIDY names the clang-tidy binary (version 19 or newer: 18 cannot parse std::expected).
@@ -43,6 +44,14 @@ echo "tidy.sh: NOLINT must name its check"
 nolint_bad='NOLINT(NEXTLINE|BEGIN|END)?([^(A-Za-z]|$)|NOLINT(NEXTLINE|BEGIN|END)?\(([^)]*\*[^)]*|[[:space:]]*)\)'
 if git grep -nE "$nolint_bad" -- 'src' 'tests' 'include'; then
     echo "tidy.sh: a NOLINT above names no check; write NOLINT(<check>) and a reason." >&2
+    status=1
+fi
+
+echo "tidy.sh: no NOLINTBEGIN for a magic-number check"
+# A magic-number finding gets a named constant; only a one-line NOLINT with a reason is allowed.
+magic_block='NOLINTBEGIN\([^)]*(readability-magic-numbers|cppcoreguidelines-avoid-magic-numbers)'
+if git grep -nE "$magic_block" -- 'src' 'tests' 'include'; then
+    echo "tidy.sh: a magic-number NOLINTBEGIN above; name a constant (architecture section 8)." >&2
     status=1
 fi
 
