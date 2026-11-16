@@ -41,7 +41,7 @@ constexpr int kWordSize = 8;
 constexpr int kWordsPerTag = 4;
 constexpr int kTagsPerInput = 6;
 
-// Code point ranges a tag may hold as they are.
+// The scalar values on either side of the surrogates, for the any-scalar-value range.
 constexpr std::uint32_t kLastBeforeSurrogates = 0xD7FF;
 constexpr std::uint32_t kFirstAfterSurrogates = 0xE000;
 
