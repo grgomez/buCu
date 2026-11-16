@@ -28,9 +28,11 @@ using bucu::core::test::kFirstAfterC1Controls;
 using bucu::core::test::kFirstCyrillic;
 using bucu::core::test::kFirstGreek;
 using bucu::core::test::kFirstPrintableAscii;
+using bucu::core::test::kFirstSurrogate;
 using bucu::core::test::kLastCyrillic;
 using bucu::core::test::kLastGreek;
 using bucu::core::test::kLastPrintableAscii;
+using bucu::core::test::kLastSurrogate;
 using bucu::core::test::kMaxScalarValue;
 
 // The most code points a tag may have (product section 4 Tags), pinned here on purpose.
@@ -42,8 +44,8 @@ constexpr int kWordsPerTag = 4;
 constexpr int kTagsPerInput = 6;
 
 // The scalar values on either side of the surrogates, for the any-scalar-value range.
-constexpr std::uint32_t kLastBeforeSurrogates = 0xD7FF;
-constexpr std::uint32_t kFirstAfterSurrogates = 0xE000;
+constexpr std::uint32_t kLastBeforeSurrogates = kFirstSurrogate - 1;
+constexpr std::uint32_t kFirstAfterSurrogates = kLastSurrogate + 1;
 
 // White_Space code points other than the ASCII ones: no-break space, em space, ideographic
 // space, and next line.
