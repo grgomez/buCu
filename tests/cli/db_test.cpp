@@ -160,8 +160,14 @@ TEST_CASE("db version on a newer schema exits 1, names the file, and says both v
     const Result result = fixture.bucu({"db", "version"});
 
     check_names_file(result, fixture);
-    CHECK(result.err.find('7') != std::string::npos);
-    CHECK(result.err.find("version 1") != std::string::npos);
+    // The random temporary path can hold any digit, so look for the versions without it.
+    std::string message = result.err;
+    const std::size_t path_at = message.find(fixture.db_text());
+    REQUIRE(path_at != std::string::npos);
+    message.erase(path_at, fixture.db_text().size());
+    CHECK(message.find("schema version " + std::to_string(kNewerSchema)) != std::string::npos);
+    CHECK(message.find("newer than version " + std::to_string(bucu::db::kSchemaVersion.value())) !=
+          std::string::npos);
 }
 
 TEST_CASE("db with no subcommand, or an unknown one, is a usage error", "[cli][db]") {
