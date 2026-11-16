@@ -36,6 +36,8 @@ rc::Gen<std::string> optional_text(const rc::Gen<std::string>& text) {
     return rc::gen::oneOf(rc::gen::just(std::string()), text);
 }
 
+// NOLINTBEGIN(readability-magic-numbers,cppcoreguidelines-avoid-magic-numbers)
+// Reason: the numbers are Unicode blocks and generator sizes.
 // An RFC 3986 scheme of two or more characters, in any case. A one-letter scheme would be a
 // drive letter (product section 4 URL).
 rc::Gen<std::string> scheme() {
@@ -47,7 +49,10 @@ rc::Gen<std::string> scheme() {
                                    std::get<2>(parts);
                         });
 }
+// NOLINTEND(readability-magic-numbers,cppcoreguidelines-avoid-magic-numbers)
 
+// NOLINTBEGIN(readability-magic-numbers,cppcoreguidelines-avoid-magic-numbers)
+// Reason: the numbers are Unicode blocks and generator sizes.
 rc::Gen<char32_t> host_code_point() {
     const auto in = [](std::uint32_t first, std::uint32_t last) {
         return rc::gen::map(rc::gen::inRange<std::uint32_t>(first, last + 1),
@@ -58,7 +63,10 @@ rc::Gen<char32_t> host_code_point() {
     return rc::gen::suchThat(non_ascii,
                              [](char32_t cp) { return !is_white_space(cp) && !is_control(cp); });
 }
+// NOLINTEND(readability-magic-numbers,cppcoreguidelines-avoid-magic-numbers)
 
+// NOLINTBEGIN(readability-magic-numbers,cppcoreguidelines-avoid-magic-numbers)
+// Reason: the numbers are Unicode blocks and generator sizes.
 // A host: a name in any case, with non-ASCII letters, or an IPv6 address in brackets.
 rc::Gen<std::string> host() {
     const auto name = rc::gen::oneOf(
@@ -76,7 +84,10 @@ rc::Gen<std::string> host() {
                                    [](const std::string& digits) { return "[" + digits + "]"; });
     return rc::gen::oneOf(name, ipv6);
 }
+// NOLINTEND(readability-magic-numbers,cppcoreguidelines-avoid-magic-numbers)
 
+// NOLINTBEGIN(readability-magic-numbers,cppcoreguidelines-avoid-magic-numbers)
+// Reason: the numbers are Unicode blocks and generator sizes.
 // The part after the host: a port, which may be a default one or malformed, then a path, a query,
 // and a fragment, each optional.
 rc::Gen<std::string> authority_tail() {
@@ -98,7 +109,10 @@ rc::Gen<std::string> authority_tail() {
                    std::get<3>(parts);
         });
 }
+// NOLINTEND(readability-magic-numbers,cppcoreguidelines-avoid-magic-numbers)
 
+// NOLINTBEGIN(readability-magic-numbers,cppcoreguidelines-avoid-magic-numbers)
+// Reason: the numbers are Unicode blocks and generator sizes.
 // A URL with an authority, or without one, as a browser export may hold it.
 rc::Gen<std::string> generated_url() {
     const auto with_authority = rc::gen::map(
@@ -119,7 +133,10 @@ rc::Gen<std::string> generated_url() {
                      });
     return rc::gen::oneOf(with_authority, with_authority, without_authority);
 }
+// NOLINTEND(readability-magic-numbers,cppcoreguidelines-avoid-magic-numbers)
 
+// NOLINTBEGIN(readability-magic-numbers,cppcoreguidelines-avoid-magic-numbers)
+// Reason: the numbers are Unicode blocks and generator sizes.
 // Text that is close to a URL but often is not one: the characters that give a URL its structure,
 // white space, a control character, and non-ASCII letters, in any order.
 rc::Gen<std::string> arbitrary_url_text() {
@@ -132,6 +149,7 @@ rc::Gen<std::string> arbitrary_url_text() {
                                                 rc::gen::elementOf(pieces))),
                         join);
 }
+// NOLINTEND(readability-magic-numbers,cppcoreguidelines-avoid-magic-numbers)
 
 // White space around a URL, which normalization trims.
 rc::Gen<std::string> padding() {

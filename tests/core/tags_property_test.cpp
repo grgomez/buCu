@@ -29,6 +29,8 @@ rc::Gen<char32_t> code_point_in(std::uint32_t first, std::uint32_t last) {
                         [](std::uint32_t v) { return static_cast<char32_t>(v); });
 }
 
+// NOLINTBEGIN(readability-magic-numbers,cppcoreguidelines-avoid-magic-numbers)
+// Reason: the numbers are Unicode blocks, White_Space code points, and generator sizes.
 // A code point a tag may hold as it is: not a comma, not white space, not a control character.
 // Upper-case ASCII, Greek (the sigma included), the dotted capital I, Cyrillic, and any scalar
 // value are all there.
@@ -40,13 +42,15 @@ rc::Gen<char32_t> tag_code_point() {
         return cp != U',' && !is_white_space(cp) && !is_control(cp);
     });
 }
+// NOLINTEND(readability-magic-numbers,cppcoreguidelines-avoid-magic-numbers)
 
+// NOLINTBEGIN(readability-magic-numbers,cppcoreguidelines-avoid-magic-numbers)
+// Reason: the numbers are Unicode blocks, White_Space code points, and generator sizes.
 // White space between the words of a tag, and around it: a run of spaces, tabs, newlines, and
 // other White_Space code points.
 rc::Gen<std::string> white_space() {
-    const auto one =
-        rc::gen::element(char32_t{U' '}, char32_t{U'\t'}, char32_t{U'\n'}, char32_t{U'\r'},
-                         char32_t{0x00A0}, char32_t{0x2003}, char32_t{0x3000}, char32_t{0x0085});
+    const auto one = rc::gen::element(U' ', U'\t', U'\n', U'\r', char32_t{0x00A0}, char32_t{0x2003},
+                                      char32_t{0x3000}, char32_t{0x0085});
     return rc::gen::map(rc::gen::container<std::vector<char32_t>>(one), [](const auto& list) {
         std::string out;
         for (const char32_t cp : list) {
@@ -55,7 +59,10 @@ rc::Gen<std::string> white_space() {
         return out;
     });
 }
+// NOLINTEND(readability-magic-numbers,cppcoreguidelines-avoid-magic-numbers)
 
+// NOLINTBEGIN(readability-magic-numbers,cppcoreguidelines-avoid-magic-numbers)
+// Reason: the numbers are Unicode blocks, White_Space code points, and generator sizes.
 rc::Gen<std::string> word() {
     return rc::gen::map(
         rc::gen::resize(
@@ -68,6 +75,7 @@ rc::Gen<std::string> word() {
             return out;
         });
 }
+// NOLINTEND(readability-magic-numbers,cppcoreguidelines-avoid-magic-numbers)
 
 // One tag as typed: words with white space between them and around them. It may be empty.
 rc::Gen<std::string> typed_tag() {
@@ -85,6 +93,8 @@ rc::Gen<std::string> typed_tag() {
         });
 }
 
+// NOLINTBEGIN(readability-magic-numbers,cppcoreguidelines-avoid-magic-numbers)
+// Reason: the numbers are Unicode blocks, White_Space code points, and generator sizes.
 // Tag input: typed tags joined by commas, which may include empty tags.
 rc::Gen<std::string> tag_input() {
     return rc::gen::map(
@@ -97,6 +107,7 @@ rc::Gen<std::string> tag_input() {
             return out;
         });
 }
+// NOLINTEND(readability-magic-numbers,cppcoreguidelines-avoid-magic-numbers)
 
 TagSet parsed(const std::string& input) {
     const auto result = parse_tags(input);

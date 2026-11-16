@@ -18,6 +18,8 @@ using bucu::core::append_utf8;
 using bucu::core::is_valid_utf8;
 using bucu::core::to_lower;
 
+// NOLINTBEGIN(readability-magic-numbers,cppcoreguidelines-avoid-magic-numbers)
+// Reason: the numbers are Unicode block boundaries and the code points with casing rules.
 // A code point from the ranges where lowercasing has work to do (Latin, Greek, Cyrillic,
 // Armenian, Georgian, the case-ignorable combining marks), the sigma and dotted capital I that
 // have rules of their own, or any scalar value of the Basic Multilingual Plane or beyond.
@@ -31,6 +33,7 @@ rc::Gen<char32_t> text_code_point() {
                           rc::gen::element(char32_t{0x03A3}, char32_t{0x0130}, char32_t{0x03C2}),
                           in(0x0, 0xD7FF), in(0xE000, 0x10FFFF));
 }
+// NOLINTEND(readability-magic-numbers,cppcoreguidelines-avoid-magic-numbers)
 
 std::string encode(const std::vector<char32_t>& code_points) {
     std::string out;
@@ -62,18 +65,21 @@ constexpr char32_t kDottedCapitalI = 0x0130;  // has its own example test
 
 std::string lower_from_table(char32_t code_point) {
     std::string out;
-    const auto row = std::ranges::find(kRows, code_point, &LowerRow::code_point);
-    if (row == kRows.end()) {
-        append_utf8(out, code_point);
-        return out;
+    for (const LowerRow& row : kRows) {
+        if (row.code_point == code_point) {
+            append_utf8(out, row.first);
+            if (row.second != 0) {
+                append_utf8(out, row.second);
+            }
+            return out;
+        }
     }
-    append_utf8(out, row->first);
-    if (row->second != 0) {
-        append_utf8(out, row->second);
-    }
+    append_utf8(out, code_point);
     return out;
 }
 
+// NOLINTBEGIN(readability-magic-numbers,cppcoreguidelines-avoid-magic-numbers)
+// Reason: the numbers are Unicode block boundaries and the code points with casing rules.
 // Any scalar value, or a code point that has a row in the table.
 rc::Gen<char32_t> table_code_point() {
     const auto any =
@@ -81,9 +87,10 @@ rc::Gen<char32_t> table_code_point() {
                                        [](std::uint32_t v) { return static_cast<char32_t>(v); }),
                           [](char32_t cp) { return cp < 0xD800 || cp > 0xDFFF; });
     const auto listed = rc::gen::map(rc::gen::inRange<std::size_t>(0, kRows.size()),
-                                     [](std::size_t i) { return kRows[i].code_point; });
+                                     [](std::size_t i) { return kRows.at(i).code_point; });
     return rc::gen::oneOf(any, listed);
 }
+// NOLINTEND(readability-magic-numbers,cppcoreguidelines-avoid-magic-numbers)
 
 }  // namespace
 

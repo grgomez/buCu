@@ -18,7 +18,9 @@ using bucu::core::append_utf8;
 using bucu::core::decode_utf8;
 using bucu::core::is_valid_utf8;
 
-// A Unicode scalar value: every code point except the surrogates. The four ranges give each
+// NOLINTBEGIN(readability-magic-numbers,cppcoreguidelines-avoid-magic-numbers)
+// Reason: the numbers are the byte and code point ranges of RFC 3629.
+// A Unicode scalar value: every code point except the surrogates. The five ranges give each
 // encoded length (one to four bytes) the same weight.
 rc::Gen<char32_t> scalar_value() {
     const auto in = [](std::uint32_t first, std::uint32_t last) {
@@ -28,6 +30,7 @@ rc::Gen<char32_t> scalar_value() {
     return rc::gen::oneOf(in(0x0, 0x7F), in(0x80, 0x7FF), in(0x800, 0xD7FF) /* below surrogates */,
                           in(0xE000, 0xFFFF), in(0x10000, 0x10FFFF));
 }
+// NOLINTEND(readability-magic-numbers,cppcoreguidelines-avoid-magic-numbers)
 
 std::string encode(const std::vector<char32_t>& code_points) {
     std::string out;
@@ -47,8 +50,10 @@ rc::Gen<char> byte_in(unsigned first, unsigned last) {
                         [](unsigned v) { return static_cast<char>(v); });
 }
 
-std::string bytes(std::initializer_list<char> list) { return std::string(list); }
+std::string bytes(std::initializer_list<char> list) { return {list}; }
 
+// NOLINTBEGIN(readability-magic-numbers,cppcoreguidelines-avoid-magic-numbers)
+// Reason: the numbers are the byte and code point ranges of RFC 3629.
 // A fragment that is never well-formed on its own and cannot be completed by the text after it,
 // because that text starts at a code point boundary (product section 4 Text).
 rc::Gen<std::string> malformed_fragment() {
@@ -92,6 +97,7 @@ rc::Gen<std::string> malformed_fragment() {
     return rc::gen::oneOf(lone_continuation, overlong2, overlong3, overlong4, surrogate, too_big_f4,
                           too_big_lead, invalid_byte, truncated);
 }
+// NOLINTEND(readability-magic-numbers,cppcoreguidelines-avoid-magic-numbers)
 
 }  // namespace
 
