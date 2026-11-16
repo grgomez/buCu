@@ -56,11 +56,6 @@ TEST_CASE("Setting and clearing the flag gives stored values 1 and 0", "[core][b
     CHECK_FALSE(has_flag(flags, kFlagImmutableTitle));
 }
 
-TEST_CASE("Setting or clearing a set or clear flag changes nothing", "[core][bookmark]") {
-    CHECK(set_flag(FlagSet(1), kFlagImmutableTitle).bits() == 1);
-    CHECK(clear_flag(FlagSet(0), kFlagImmutableTitle).bits() == 0);
-}
-
 TEST_CASE("Changing the flag keeps the bits BuCu does not know", "[core][bookmark]") {
     CHECK(set_flag(FlagSet(6), kFlagImmutableTitle).bits() == 7);
     CHECK(clear_flag(FlagSet(7), kFlagImmutableTitle).bits() == 6);

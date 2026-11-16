@@ -192,12 +192,3 @@ TEST_CASE("URL normalization changes only the scheme when there is no authority"
     CHECK(normalized("FILE:///x") == "file:///x");
     CHECK(normalized("file://") == "file:///");
 }
-
-TEST_CASE("URL normalization is idempotent", "[core][url]") {
-    for (const std::string_view url :
-         {"HTTPS://Example.ORG:443", "http://[2001:DB8::1]:80", "https://a.org?q#f",
-          "ftp://U@A.org:21/P", "about:blank", "http://a.org:/"}) {
-        const std::string once = normalized(url);
-        CHECK(normalized(once) == once);
-    }
-}

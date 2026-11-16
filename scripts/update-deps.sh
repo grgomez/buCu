@@ -39,6 +39,12 @@ unicode_licence_sha=e7a93b009565cfce55919a381437ac4db883e9da2126fa28b91d12732bc5
 unicode_lowercase_sha=efd08f958c1a9da87b09c64ad1f4db7a0b3197d7a07eb2d726bbcb6c6145f69a
 unicode_properties_sha=d299bcbddb8fcd5dc1aed95c6b379344c88e646325f2861f1b61800bcd69f5c3
 
+# RapidCheck has no tagged releases: pinned to a commit (plan decision D1 of #65). The archive is
+# a GitHub commit archive; third_party/rapidcheck/CMakeLists.txt is our own and is not touched.
+rapidcheck_commit=2c3c4365aca21ef4e612768fdc95b1ce8b39a651
+rapidcheck_url=https://github.com/emil-e/rapidcheck/archive/$rapidcheck_commit.tar.gz
+rapidcheck_sha=d7c87d2a728b9cd7adec09aed44f34938cd1b0928b373f9b490c5b2f6d5ab9dc
+
 # sha256 <file>: print the SHA256 (GNU sha256sum, or shasum on macOS).
 sha256() {
     if command -v sha256sum >/dev/null 2>&1; then
@@ -67,6 +73,7 @@ fetch "$catch2_licence_url" "$catch2_licence_sha" catch2_LICENSE.txt
 fetch "$cli11_url" "$cli11_hpp_sha" CLI11.hpp
 fetch "$cli11_licence_url" "$cli11_licence_sha" cli11_LICENSE
 
+fetch "$rapidcheck_url" "$rapidcheck_sha" rapidcheck.tar.gz
 fetch "$unicode_base/UnicodeData.txt" "$unicode_data_sha" UnicodeData.txt
 fetch "$unicode_base/SpecialCasing.txt" "$unicode_special_sha" SpecialCasing.txt
 fetch "$unicode_base/DerivedCoreProperties.txt" "$unicode_derived_sha" DerivedCoreProperties.txt
@@ -178,7 +185,7 @@ check_generated case_properties.inc "$unicode_properties_sha"
 
 # Every download verified and every generated file checked; now write.
 mkdir -p "$root/third_party/sqlite" "$root/third_party/catch2" "$root/third_party/cli11" \
-    "$root/third_party/unicode"
+    "$root/third_party/unicode" "$root/third_party/rapidcheck"
 
 unzip -q -o -j "$tmp/$sqlite_zip" '*/sqlite3.c' '*/sqlite3.h' -d "$tmp/sqlite"
 cp "$tmp/sqlite/sqlite3.c" "$tmp/sqlite/sqlite3.h" "$root/third_party/sqlite/"
@@ -201,5 +208,17 @@ cp "$tmp/lowercase.inc" "$tmp/case_properties.inc" "$root/third_party/unicode/"
 cp "$tmp/unicode_LICENSE" "$root/third_party/unicode/LICENSE"
 echo "$unicode_version" > "$root/third_party/unicode/VERSION.txt"
 
+# RapidCheck: only include/, src/, the Catch integration header, and the licence.
+mkdir "$tmp/rapidcheck"
+tar -xzf "$tmp/rapidcheck.tar.gz" -C "$tmp/rapidcheck" --strip-components=1
+rm -rf "$root/third_party/rapidcheck/include" "$root/third_party/rapidcheck/src" \
+    "$root/third_party/rapidcheck/extras"
+mkdir -p "$root/third_party/rapidcheck/extras/catch/include/rapidcheck"
+cp -R "$tmp/rapidcheck/include" "$tmp/rapidcheck/src" "$root/third_party/rapidcheck/"
+cp "$tmp/rapidcheck/extras/catch/include/rapidcheck/catch.h" \
+    "$root/third_party/rapidcheck/extras/catch/include/rapidcheck/"
+cp "$tmp/rapidcheck/LICENSE.md" "$root/third_party/rapidcheck/LICENSE.md"
+echo "$rapidcheck_commit" > "$root/third_party/rapidcheck/VERSION.txt"
+
 echo "update-deps: SQLite $sqlite_version, Catch2 $catch2_version, CLI11 $cli11_version," \
-    "Unicode $unicode_version verified"
+    "Unicode $unicode_version, RapidCheck ${rapidcheck_commit%"${rapidcheck_commit#????????}"} verified"

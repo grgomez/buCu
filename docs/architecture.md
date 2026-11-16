@@ -26,6 +26,7 @@ Test and quality tools:
 | Tool | Role | Why |
 | --- | --- | --- |
 | Catch2 v3, vendored amalgamated | Unit, integration, and golden-file tests; micro-benchmarks | Two files to vendor; sections, generators, and matchers; built-in benchmarking. Chosen over doctest (fewer matchers, no benchmarks) and GoogleTest (heavier to vendor) |
+| RapidCheck, vendored at a pinned commit | Property tests of the pure `core` functions, with generators and shrinking | BSD-2-Clause. No tagged releases, so `scripts/update-deps.sh` pins a commit archive by SHA256; our own CMake file builds it, because the upstream one forces C++11 and changes global flags ([ADR 0009](adr/0009-rapidcheck-property-tests.md)) |
 | ctest | Test runner across platforms | Ships with CMake |
 | clang-format | Formatting authority (`.clang-format`) | |
 | ccache | Compiler cache in CI only; not linked into BuCu | Keeps the matrix fast; local builds stay free of it |
@@ -161,3 +162,4 @@ flowchart LR
 - Tests MUST NOT depend on the machine's clock, locale, time zone, home directory, or network. Inject them.
 - Every bug fix has a regression test (constitution §3).
 - Test behaviour, not implementation details.
+- `core` properties take their rules from product §4 and cite the rule in the test name. ctest runs them as `core-property` with a fixed seed; run `bucu_core_property_tests` with another `RC_PARAMS` (for example `seed=7 max_success=2000`) to explore more inputs.
