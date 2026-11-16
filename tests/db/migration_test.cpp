@@ -8,6 +8,7 @@
 #include <map>
 #include <string>
 #include <thread>
+#include <utility>
 #include <vector>
 
 #include "bucu/db/database.hpp"
@@ -47,6 +48,25 @@ std::vector<std::string> columns_of(Database& database, const std::string& table
     }
     return names;
 }
+
+// Owns a thread and joins it at the end of the scope when it is still running, so a failed
+// REQUIRE reports its check instead of calling std::terminate.
+struct JoiningThread {
+    std::thread thread;
+    template <typename Function>
+    explicit JoiningThread(Function&& function) : thread(std::forward<Function>(function)) {}
+    JoiningThread(const JoiningThread&) = delete;
+    JoiningThread& operator=(const JoiningThread&) = delete;
+    JoiningThread(JoiningThread&&) = delete;
+    JoiningThread& operator=(JoiningThread&&) = delete;
+    ~JoiningThread() {
+        if (thread.joinable()) {
+            thread.join();
+        }
+    }
+
+    void join() { thread.join(); }
+};
 
 // How long a test connection waits for a lock, as a real one does (database-schema §1).
 constexpr int kBusyWaitMs = 5000;
@@ -177,7 +197,7 @@ TEST_CASE("a runner that waited for the lock finds version 1 and applies no step
     other.exec("PRAGMA user_version = 1");
 
     std::expected<void, bucu::db::Error> result;
-    std::jthread waiting(
+    JoiningThread waiting(
         [&] { result = bucu::db::migrate(runner.handle, bucu::db::migrations()); });
     // Gives the runner time to start waiting; the outcome is the same if it starts later.
     std::this_thread::sleep_for(std::chrono::milliseconds(kStartDelayMs));
@@ -199,7 +219,7 @@ TEST_CASE("a test connection waits for a reader before it commits", "[db]") {
     reader.exec("BEGIN");
     reader.exec("SELECT count(*) FROM sqlite_master");
     // Ends the reader's transaction shortly after COMMIT starts waiting for it.
-    std::jthread release([&] {
+    JoiningThread release([&] {
         std::this_thread::sleep_for(std::chrono::milliseconds(kReleaseDelayMs));
         sqlite3_exec(reader.handle, "COMMIT", nullptr, nullptr, nullptr);
     });
