@@ -55,7 +55,7 @@ std::string bytes(std::initializer_list<char> list) { return {list}; }
 // NOLINTBEGIN(readability-magic-numbers,cppcoreguidelines-avoid-magic-numbers)
 // Reason: the numbers are the byte and code point ranges of RFC 3629.
 // A fragment that is never well-formed on its own and cannot be completed by the text after it,
-// because that text starts at a code point boundary (product section 4 Text).
+// because that text starts at a code point boundary (product section 4).
 rc::Gen<std::string> malformed_fragment() {
     const auto cont = byte_in(0x80, 0xBF);
     const auto lone_continuation = rc::gen::map(cont, [](char c) { return bytes({c}); });
@@ -82,8 +82,8 @@ rc::Gen<std::string> malformed_fragment() {
     const auto invalid_byte = rc::gen::map(byte_in(0xF8, 0xFF), [](char c) { return bytes({c}); });
     // A multi-byte encoding with at least one byte cut off the end.
     const auto truncated =
-        rc::gen::map(rc::gen::pair(rc::gen::inRange<char32_t>(0x80, 0x10000),
-                                   rc::gen::inRange<std::size_t>(1, 3)),
+        rc::gen::map(rc::gen::pair(rc::gen::inRange<char32_t>(0x80, 0x110000),
+                                   rc::gen::inRange<std::size_t>(1, 4)),
                      [](const auto& p) {
                          std::string encoded;
                          if (p.first >= 0xD800 && p.first <= 0xDFFF) {
@@ -101,8 +101,8 @@ rc::Gen<std::string> malformed_fragment() {
 
 }  // namespace
 
-// Product section 4 Text: "All text MUST be valid UTF-8".
-TEST_CASE("property: every scalar value round-trips through UTF-8 (product 4 Text)",
+// Product section 4: "All text MUST be valid UTF-8".
+TEST_CASE("property: every scalar value round-trips through UTF-8 (product 4)",
           "[core][utf8][property]") {
     rc::prop("decode of append gives the code point back, and the encoding is valid", [] {
         const char32_t code_point = *scalar_value();
@@ -115,7 +115,7 @@ TEST_CASE("property: every scalar value round-trips through UTF-8 (product 4 Tex
     });
 }
 
-TEST_CASE("property: malformed UTF-8 is refused by both functions (product 4 Text)",
+TEST_CASE("property: malformed UTF-8 is refused by both functions (product 4)",
           "[core][utf8][property]") {
     rc::prop("a malformed fragment inserted into valid text is not valid and does not decode", [] {
         const std::string text = *valid_text() + *malformed_fragment() + *valid_text();
@@ -124,7 +124,7 @@ TEST_CASE("property: malformed UTF-8 is refused by both functions (product 4 Tex
     });
 }
 
-TEST_CASE("property: is_valid_utf8 and decode_utf8 agree on any bytes (product 4 Text)",
+TEST_CASE("property: is_valid_utf8 and decode_utf8 agree on any bytes (product 4)",
           "[core][utf8][property]") {
     rc::prop("valid exactly when decoded, and the decoding encodes back to the bytes", [] {
         const std::string text =

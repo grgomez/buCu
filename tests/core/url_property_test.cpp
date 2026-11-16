@@ -193,8 +193,8 @@ TEST_CASE("property: white space around a URL does not change the result (produc
         const std::string text = *rc::gen::oneOf(arbitrary_url_text(), generated_url());
         const auto plain = normalize_url(text);
         const auto padded = normalize_url(*padding() + text + *padding());
+        RC_ASSERT(padded.has_value() == plain.has_value());
         if (plain) {
-            RC_ASSERT(padded.has_value());
             RC_ASSERT(*padded == *plain);
         }
     });
