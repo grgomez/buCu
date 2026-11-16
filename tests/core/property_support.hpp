@@ -1,7 +1,7 @@
 #pragma once
 
-// Helpers the core property tests share: encoding a list of code points, and drawing a code
-// point from a range.
+// Helpers the core property tests share: the code point boundaries they draw from, encoding a
+// list of code points, and drawing a code point from a range.
 
 #include <rapidcheck.h>
 
