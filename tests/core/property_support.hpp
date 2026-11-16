@@ -31,7 +31,7 @@ inline constexpr char32_t kDottedCapitalI = 0x0130;  // lowercases to two code p
 inline std::string encode(const std::vector<char32_t>& code_points) {
     std::string out;
     for (const char32_t cp : code_points) {
-        append_utf8(out, cp);
+        bucu::core::append_utf8(out, cp);
     }
     return out;
 }
