@@ -207,6 +207,12 @@ class CheckboxTest(unittest.TestCase):
             self.assertIn("criterion has no checkbox", failures[0])
             self.assertIn("US1-AC1", failures[0])
 
+    def test_indented_boxed_criterion_is_not_boxless_and_is_counted(self):
+        self.assertEqual(self.spec_failures("  - [ ] US1-AC1: x Evidence: test"), [])
+        criteria = "\n".join(f"  - [ ] US1-AC{n}: x Evidence: test" for n in range(1, 14))
+        spec = f"<!-- SPEC:START -->\n# Spec\n### US1: a\n{criteria}\n<!-- SPEC:END -->\n"
+        self.assertTrue(any("13 criteria" in f for f in sdd_check.check_size(body(spec=spec))))
+
     def test_spec_boxed_criterion_and_prose_pass(self):
         self.assertEqual(self.spec_failures("- [ ] US1-AC1: x Evidence: test"), [])
         self.assertEqual(self.spec_failures("- [x] US1-AC1: x Evidence: test: a: b"), [])
