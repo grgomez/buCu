@@ -219,13 +219,16 @@ TEST_CASE("a test connection waits for a reader before it commits", "[db]") {
     reader.exec("BEGIN");
     reader.exec("SELECT count(*) FROM sqlite_master");
     // Ends the reader's transaction shortly after COMMIT starts waiting for it.
+    int released = SQLITE_ERROR;
     JoiningThread release([&] {
         std::this_thread::sleep_for(std::chrono::milliseconds(kReleaseDelayMs));
-        sqlite3_exec(reader.handle, "COMMIT", nullptr, nullptr, nullptr);
+        released = sqlite3_exec(reader.handle, "COMMIT", nullptr, nullptr, nullptr);
     });
 
     other.exec("COMMIT");
+    release.join();
 
+    CHECK(released == SQLITE_OK);
     CHECK(reader.table_count() > 0);  // the commit reached the file
 }
 
