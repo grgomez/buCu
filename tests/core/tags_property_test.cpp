@@ -175,3 +175,28 @@ TEST_CASE("property: changing the ASCII case of the input changes no tag (produc
         RC_ASSERT(parsed(swap_ascii_case(input)) == parsed(input));
     });
 }
+
+namespace {
+
+constexpr std::size_t kNearLimitFirst = kLimit - 8;
+constexpr std::size_t kNearLimitLast = kLimit + 8;
+constexpr char32_t kDottedCapitalI = 0x0130;  // lowercases to two code points
+
+}  // namespace
+
+TEST_CASE("property: a tag has at most 128 code points after lowercasing (product 4 Tags)",
+          "[core][tags][property]") {
+    rc::prop("a tag near the limit is accepted exactly when its lowercase has at most 128", [] {
+        const auto length = *rc::gen::inRange<std::size_t>(kNearLimitFirst, kNearLimitLast + 1);
+        // Mostly 'a' (one code point), sometimes U+0130, which lowercases to two.
+        const auto code_points = *rc::gen::container<std::vector<char32_t>>(
+            length, rc::gen::weightedElement<char32_t>({{3, U'a'}, {1, kDottedCapitalI}}));
+        std::string tag;
+        for (const char32_t cp : code_points) {
+            append_utf8(tag, cp);
+        }
+        const auto lowered = decode_utf8(to_lower(tag));
+        RC_ASSERT(lowered.has_value());
+        RC_ASSERT(parse_tags(tag).has_value() == (lowered->size() <= kLimit));
+    });
+}
