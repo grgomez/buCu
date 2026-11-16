@@ -14,3 +14,4 @@ function(bucu_fuzz_target name)
 endfunction()
 
 bucu_fuzz_target(utf8)
+bucu_fuzz_target(url)
