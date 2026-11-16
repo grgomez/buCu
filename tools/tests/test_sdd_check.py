@@ -160,6 +160,36 @@ class DeclaredEvidenceTest(unittest.TestCase):
         self.assertIn("US1-AC1", err.getvalue())
 
 
+class CheckboxTest(unittest.TestCase):
+    def tier0(self, original):
+        tasks = "<!-- TASKS:START -->\n# Tasks\n- [ ] T001 x\n<!-- TASKS:END -->\n"
+        return body(original=original, spec="", tasks=tasks)
+
+    def test_tier0_bullet_without_box_fails(self):
+        text = self.tier0("Goal.\n\n## Scope\n\n- [ ] first. Evidence: check\n- second. Evidence: check\n")
+        failures = sdd_check.check_checkboxes(text, 0)
+        self.assertEqual(len(failures), 1)
+        self.assertIn("criterion has no checkbox: - second", failures[0])
+
+    def test_tier0_boxed_bullets_pass(self):
+        text = self.tier0("Goal.\n\n## Scope\n\n- [ ] first. Evidence: check\n- [x] second. Evidence: check\n")
+        self.assertEqual(sdd_check.check_checkboxes(text, 0), [])
+
+    def test_issue_command_reports_a_tier0_bullet_without_box(self):
+        text = self.tier0("Goal.\n\n## Scope\n\n- first. Evidence: check\n")
+        gh = CommandLineTest().fake_gh(text, labels(0))
+        err = io.StringIO()
+        self.assertEqual(sdd_check.main(["issue", "7"], gh=gh, err=err), 1)
+        self.assertIn("issue #7: criterion has no checkbox: - first", err.getvalue())
+
+    def test_pr_mode_reports_a_missing_box_once(self):
+        text = self.tier0("Goal.\n\n## Scope\n\n- first. Evidence: check\n")
+        gh = CommandLineTest().fake_gh(text, labels(0))
+        err = io.StringIO()
+        sdd_check.main(["pr", "9"], gh=gh, err=err)
+        self.assertEqual(err.getvalue().count("criterion has no checkbox"), 1)
+
+
 def done_body(task="- [x] T001 x", criterion="- [x] US1-AC1: x Evidence: test: a_test.py: case"):
     spec = f"<!-- SPEC:START -->\n# Spec\n### US1: a\n{criterion}\n<!-- SPEC:END -->\n"
     tasks = f"<!-- TASKS:START -->\n# Tasks\n{task}\n<!-- TASKS:END -->\n"
