@@ -133,7 +133,7 @@ def check_size(body):
     """
     parts = split_parts(body)
     if "SPEC" in parts:
-        counts = (len(_STORY.findall(parts["SPEC"])), len(_CRITERION.findall(parts["SPEC"])))
+        counts = (len(_STORY.findall(parts["SPEC"])), len(criteria_lines(body, 1)))
     else:
         counts = (len(_STORY.findall(parts.get("TASKS", ""))), len(scope_bullets(body)))
     counts += (len(_TASK.findall(parts.get("TASKS", ""))),)
