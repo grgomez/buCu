@@ -35,7 +35,7 @@ Write this section only when the schema, an export format, or a public header in
 
 ## Scope evidence
 
-Write this section only for Tier 0. One line per Scope bullet of the issue: its number and the kind of its evidence (a kind from [`/pr` step 4](../pr/SKILL.md)). On acceptance, `/plan` appends `Evidence: <kind>` to each bullet.
+Write this section only for Tier 0. One line per Scope bullet of the issue: its number and the kind of its evidence (a kind from [`/pr` step 4](../pr/SKILL.md)). On acceptance, `/plan` turns each bullet into a `- [ ]` checkbox and appends `Evidence: <kind>` to it.
 
 1. <scope bullet>: <kind>
 
