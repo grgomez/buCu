@@ -18,15 +18,16 @@ option(BUCU_USE_SYSTEM_SQLITE "Link the system SQLite library instead of third_p
 # Architecture section 9: libFuzzer targets for the core parsers (ADR 0010). libFuzzer ships only
 # with LLVM Clang, so any other compiler stops the configuration.
 option(BUCU_FUZZ "Build the libFuzzer targets in tests/fuzz (LLVM Clang only)" OFF)
-if(BUCU_FUZZ AND NOT CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+if(BUCU_FUZZ AND NOT (CMAKE_C_COMPILER_ID STREQUAL "Clang" AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang"))
     message(FATAL_ERROR
-        "BUCU_FUZZ needs LLVM Clang (libFuzzer); the C++ compiler is "
-        "${CMAKE_CXX_COMPILER_ID}. Configure with CC=clang-19 CXX=clang++-19.")
+        "BUCU_FUZZ needs LLVM Clang (libFuzzer); the C compiler is "
+        "${CMAKE_C_COMPILER_ID} and the C++ compiler is ${CMAKE_CXX_COMPILER_ID}. Configure with CC=clang-19 CXX=clang++-19.")
 endif()
 if(BUCU_FUZZ)
     # Instrument every target for coverage and the sanitizers; only the fuzz targets link the
     # libFuzzer main (-fsanitize=fuzzer in tests/fuzz).
-    add_compile_options(-fsanitize=address,undefined,fuzzer-no-link -fno-omit-frame-pointer)
+    add_compile_options(-fsanitize=address,undefined,fuzzer-no-link -fno-sanitize-recover=undefined
+        -fno-omit-frame-pointer)
     add_link_options(-fsanitize=address,undefined)
 endif()
 
