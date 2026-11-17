@@ -6,6 +6,7 @@
 #include <string>
 
 #include "bucu/core/bookmark_id.hpp"
+#include "bucu/core/id_selection.hpp"
 
 namespace bucu::db {
 
@@ -37,12 +38,16 @@ enum class ErrorCode : std::uint8_t {
     kSql,
     kDuplicateUrl,
     kDestinationExists,
+    kNotFound,
 };
 
 struct Error {
     ErrorCode code;
     std::string message;
-    std::optional<core::BookmarkId> bookmark_id;  // kDuplicateUrl: the ID that holds the URL
+    // kDuplicateUrl: the ID that holds the URL. kNotFound: the single ID that is not stored.
+    std::optional<core::BookmarkId> bookmark_id;
+    // kNotFound: the range that holds no stored ID. Neither field is set when no bookmark exists.
+    std::optional<core::IdRange> range;
 };
 
 }  // namespace bucu::db

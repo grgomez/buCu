@@ -120,6 +120,7 @@ std::string open_error_message(std::string_view file, const db::Error& error) {
         case db::ErrorCode::kSql:
         case db::ErrorCode::kDuplicateUrl:
         case db::ErrorCode::kDestinationExists:
+        case db::ErrorCode::kNotFound:
             break;
     }
     return line;

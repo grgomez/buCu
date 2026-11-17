@@ -7,6 +7,7 @@
 
 #include "bucu/core/bookmark.hpp"
 #include "bucu/core/bookmark_id.hpp"
+#include "bucu/core/changes.hpp"
 #include "bucu/core/id_selection.hpp"
 #include "bucu/db/database.hpp"
 #include "bucu/db/error.hpp"
@@ -33,5 +34,17 @@ using BookmarkVisitor = std::function<bool(core::BookmarkId, const core::Bookmar
 [[nodiscard]] std::expected<void, Error> for_each_bookmark(Database& database,
                                                            const core::IdSelection& selection,
                                                            const BookmarkVisitor& visit);
+
+// Applies `changes` to each bookmark that `selection` covers, in one transaction (all or nothing).
+// Fails with `kNotFound` when a single ID is not stored, a range holds no stored ID, or, for every
+// bookmark, none is stored; the first such item in ascending order of its low end is named. That
+// check comes before the URL check: `kDuplicateUrl` when another bookmark holds `changes.url`
+// (a bookmark that already has the URL is no conflict). Only a bookmark whose values change is
+// written: it gets `updated_at = now` and keeps `created_at`. Tags that no bookmark links any more
+// are deleted before the commit (docs/database-schema.md section 3).
+[[nodiscard]] std::expected<void, Error> update_bookmarks(Database& database,
+                                                          const core::IdSelection& selection,
+                                                          const core::BookmarkChanges& changes,
+                                                          std::chrono::sys_seconds now);
 
 }  // namespace bucu::db

@@ -42,7 +42,8 @@ constexpr std::array<std::string_view, 1> kMigrations{kVersion1};
 Error failed(std::string message) {
     return Error{.code = ErrorCode::kMigrationFailed,
                  .message = std::move(message),
-                 .bookmark_id = std::nullopt};
+                 .bookmark_id = std::nullopt,
+                 .range = std::nullopt};
 }
 
 }  // namespace
