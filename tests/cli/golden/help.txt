@@ -19,6 +19,12 @@ Commands:
         --description <text>  Set the description.
         --tag <tags>          Add tags; repeat the option for more.
         --immutable           Keep a later title fetch from replacing the title.
+  tag [ids...] <operation> [tags...]
+      Change tags. The operation is add, remove, or replace; replace with no
+      tags removes them all. IDs are numbers, ranges such as 3-7, or comma
+      lists; with no ID, every bookmark changes after confirmation. A tag that
+      starts with - goes after --.
+        --yes                 Confirm changing every bookmark.
   update [ids...]
       Change bookmarks. IDs are numbers, ranges such as 3-7, or comma lists;
       with no ID, every bookmark changes after confirmation. Give at least

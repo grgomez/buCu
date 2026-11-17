@@ -303,3 +303,25 @@ TEST_CASE("a control character in the echoed value is escaped, so the error is o
     CHECK(line_break.code == 3);
     CHECK(line_break.err == "bucu: invalid URL 'https://a\\nb.example': it contains whitespace.\n");
 }
+
+TEST_CASE("command words after the URL are tags, not commands", "[cli][add]") {
+    for (const std::vector<std::string>& words :
+         {std::vector<std::string>{"db"}, {"tag", "update"}, {"add"}, {"update", "db", "path"}}) {
+        CAPTURE(words);
+        const Fixture fixture;
+        std::vector<std::string> args = {"add", "https://example.org"};
+        args.insert(args.end(), words.begin(), words.end());
+        std::string joined;
+        for (const std::string& word : words) {
+            joined += (joined.empty() ? "" : " ") + word;
+        }
+
+        const Result result = fixture.bucu(args);
+
+        CHECK(result.code == 0);
+        CHECK(result.err.empty());
+        CHECK(result.out.find("   tags:  " + joined + "\n") != std::string::npos);
+        CHECK(fixture.tags() == joined);
+        CHECK(fixture.bookmarks().size() == 1);
+    }
+}

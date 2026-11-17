@@ -38,6 +38,12 @@ struct UpdateArgs {
     bool yes = false;
 };
 
+// The arguments of `tag`: the IDs, the operation word, and the tags, in the order given.
+struct TagArgs {
+    std::vector<std::string> words;
+    bool yes = false;
+};
+
 // Opens the database this run uses (product section 3), creating it when missing. On failure
 // prints one error line to `err` and returns no value.
 std::optional<db::Database> open_database(const Globals& globals, const Context& context,
@@ -52,6 +58,11 @@ int run_add(const AddArgs& args, const Globals& globals, const Context& context,
 // NOLINTNEXTLINE(bugprone-easily-swappable-parameters): out and err are distinct streams by design
 int run_update(const UpdateArgs& args, const Globals& globals, const Context& context,
                std::ostream& out, std::ostream& err);
+
+// Runs `tag` and returns the exit code.
+// NOLINTNEXTLINE(bugprone-easily-swappable-parameters): out and err are distinct streams by design
+int run_tag(const TagArgs& args, const Globals& globals, const Context& context, std::ostream& out,
+            std::ostream& err);
 
 // The `db` subcommands. Each returns the exit code.
 // NOLINTNEXTLINE(bugprone-easily-swappable-parameters): out and err are distinct streams by design
