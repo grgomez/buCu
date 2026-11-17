@@ -31,7 +31,10 @@ FlagSet clear_flag(FlagSet flags, Flag flag) {
 }
 
 std::expected<Bookmark, ValidationError> make_bookmark(const BookmarkFields& fields) {
-    const auto& [url, title, description, tags] = fields;
+    const std::string_view url = fields.url.value;
+    const std::string_view title = fields.title.value;
+    const std::string_view description = fields.description.value;
+    const std::string_view tags = fields.tags;
     auto normalized = normalize_url(url);
     if (!normalized) {
         return std::unexpected(std::move(normalized.error()));

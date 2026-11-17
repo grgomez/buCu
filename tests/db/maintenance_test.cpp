@@ -32,8 +32,10 @@ void fill(const std::filesystem::path& path) {
     REQUIRE(database.has_value());
     for (const char* url :
          {"https://one.example/", "https://two.example/", "https://three.example/"}) {
-        auto bookmark = bucu::core::make_bookmark(
-            {.url = url, .title = "Title", .description = "", .tags = "a, b"});
+        auto bookmark = bucu::core::make_bookmark({.url = bucu::core::RequiredText{url},
+                                                   .title = bucu::core::RequiredText{"Title"},
+                                                   .description = bucu::core::RequiredText{""},
+                                                   .tags = "a, b"});
         REQUIRE(bookmark.has_value());
         REQUIRE(bucu::db::insert_bookmark(*database, *bookmark, kNow).has_value());
     }
@@ -215,11 +217,11 @@ TEST_CASE("a backup that fails part way leaves no file and no journal, wal, or s
         constexpr int kBookmarkCount = 100;
         const std::string title(2000, 'x');
         for (int number = 0; number < kBookmarkCount; ++number) {
-            auto bookmark =
-                bucu::core::make_bookmark({.url = "https://example.org/" + std::to_string(number),
-                                           .title = title,
-                                           .description = title,
-                                           .tags = "a"});
+            auto bookmark = bucu::core::make_bookmark(
+                {.url = bucu::core::RequiredText{"https://example.org/" + std::to_string(number)},
+                 .title = bucu::core::RequiredText{title},
+                 .description = bucu::core::RequiredText{title},
+                 .tags = "a"});
             REQUIRE(bookmark.has_value());
             REQUIRE(bucu::db::insert_bookmark(*database, *bookmark, kNow).has_value());
         }

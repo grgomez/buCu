@@ -60,12 +60,20 @@ FlagSet clear_flag(FlagSet flags, Flag flag);
 
 // The text inputs of make_bookmark, named at each call so that none can be swapped
 // (Core Guidelines I.4). `url`, `title`, and `description` are required: a designated initializer
-// that leaves one out does not build under -Wextra -Werror. `tags` is optional; leaving it out
+// that leaves one out does not build. `tags` is optional; leaving it out
 // means no tags. The views are read during the call only.
+// A required piece of text. Leaving one out of a designated initializer is ill-formed on every
+// compiler, because it has no default constructor; the constructor is explicit so a plain view does
+// not convert on its own.
+struct RequiredText {
+    explicit RequiredText(std::string_view text) : value(text) {}
+    std::string_view value;
+};
+
 struct BookmarkFields {
-    std::string_view url;
-    std::string_view title;
-    std::string_view description;
+    RequiredText url;
+    RequiredText title;
+    RequiredText description;
     // The initializer is what makes `tags` optional in a designated initializer: without it, a
     // call that leaves `tags` out fails to build.
     std::string_view tags = {};  // NOLINT(readability-redundant-member-init)

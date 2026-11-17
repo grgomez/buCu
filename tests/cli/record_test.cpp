@@ -19,8 +19,11 @@ std::string read_golden(const std::string& name) {
 }
 
 bucu::core::Bookmark make(const char* title, const char* description, const char* tags) {
-    auto bookmark = bucu::core::make_bookmark(
-        {.url = "https://example.org/", .title = title, .description = description, .tags = tags});
+    auto bookmark =
+        bucu::core::make_bookmark({.url = bucu::core::RequiredText{"https://example.org/"},
+                                   .title = bucu::core::RequiredText{title},
+                                   .description = bucu::core::RequiredText{description},
+                                   .tags = tags});
     REQUIRE(bookmark.has_value());
     return std::move(*bookmark);
 }
