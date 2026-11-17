@@ -184,3 +184,90 @@ TEST_CASE("tag with a missing ID, or a range with no stored ID, exits 5 and chan
     CHECK(range.err == "bucu: no bookmark has an ID in 20-30. Run 'bucu list' to see IDs.\n");
     CHECK(fixture.tags().empty());
 }
+
+namespace {
+
+constexpr const char* kPrompt = "Update all 3 bookmarks? [y/N] ";
+
+// Stores bookmarks 1 to 3 with the URLs https://<n>.example/.
+void add_three(const Fixture& fixture) {
+    for (int n = 1; n <= 3; ++n) {
+        REQUIRE(fixture.bucu({"add", "https://" + std::to_string(n) + ".example"}).code == 0);
+    }
+}
+
+}  // namespace
+
+TEST_CASE("tag with no ID and --yes changes every bookmark", "[cli][tag]") {
+    const Fixture fixture;
+    add_three(fixture);
+
+    const Result result = fixture.bucu({"tag", "add", "x", "--yes"});
+
+    CHECK(result.code == 0);
+    CHECK(result.err.empty());
+    CHECK(result.out ==
+          "1\n   url:   https://1.example/\n   tags:  x\n"
+          "\n"
+          "2\n   url:   https://2.example/\n   tags:  x\n"
+          "\n"
+          "3\n   url:   https://3.example/\n   tags:  x\n");
+    CHECK(fixture.rows("SELECT count(*) FROM bookmark_tag")[0][0] == "3");
+}
+
+TEST_CASE("tag with no ID in a run that is not interactive needs --yes", "[cli][tag]") {
+    const Fixture fixture;
+    add_three(fixture);
+
+    const Result result = fixture.bucu({"tag", "add", "x"});
+
+    CHECK(result.code == 2);
+    CHECK(result.out.empty());
+    CHECK(result.err ==
+          "bucu: changing all bookmarks needs confirmation; add --yes to confirm. Run 'bucu "
+          "--help' for usage.\n");
+    CHECK(fixture.tags().empty());
+}
+
+TEST_CASE("tag with no ID in an interactive run applies on y and cancels on an empty answer",
+          "[cli][tag]") {
+    Fixture fixture;
+    add_three(fixture);
+    fixture.terminals = bucu::test::cli::kTerminal;
+
+    fixture.input = "\n";
+    const Result cancelled = fixture.bucu({"tag", "add", "x"});
+
+    CHECK(cancelled.code == 0);
+    CHECK(cancelled.out == std::string(kPrompt) + "Cancelled.\n");
+    CHECK(fixture.tags().empty());
+
+    fixture.input = "y\n";
+    const Result applied = fixture.bucu({"tag", "add", "x"});
+
+    CHECK(applied.code == 0);
+    CHECK(applied.out.starts_with(std::string(kPrompt) + "1\n"));
+    CHECK(fixture.rows("SELECT count(*) FROM bookmark_tag")[0][0] == "3");
+}
+
+TEST_CASE("tag with a list or a range never asks, even in an interactive run", "[cli][tag]") {
+    Fixture fixture;
+    add_three(fixture);
+    fixture.terminals = bucu::test::cli::kTerminal;
+
+    const Result result = fixture.bucu({"tag", "1-2", "add", "x"});
+
+    CHECK(result.code == 0);
+    CHECK(result.out.find("[y/N]") == std::string::npos);
+    CHECK(fixture.rows("SELECT count(*) FROM bookmark_tag")[0][0] == "2");
+}
+
+TEST_CASE("tag with no ID and no bookmark exits 5", "[cli][tag]") {
+    const Fixture fixture;
+
+    const Result result = fixture.bucu({"tag", "add", "x"});
+
+    CHECK(result.code == 5);
+    CHECK(result.out.empty());
+    CHECK(result.err == "bucu: there are no bookmarks.\n");
+}

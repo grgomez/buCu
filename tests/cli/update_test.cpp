@@ -2,6 +2,7 @@
 
 #include <sstream>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "catch_amalgamated.hpp"
@@ -396,5 +397,142 @@ TEST_CASE("update --url takes one distinct ID in any form, and refuses more", "[
         CHECK(result.out.empty());
         CHECK(result.err == refusal);
         CHECK(titles(fixture) == before);
+    }
+}
+
+namespace {
+
+constexpr const char* kPrompt = "Update all 3 bookmarks? [y/N] ";
+
+// Stores bookmarks 1 to 3 with the URLs https://<n>.example/.
+void add_three(const Fixture& fixture) {
+    for (int n = 1; n <= 3; ++n) {
+        REQUIRE(fixture.bucu({"add", "https://" + std::to_string(n) + ".example"}).code == 0);
+    }
+}
+
+std::string flags(const Fixture& fixture) {
+    std::string joined;
+    for (const auto& row : fixture.rows("SELECT flags FROM bookmark ORDER BY id")) {
+        joined += (joined.empty() ? "" : ",") + row[0];
+    }
+    return joined;
+}
+
+}  // namespace
+
+TEST_CASE("update with no ID and --yes changes every bookmark and prints every record",
+          "[cli][update]") {
+    const Fixture fixture;
+    add_three(fixture);
+
+    const Result result = fixture.bucu({"update", "--immutable", "--yes"});
+
+    CHECK(result.code == 0);
+    CHECK(result.err.empty());
+    CHECK(result.out ==
+          "1\n   url:   https://1.example/\n   flags: immutable-title\n"
+          "\n"
+          "2\n   url:   https://2.example/\n   flags: immutable-title\n"
+          "\n"
+          "3\n   url:   https://3.example/\n   flags: immutable-title\n");
+    CHECK(flags(fixture) == "1,1,1");
+}
+
+TEST_CASE("update with no ID in a run that is not interactive needs --yes", "[cli][update]") {
+    const std::string line =
+        "bucu: changing all bookmarks needs confirmation; add --yes to confirm. Run 'bucu --help' "
+        "for usage.\n";
+    for (const bucu::platform::StandardStreams streams :
+         {bucu::test::cli::kPiped,
+          bucu::platform::StandardStreams{.input = bucu::platform::TerminalStatus::kTerminal,
+                                          .output = bucu::platform::TerminalStatus::kNotTerminal},
+          bucu::platform::StandardStreams{.input = bucu::platform::TerminalStatus::kNotTerminal,
+                                          .output = bucu::platform::TerminalStatus::kTerminal}}) {
+        Fixture fixture;
+        add_three(fixture);
+        fixture.terminals = streams;
+        fixture.input = "y\n";
+
+        const Result result = fixture.bucu({"update", "--immutable"});
+
+        CHECK(result.code == 2);
+        CHECK(result.out.empty());
+        CHECK(result.err == line);
+        CHECK(flags(fixture) == "0,0,0");
+    }
+}
+
+TEST_CASE("update with no ID in an interactive run asks first, and y or yes in any case applies it",
+          "[cli][update]") {
+    for (const char* answer : {"y\n", "YES\n", " y \n", "Yes", "y"}) {
+        CAPTURE(answer);
+        Fixture fixture;
+        add_three(fixture);
+        fixture.terminals = bucu::test::cli::kTerminal;
+        fixture.input = answer;
+
+        const Result result = fixture.bucu({"update", "--immutable"});
+
+        CHECK(result.code == 0);
+        CHECK(result.err.empty());
+        CHECK(result.out.starts_with(std::string(kPrompt) + "1\n"));
+        CHECK(flags(fixture) == "1,1,1");
+    }
+}
+
+TEST_CASE("update with no ID cancels on an empty answer, n, anything else, or end of input",
+          "[cli][update]") {
+    const std::vector<std::pair<std::string, std::string>> cases = {
+        {"\n", std::string(kPrompt) + "Cancelled.\n"},
+        {"n\n", std::string(kPrompt) + "Cancelled.\n"},
+        {"yep\n", std::string(kPrompt) + "Cancelled.\n"},
+        {"", std::string(kPrompt) + "\nCancelled.\n"}};
+    for (const auto& [answer, expected] : cases) {
+        CAPTURE(answer);
+        Fixture fixture;
+        add_three(fixture);
+        fixture.terminals = bucu::test::cli::kTerminal;
+        fixture.input = answer;
+
+        const Result result = fixture.bucu({"update", "--immutable"});
+
+        CHECK(result.code == 0);
+        CHECK(result.err.empty());
+        CHECK(result.out == expected);
+        CHECK(flags(fixture) == "0,0,0");
+    }
+}
+
+TEST_CASE("update with a list or a range never asks, even in an interactive run", "[cli][update]") {
+    Fixture fixture;
+    add_three(fixture);
+    fixture.terminals = bucu::test::cli::kTerminal;
+
+    const Result result = fixture.bucu({"update", "1,3", "--immutable"});
+
+    CHECK(result.code == 0);
+    CHECK(result.out.find("[y/N]") == std::string::npos);
+    CHECK(flags(fixture) == "1,0,1");
+}
+
+TEST_CASE("update with no ID and no bookmark exits 5 before any prompt", "[cli][update]") {
+    const std::string line = "bucu: there are no bookmarks.\n";
+    for (const bool yes : {true, false}) {
+        for (const bool interactive : {true, false}) {
+            Fixture fixture;
+            fixture.terminals = interactive ? bucu::test::cli::kTerminal : bucu::test::cli::kPiped;
+            fixture.input = "y\n";
+            std::vector<std::string> args = {"update", "--immutable"};
+            if (yes) {
+                args.push_back("--yes");
+            }
+
+            const Result result = fixture.bucu(args);
+
+            CHECK(result.code == 5);
+            CHECK(result.out.empty());
+            CHECK(result.err == line);
+        }
     }
 }
