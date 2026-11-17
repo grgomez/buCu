@@ -21,10 +21,14 @@ struct Result {
 
 // A context with no variables and a fixed clock, so no test depends on the machine.
 const bucu::platform::test::FakeEnvironment kEnvironment;
+std::istringstream no_input;
 const bucu::cli::Context kContext{
     .os = bucu::platform::Os::kLinuxOrBsd,
     .environment = kEnvironment,
-    .now = std::chrono::sys_seconds{std::chrono::seconds{1700000000}}};
+    .now = std::chrono::sys_seconds{std::chrono::seconds{1700000000}},
+    .input = no_input,
+    .terminals = {.input = bucu::platform::TerminalStatus::kNotTerminal,
+                  .output = bucu::platform::TerminalStatus::kNotTerminal}};
 
 Result invoke(const std::vector<std::string>& args) {
     std::ostringstream out;

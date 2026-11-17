@@ -9,6 +9,7 @@
 #include "bucu/platform/console.hpp"
 #include "bucu/platform/environment.hpp"
 #include "bucu/platform/paths.hpp"
+#include "bucu/platform/terminal.hpp"
 #include "cli/run.hpp"
 
 int main(int argc, char** argv) {
@@ -21,7 +22,12 @@ int main(int argc, char** argv) {
         const bucu::platform::SystemEnvironment environment;
         const auto now = std::chrono::floor<std::chrono::seconds>(std::chrono::system_clock::now());
         const bucu::cli::Context context{
-            .os = bucu::platform::current_os(), .environment = environment, .now = now};
+            .os = bucu::platform::current_os(),
+            .environment = environment,
+            .now = now,
+            .input = std::cin,
+            .terminals = {.input = bucu::platform::stdin_is_terminal(),
+                          .output = bucu::platform::stdout_is_terminal()}};
         return bucu::cli::run(args, std::cout, std::cerr, context);
     } catch (const std::exception& error) {
         // Reports the failure; nothing is swallowed (architecture section 7).
