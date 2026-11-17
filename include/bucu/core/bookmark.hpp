@@ -58,10 +58,6 @@ bool has_flag(FlagSet flags, Flag flag);
 FlagSet set_flag(FlagSet flags, Flag flag);
 FlagSet clear_flag(FlagSet flags, Flag flag);
 
-// The text inputs of make_bookmark, named at each call so that none can be swapped
-// (Core Guidelines I.4). `url`, `title`, and `description` are required: a designated initializer
-// that leaves one out does not build. `tags` is optional; leaving it out
-// means no tags. The views are read during the call only.
 // A required piece of text. Leaving one out of a designated initializer is ill-formed on every
 // compiler, because it has no default constructor; the constructor is explicit so a plain view does
 // not convert on its own.
@@ -70,6 +66,10 @@ struct RequiredText {
     std::string_view value;
 };
 
+// The text inputs of make_bookmark, named at each call so that none can be swapped
+// (Core Guidelines I.4). `url`, `title`, and `description` are required: a designated initializer
+// that leaves one out does not build. `tags` is optional; leaving it out
+// means no tags. The views are read during the call only.
 struct BookmarkFields {
     RequiredText url;
     RequiredText title;

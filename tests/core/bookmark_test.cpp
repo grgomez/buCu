@@ -76,7 +76,7 @@ using bucu::core::Reason;
 using bucu::core::RequiredText;
 using bucu::core::TagSet;
 
-// FR-003: each concept asks whether a designated initializer with the named fields is valid for
+// Issue #60: each concept asks whether a designated initializer with the named fields is valid for
 // the fields type. A required field that is left out is ill-formed on every compiler.
 template <typename Fields>
 concept FromAllRequired = requires {
@@ -98,13 +98,6 @@ concept FromNoTitle =
 template <typename Fields>
 concept FromNoDescription =
     requires { Fields{.url = RequiredText{"u"}, .title = RequiredText{"t"}}; };
-
-// Positive controls: a concept that is always false would pass the negative checks.
-static_assert(FromAllRequired<BookmarkFields>);
-static_assert(FromAllRequiredAndTags<BookmarkFields>);
-static_assert(!FromNoUrl<BookmarkFields>);
-static_assert(!FromNoTitle<BookmarkFields>);
-static_assert(!FromNoDescription<BookmarkFields>);
 
 }  // namespace
 
@@ -268,6 +261,11 @@ TEST_CASE("make_bookmark reports the description before the tags", "[core][bookm
 
 TEST_CASE("BookmarkFields cannot be built without the URL, title, or description",
           "[core][bookmark]") {
-    // The proof is the static_asserts above: this binary does not build when one fails.
-    SUCCEED();
+    // Positive controls: a concept that is always false would pass the negative checks. The proof
+    // is compile-time: this binary does not build when one of these fails.
+    static_assert(FromAllRequired<BookmarkFields>);
+    static_assert(FromAllRequiredAndTags<BookmarkFields>);
+    static_assert(!FromNoUrl<BookmarkFields>);
+    static_assert(!FromNoTitle<BookmarkFields>);
+    static_assert(!FromNoDescription<BookmarkFields>);
 }
