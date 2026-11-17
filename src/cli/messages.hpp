@@ -24,6 +24,13 @@ std::string duplicate_url_message(std::string_view url, core::BookmarkId id);
 // argument is shown with each control character written as an escape.
 std::string invalid_id_message(std::string_view argument);
 
+// A usage error: `bucu: <what failed>. Run 'bucu --help' for usage.` `what` has no final period.
+std::string usage_error_message(std::string_view what);
+
+// No stored bookmark matches the IDs given: names the missing ID or the range with no stored ID,
+// or says there are no bookmarks when `error` names neither (product section 6).
+std::string not_found_message(const db::Error& error);
+
 // A database that cannot be opened: names the file.
 std::string open_error_message(std::string_view file, const db::Error& error);
 

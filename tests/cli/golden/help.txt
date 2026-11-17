@@ -42,3 +42,4 @@ Exit codes:
   2  a usage error
   3  a validation error: a value broke a bookmark rule
   4  a conflict: the URL is already bookmarked
+  5  not found: no stored bookmark matches the IDs given

@@ -41,6 +41,13 @@ int run_change(const ChangeCommand& command, const Globals& globals, const Conte
         err << invalid_id_message(selection.error().argument) << '\n';
         return kExitUsage;
     }
+    // Two bookmarks cannot share a URL, so --url needs exactly one named ID (product section 5).
+    if (command.request.url.has_value() && core::named_id_count(*selection) != 1) {
+        err << usage_error_message(
+                   "--url needs exactly one bookmark ID, because two bookmarks cannot share a URL")
+            << '\n';
+        return kExitUsage;
+    }
     const auto changes = core::make_changes(command.request);
     if (!changes) {
         err << validation_error_message(changes.error()) << '\n';
@@ -52,7 +59,17 @@ int run_change(const ChangeCommand& command, const Globals& globals, const Conte
         return kExitFailure;
     }
     if (auto done = db::update_bookmarks(*database, *selection, *changes, context.now); !done) {
-        err << sql_error_message("update the bookmarks", done.error()) << '\n';
+        const db::Error& error = done.error();
+        if (error.code == db::ErrorCode::kNotFound) {
+            err << not_found_message(error) << '\n';
+            return kExitNotFound;
+        }
+        if (error.code == db::ErrorCode::kDuplicateUrl && error.bookmark_id.has_value() &&
+            changes->url.has_value()) {
+            err << duplicate_url_message(*changes->url, *error.bookmark_id) << '\n';
+            return kExitConflict;
+        }
+        err << sql_error_message("update the bookmarks", error) << '\n';
         return kExitFailure;
     }
     if (auto printed = print_records(*database, *selection, out); !printed) {
