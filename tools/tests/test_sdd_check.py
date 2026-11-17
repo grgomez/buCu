@@ -104,6 +104,13 @@ class SizeTest(unittest.TestCase):
         text = body(tasks=self.wrap("TASKS", self.tasks(13)))
         self.assertTrue(any("tasks" in f for f in sdd_check.check_size(text)))
 
+    def test_indented_task_is_counted(self):
+        for indent in ("  ", "\t"):
+            with self.subTest(indent=indent):
+                tasks = "".join(f"{indent}- [ ] T{i:03d} t\n" for i in range(1, 14))
+                text = body(tasks=self.wrap("TASKS", tasks))
+                self.assertTrue(any("tasks" in f for f in sdd_check.check_size(text)))
+
     def test_tier0_counts_scope_bullets_and_task_stories(self):
         scope = "## Scope\n\n" + "".join(f"- item {i}\n" for i in range(13)) + "\n## Out of scope\n"
         text = body(original="Goal.\n\n" + scope, spec="",
@@ -252,6 +259,12 @@ class DoneTest(unittest.TestCase):
 
     def test_unticked_task(self):
         self.assertTrue(any("T001" in f for f in self.failures(done_body(task="- [ ] T001 x"))))
+
+    def test_indented_unticked_task(self):
+        for indent in ("  ", "\t"):
+            with self.subTest(indent=indent):
+                text = done_body(task=f"{indent}- [ ] T001 x")
+                self.assertTrue(any("T001" in f for f in self.failures(text)))
 
     def test_checked_criterion_needs_evidence(self):
         text = done_body(criterion="- [x] US1-AC1: x")

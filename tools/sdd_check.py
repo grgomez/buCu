@@ -96,7 +96,7 @@ def check_parts(body, names):
 _LIMITS = (("user stories", 3), ("criteria", 12), ("tasks", 12))
 _STORY = re.compile(r"^#{2,3} US\d+\b", re.M)
 _CRITERION = re.compile(r"^[ \t]*- \[[ xX]\] US\d+-AC\d+:", re.M)
-_TASK = re.compile(r"^- \[[ xX]\] T\d{3}\b", re.M)
+_TASK = re.compile(r"^[ \t]*- \[[ xX]\] T\d{3}\b", re.M)
 _OPEN_MARKER = re.compile(r"\[NEEDS CLARIFICATION:")
 
 
@@ -147,7 +147,7 @@ def check_size(body):
 
 _CLOSES = re.compile(r"^\s*Closes #(\d+)\b", re.M | re.I)
 _CHECKBOX = re.compile(r"^\s*- \[([ xX])\] ")
-_UNTICKED_TASK = re.compile(r"^- \[ \] (T\d{3})\b", re.M)
+_UNTICKED_TASK = re.compile(r"^[ \t]*- \[ \] (T\d{3})\b", re.M)
 _LOCATED = re.compile(r": [^:\s][^:]*: \S")
 _DELIVERED = {
     "test": _LOCATED,
