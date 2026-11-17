@@ -88,8 +88,8 @@ add <url> [tags...]        add a bookmark; prompts or opens the editor when aske
 list                       list bookmarks, paginated (#11)
 search <query>             search by keyword, substring, or tag (#12)
 search --regex <pattern>   search by regular expression (#12)
-tag <id> <operation>       add, remove, or replace tags (#13)
-update <id>                change a bookmark's fields (#13, #14)
+tag [ids...] <operation> [tags...]   add, remove, or replace tags (#87)
+update [ids...]            change bookmarks' fields (#87, #14)
 delete <id>                delete bookmarks, with confirmation (#13)
 open <id-or-query>         open bookmarks in the system browser (#15)
 export <format> <file>     export to html or md (#17, #18)
@@ -101,7 +101,7 @@ completion <shell>         print a shell completion script (#19)
 - Output to a non-terminal MUST be plain text with no pager, and with no colour unless `--color always` is given, so it works in pipes and scripts.
 - `--color auto` (the default) uses colour only when standard output is a terminal and `NO_COLOR` is unset or empty. `--color always` uses colour even when output is not a terminal or `NO_COLOR` is set. `--color never` uses no colour. Standard error does not change the choice.
 - A command that would prompt in an interactive run MUST NOT wait for input in a non-interactive run; it fails with a message that names the option to use instead (for example `--yes`).
-- Every line `bucu` writes to standard output or standard error MUST end in LF (U+000A) only, on every platform, whether the output goes to a terminal, a file, or a pipe.
+- Every line `bucu` writes to standard output or standard error MUST end in LF (U+000A) only, on every platform, whether the output goes to a terminal, a file, or a pipe. The one exception is the confirmation prompt of `update` and `tag` (below), which ends without LF because the user's Enter ends it; at end of input, `bucu` writes an LF before `Cancelled.`.
 - The global options (`--db`, `--color`, `--offline`) MUST come before the command; after it they are a usage error. `--color` and `--offline` are accepted and checked from #10: `--color` takes its effect with #11 and `--offline` with #16.
 
 ### add (added by #10)
@@ -112,7 +112,7 @@ completion <shell>         print a shell completion script (#19)
 - Tags: the words after the URL are joined with single spaces and read as one tag input; each `--tag` value is another. All are split on commas by the rules of §4 Tags, and the stored tags are their union.
 - A tag that starts with `-` MUST be given after `--`, or as `--tag=<tag>`.
 - The URL, tags, title, and description MUST be validated and normalized by §4 before anything is stored. A broken rule is a validation error (§6). The bookmark and its tags are stored in one transaction.
-- When the normalized URL is already stored, `add` changes nothing and fails with the duplicate URL error (§6). Updating an existing bookmark is `bucu update` (#13).
+- When the normalized URL is already stored, `add` changes nothing and fails with the duplicate URL error (§6). Updating an existing bookmark is `bucu update` (#87).
 - `add` MUST NOT prompt, open an editor, or use the network in #10 (#14 and #16 add them).
 - On success, `add` prints the stored record to standard output:
   - Line 1: the ID, two spaces, and the title; only the ID when the title is empty.
@@ -128,6 +128,43 @@ completion <shell>         print a shell completion script (#19)
    tags:  docs, tools, web dev
    flags: immutable-title
 ```
+
+### IDs and ranges (added by #87)
+
+`update`, `tag`, and later `delete` (#88) name the bookmarks they act on with the same ID arguments.
+
+- The IDs are one or more arguments, each a positive whole number, a range `<a>-<b>`, or a comma-separated list of these (`3`, `3,5`, `3-7`, `3,5-7`, `3 5-7`). A range with `a > b` is read as `<b>-<a>`. An ID that appears twice counts once.
+- An ID is ASCII digits only: no sign and no spaces; leading zeros are allowed (`007` is 7); an empty list item (`3,`, `3,,5`) is not an ID. It MUST fit in a signed 64-bit integer.
+- An argument that does not follow these rules (for example `abc`, `0`, `-3`, `1-x`, `99999999999999999999`) is a usage error, exit `2`, that quotes the whole argument (§6).
+- No ID means every bookmark. `0` does not mean every bookmark, as it does in Buku.
+- Every single ID named MUST be stored. A range covers only the stored IDs in it, and a range that covers none is not found; so is a single ID that is not stored, unlike Buku, which prints `No matching index` and exits `0`. Nothing changes, and the command exits `5` (§6) naming the first item that failed, taking the items in ascending order of their low end (a single ID `n` has low end `n`). A range is named as `<low>-<high>`, after the swap.
+- Each run MUST be all or nothing: when any target fails (not found, validation, conflict, a write error), no bookmark changes.
+- A huge range such as `1-9999999999` is not expanded: only the stored IDs in it are visited, and records are written one at a time.
+- With no ID, the command first prints `Update all <n> bookmarks? [y/N] ` to standard output (the prompt is flushed before BuCu reads) in an interactive run without `--yes`, and proceeds only when the answer is `y` or `yes`, in any case, ignoring spaces around it. Any other answer prints `Cancelled.`, changes nothing, and exits `0`; at end of input BuCu first writes an LF, because no Enter ended the prompt line. In a non-interactive run without `--yes` it does not wait: it fails with the usage error that names `--yes` (§6). With `--yes` it never asks. A list or a range never asks.
+- With no ID and no bookmark stored, the command fails with `bucu: there are no bookmarks.` and exit `5`, before any prompt, even in a non-interactive run without `--yes`.
+- On success the command prints the stored record of each target bookmark in the `add` format (§5 add), in ascending ID order, with one empty line between records, and exits `0`, whether or not a stored value changed. If writing standard output fails after the change is stored, the change stays and the exit code is `1` (§6).
+- Errors are checked in this order: usage (exit `2`), validation (exit `3`), not found (exit `5`), confirmation, conflict (exit `4`).
+
+### update (added by #87)
+
+`bucu update [ids...]` changes fields of the bookmarks that the ID arguments name (IDs and ranges, above) and prints their records.
+
+- Options: `--url <url>`, `--title <text>`, `--description <text>`, `--tag <tags>` (repeatable, one value for each use), `--immutable`, `--no-immutable`, and `--yes` (the confirmation of "IDs and ranges"). At least one option other than `--yes` is required, and `--immutable` with `--no-immutable` is not allowed; both are usage errors, exit `2`, and nothing changes. A later issue may give `update` with no field option a meaning (#14, #16).
+- Each given field MUST be validated and normalized by §4 before anything is stored, checked in the order URL, title, description, tags. A field that is not given keeps its stored value.
+- An empty `--title` or `--description` stores that field empty. The `--tag` values are split and normalized by §4 Tags, and their union replaces the bookmark's tags; an empty union (for example `--tag ''`) removes every tag. To add or remove single tags, use `tag`.
+- `--immutable` sets flag bit 1 and `--no-immutable` clears it, keeping every other bit (§4 Flags).
+- A new URL that another bookmark already holds fails with the duplicate URL error (§6) and exit `4`. A bookmark given its own URL again is not a conflict.
+- `--url` needs exactly one distinct ID, because two bookmarks cannot share a URL (§4 URL): `5`, `5,5`, `5 5`, and `5-5` are accepted; a list or range that names more than one ID, or no ID, is a usage error, exit `2`. The rule counts the IDs named, not the IDs stored.
+
+### tag (added by #87)
+
+`bucu tag [ids...] <operation> [tags...]` adds, removes, or replaces the tags of the bookmarks that the ID arguments name (IDs and ranges, above) and prints their records.
+
+- The operations are `add`, `remove`, and `replace`, applied as defined in §4 Tags. `replace` with no tags removes every tag; `add` or `remove` with no tags is a usage error, exit `2`.
+- The first word that is `add`, `remove`, or `replace` is the operation. The words before it are IDs; the words after it are joined with single spaces and read as one tag input, as in `add`, so a tag may be named like an operation or a command (`bucu tag 7 add remove`, `bucu tag 7 add db`). A tag that starts with `-` MUST be given after `--` (`bucu tag 7 add -- -x`).
+- With no operation word, the usage error names the first word that is not an ID item (`'rename' is not a tag operation; use add, remove, or replace`), or says that no operation was given.
+- `tag` accepts `--yes`, with the meaning given in "IDs and ranges".
+- The other rules (not found, all or nothing, output, order of errors) are those of "IDs and ranges".
 
 ### db (added by #10)
 
@@ -149,13 +186,18 @@ completion <shell>         print a shell completion script (#19)
   | `2` | A usage error |
   | `3` | A validation error: a rule of §4 is broken |
   | `4` | A conflict: the URL is already stored |
+  | `5` | Not found: no stored bookmark matches the IDs given |
 
-  Codes `5` and above are reserved for later issues (for example "not found", #13).
+  Codes `6` and above are reserved for later issues.
 - A bare `bucu`, or `bucu --` with nothing after it, prints the help text to standard error and exits `2`.
 - `--help` and `-h` print the help text, and `--version` prints the version, whichever other arguments are given; both exit `0`. When both are given, the help text wins, in either order.
 - A usage error prints one line, `bucu: <what failed>. Run 'bucu --help' for usage.`, to standard error, nothing to standard output, and exits `2`.
 - A validation error prints one line, `bucu: invalid <field> '<value>': <reason>.`, and exits `3`. The field is `URL`, `tag`, `title`, or `description`. The reason is one of: `it is empty`, `it is not valid UTF-8`, `it has no scheme, such as https://`, `it contains whitespace`, `it contains a control character`, `it has no host`, or `it is longer than 128 characters`. The value is left out for a title, a description, and text that is not valid UTF-8; otherwise it is shown with each control character written as an escape (`\n`, `\x1b`), so the error stays one line. Nothing is stored and nothing goes to standard output.
 - A URL that is already stored prints `bucu: <normalized URL> is already bookmarked as <ID>. Use 'bucu update <ID>' to change it.` to standard error, prints nothing to standard output, changes nothing, and exits `4`.
+- An ID argument that is not a positive whole number prints `bucu: invalid ID '<argument>': it is not a positive whole number. Run 'bucu --help' for usage.` and exits `2`. The argument is shown as given, with each control character written as an escape, as for a validation error.
+- A single ID that is not stored prints `bucu: no bookmark has ID <n>. Run 'bucu list' to see IDs.` A range with no stored ID prints `bucu: no bookmark has an ID in <a>-<b>. Run 'bucu list' to see IDs.` With no ID and no bookmark stored, `bucu` prints `bucu: there are no bookmarks.` Each goes to standard error, changes nothing, and exits `5`.
+- A change to every bookmark in a run that is not interactive, without `--yes`, prints `bucu: changing all bookmarks needs confirmation; add --yes to confirm. Run 'bucu --help' for usage.` and exits `2`.
+- The confirmation prompt `Update all <n> bookmarks? [y/N] ` and `Cancelled.` go to standard output, not standard error.
 - When writing standard output fails, `bucu` prints `bucu: cannot write to standard output` to standard error and exits `1`.
 
 ## 7. Import and export formats (added by #17, #18)

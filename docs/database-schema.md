@@ -43,6 +43,8 @@ bookmark_tag                              -- WITHOUT ROWID
   INDEX bookmark_tag_tag_id on (tag_id)
 ```
 
+A `tag` row exists only while a bookmark links it: a command that unlinks tags deletes the tags that no bookmark links any more, in its own transaction. `updated_at` changes only when a stored value of the bookmark changes; a command that stores the same values leaves it as it was.
+
 Bookmarks carry no UUID; #31 adds one with a migration.
 
 ## 4. Differences from Buku
