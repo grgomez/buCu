@@ -244,6 +244,13 @@ TEST_CASE("tag with no ID in an interactive run applies on y and cancels on an e
     CHECK(cancelled.out == std::string(kPrompt) + "Cancelled.\n");
     CHECK(fixture.tags().empty());
 
+    fixture.input = "n\n";
+    const Result declined = fixture.bucu({"tag", "add", "x"});
+
+    CHECK(declined.code == 0);
+    CHECK(declined.out == std::string(kPrompt) + "Cancelled.\n");
+    CHECK(fixture.tags().empty());
+
     fixture.input = "y\n";
     const Result applied = fixture.bucu({"tag", "add", "x"});
 
@@ -272,4 +279,19 @@ TEST_CASE("tag with no ID and no bookmark exits 5", "[cli][tag]") {
     CHECK(result.code == 5);
     CHECK(result.out.empty());
     CHECK(result.err == "bucu: there are no bookmarks.\n");
+}
+
+TEST_CASE(
+    "a control character in a word that is not an operation is escaped, so the error is one line",
+    "[cli][tag]") {
+    const Fixture fixture;
+    add_first(fixture);
+
+    const Result result = fixture.bucu({"tag", "1", "re\x1b[31mname", "x"});
+
+    CHECK(result.code == 2);
+    CHECK(result.out.empty());
+    CHECK(result.err ==
+          "bucu: 're\\x1b[31mname' is not a tag operation; use add, remove, or replace." +
+              kUsageTail);
 }

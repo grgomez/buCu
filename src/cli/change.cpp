@@ -1,7 +1,6 @@
 #include "cli/change.hpp"
 
-#include <algorithm>
-#include <cctype>
+#include <cstddef>
 #include <cstdint>
 #include <expected>
 #include <istream>
@@ -40,26 +39,28 @@ std::expected<void, db::Error> print_records(db::Database& database,
                                  });
 }
 
-// Whether `answer` is a yes: y or yes in any case, ignoring spaces around it.
+// Whether `answer` is a yes: y or yes in any case, ignoring spaces around it. Only ASCII is
+// folded, so the answer does not depend on the locale.
 bool is_yes(std::string_view answer) {
-    const auto is_space = [](char c) { return std::isspace(static_cast<unsigned char>(c)) != 0; };
-    while (!answer.empty() && is_space(answer.front())) {
-        answer.remove_prefix(1);
+    constexpr std::string_view kSpace = " \t\n\r\f\v";
+    const std::size_t first = answer.find_first_not_of(kSpace);
+    if (first == std::string_view::npos) {
+        return false;
     }
-    while (!answer.empty() && is_space(answer.back())) {
-        answer.remove_suffix(1);
-    }
+    answer = answer.substr(first, answer.find_last_not_of(kSpace) - first + 1);
     std::string lowered(answer);
-    std::ranges::transform(lowered, lowered.begin(), [](char c) {
-        return static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-    });
+    for (char& c : lowered) {
+        if (c >= 'A' && c <= 'Z') {
+            c = static_cast<char>(c - 'A' + 'a');
+        }
+    }
     return lowered == "y" || lowered == "yes";
 }
 
 // The checks and the question before a change to every bookmark (product section 5). Returns the
 // exit code when the run ends here, or no value when the change goes on.
+// NOLINTBEGIN(bugprone-easily-swappable-parameters): out and err are distinct streams by design
 std::optional<int> confirm_all(db::Database& database, bool yes, const Context& context,
-                               // NOLINTNEXTLINE(bugprone-easily-swappable-parameters): streams
                                std::ostream& out, std::ostream& err) {
     const auto count = db::count_bookmarks(database);
     if (!count) {
@@ -95,6 +96,7 @@ std::optional<int> confirm_all(db::Database& database, bool yes, const Context& 
     out << "Cancelled.\n";
     return kExitOk;
 }
+// NOLINTEND(bugprone-easily-swappable-parameters)
 
 }  // namespace
 

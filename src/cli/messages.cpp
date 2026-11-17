@@ -114,6 +114,11 @@ std::string usage_error_message(std::string_view what) {
     return "bucu: " + std::string(what) + ". Run 'bucu --help' for usage.";
 }
 
+std::string not_an_operation_message(std::string_view word) {
+    return usage_error_message("'" + escape_controls(word) +
+                               "' is not a tag operation; use add, remove, or replace");
+}
+
 std::string not_found_message(const db::Error& error) {
     constexpr std::string_view kHint = ". Run 'bucu list' to see IDs.";
     if (error.bookmark_id.has_value()) {

@@ -36,8 +36,7 @@ std::optional<core::TagOperation> operation_named(std::string_view word) {
 std::string missing_operation_message(const std::vector<std::string>& words) {
     for (const std::string& word : words) {
         if (!core::parse_id_selection({word})) {
-            return usage_error_message("'" + word + "' is not a tag operation; use " +
-                                       std::string(kOperations));
+            return not_an_operation_message(word);
         }
     }
     return usage_error_message("tag needs an operation: " + std::string(kOperations));
