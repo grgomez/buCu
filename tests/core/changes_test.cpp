@@ -23,12 +23,15 @@ using bucu::core::TagChange;
 using bucu::core::TagOperation;
 using bucu::core::TagSet;
 
+// Flag bit 1 (immutable title) and bit 4, which BuCu does not know.
+constexpr std::int64_t kFlagsOneAndFour = 5;
+
 Bookmark stored() {
     return Bookmark{.url = "https://example.org/",
                     .title = "Title",
                     .description = "Description",
                     .tags = {"a", "b"},
-                    .flags = FlagSet(5)};
+                    .flags = FlagSet(kFlagsOneAndFour)};
 }
 
 BookmarkChanges checked(const ChangeRequest& request) {
@@ -72,7 +75,7 @@ TEST_CASE("the URL is normalized, and the other fields stay", "[core][changes]")
     CHECK(result.title == "Title");
     CHECK(result.description == "Description");
     CHECK(result.tags == TagSet{"a", "b"});
-    CHECK(result.flags == FlagSet(5));
+    CHECK(result.flags == FlagSet(kFlagsOneAndFour));
 }
 
 TEST_CASE("a title and a description replace the stored ones, and empty clears them",
@@ -112,7 +115,7 @@ TEST_CASE("setting the flag keeps the other bits, and clearing it keeps bit 4", 
     const Bookmark unknown_bits =
         apply_changes(with_flags(-1), checked(ChangeRequest{.flag = FlagChange::kClear}));
 
-    CHECK(unset.flags == FlagSet(5));
+    CHECK(unset.flags == FlagSet(kFlagsOneAndFour));
     CHECK(cleared.flags == FlagSet(4));
     CHECK(unknown_bits.flags == FlagSet(-2));
 }

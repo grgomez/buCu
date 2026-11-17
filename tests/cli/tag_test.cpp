@@ -131,10 +131,12 @@ TEST_CASE("--help lists tag", "[cli][tag]") {
 
 namespace {
 
+constexpr int kStoredCount = 11;
+
 // Stores bookmarks 1 to 11 with the URLs https://<n>.example/, then deletes 1, 2, 4, 6, 7, and 10,
 // so 3, 5, 8, 9, and 11 are stored.
 void add_with_gaps(const Fixture& fixture) {
-    for (int n = 1; n <= 11; ++n) {
+    for (int n = 1; n <= kStoredCount; ++n) {
         REQUIRE(fixture.bucu({"add", "https://" + std::to_string(n) + ".example"}).code == 0);
     }
     sqlite3* connection = nullptr;

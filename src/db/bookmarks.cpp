@@ -376,15 +376,15 @@ std::expected<void, Error> update_bookmarks(Database& database, const core::IdSe
         if (!holder) {
             return std::unexpected(std::move(holder.error()));
         }
+        const std::optional<core::BookmarkId> existing = *holder;
         // A bookmark that already has the URL is no conflict, but only when it is the one target.
-        const bool is_only_target = holder->has_value() && !selection.all &&
-                                    core::named_id_count(selection) == 1 &&
-                                    ranges.front().first == **holder;
-        if (holder->has_value() && !is_only_target) {
+        const bool is_only_target = !selection.all && core::named_id_count(selection) == 1 &&
+                                    existing.has_value() && ranges.front().first == *existing;
+        if (existing.has_value() && !is_only_target) {
             return std::unexpected(Error{.code = ErrorCode::kDuplicateUrl,
                                          .message = "the URL is already stored as bookmark " +
-                                                    std::to_string((*holder)->value()),
-                                         .bookmark_id = *holder,
+                                                    std::to_string(existing->value()),
+                                         .bookmark_id = existing,
                                          .range = std::nullopt});
         }
     }

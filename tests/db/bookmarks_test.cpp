@@ -95,9 +95,12 @@ void insert_numbered(Fixture& fixture, int count) {
     }
 }
 
+// Bookmarks 1 to kGapCount are inserted, then 1, 2, 4, 6, 7, and 10 deleted.
+constexpr int kGapCount = 11;
+
 // Bookmarks 3, 5, 8, 9, and 11 are stored.
 void insert_with_gaps(Fixture& fixture) {
-    insert_numbered(fixture, 11);
+    insert_numbered(fixture, kGapCount);
     fixture.exec("DELETE FROM bookmark WHERE id IN (1, 2, 4, 6, 7, 10)");
 }
 
@@ -281,7 +284,7 @@ TEST_CASE("for_each_bookmark gives a bookmark with no tags an empty tag set", "[
     Fixture fixture;
     REQUIRE(bucu::db::insert_bookmark(fixture.database, make("https://example.org/"), kNow)
                 .has_value());
-    std::size_t tag_count = 99;
+    std::optional<std::size_t> tag_count;
 
     const auto done = bucu::db::for_each_bookmark(
         fixture.database, select({"1"}),
@@ -291,7 +294,7 @@ TEST_CASE("for_each_bookmark gives a bookmark with no tags an empty tag set", "[
         });
 
     REQUIRE(done.has_value());
-    CHECK(tag_count == 0);
+    CHECK(tag_count == std::optional<std::size_t>(0));
 }
 
 TEST_CASE("for_each_bookmark walks single IDs and ranges with gaps in ascending order", "[db]") {
@@ -519,9 +522,9 @@ TEST_CASE("update_bookmarks reports a range that holds no stored ID with the ran
     REQUIRE_FALSE(done.has_value());
     CHECK(done.error().code == ErrorCode::kNotFound);
     CHECK_FALSE(done.error().bookmark_id.has_value());
-    REQUIRE(done.error().range.has_value());
-    CHECK(*done.error().range == bucu::core::IdRange{.first = bucu::core::BookmarkId(20),
-                                                     .last = bucu::core::BookmarkId(30)});
+    CHECK(done.error().range ==
+          std::optional<bucu::core::IdRange>(bucu::core::IdRange{
+              .first = bucu::core::BookmarkId(20), .last = bucu::core::BookmarkId(30)}));
 }
 
 TEST_CASE("update_bookmarks accepts a range with gaps when it holds a stored ID", "[db]") {

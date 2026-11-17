@@ -1,4 +1,3 @@
-#include <algorithm>
 #include <optional>
 #include <ostream>
 #include <string>
@@ -50,13 +49,17 @@ int run_tag(const TagArgs& args, const Globals& globals, const Context& context,
             std::ostream& err) {
     // The first word that names an operation is the operation: the words before it are IDs, and
     // the words after it are tags, even when they look like operations or commands.
-    const auto operation_word = std::ranges::find_if(
-        args.words, [](const std::string& word) { return operation_named(word).has_value(); });
-    if (operation_word == args.words.end()) {
+    auto operation_word = args.words.begin();
+    std::optional<core::TagOperation> found;
+    for (; operation_word != args.words.end() && !found.has_value(); ++operation_word) {
+        found = operation_named(*operation_word);
+    }
+    if (!found.has_value()) {
         err << missing_operation_message(args.words) << '\n';
         return kExitUsage;
     }
-    const core::TagOperation operation = *operation_named(*operation_word);
+    const core::TagOperation operation = *found;
+    --operation_word;  // the loop stepped past the operation word
     const std::vector<std::string> tag_words(operation_word + 1, args.words.end());
     if (tag_words.empty() && operation != core::TagOperation::kReplace) {
         err << usage_error_message("tag " + *operation_word + " needs at least one tag") << '\n';

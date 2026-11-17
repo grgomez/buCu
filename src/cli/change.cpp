@@ -59,6 +59,7 @@ bool is_yes(std::string_view answer) {
 // The checks and the question before a change to every bookmark (product section 5). Returns the
 // exit code when the run ends here, or no value when the change goes on.
 std::optional<int> confirm_all(db::Database& database, bool yes, const Context& context,
+                               // NOLINTNEXTLINE(bugprone-easily-swappable-parameters): streams
                                std::ostream& out, std::ostream& err) {
     const auto count = db::count_bookmarks(database);
     if (!count) {
@@ -132,9 +133,10 @@ int run_change(const ChangeCommand& command, const Globals& globals, const Conte
             err << not_found_message(error) << '\n';
             return kExitNotFound;
         }
+        const std::optional<std::string>& new_url = changes->url;
         if (error.code == db::ErrorCode::kDuplicateUrl && error.bookmark_id.has_value() &&
-            changes->url.has_value()) {
-            err << duplicate_url_message(*changes->url, *error.bookmark_id) << '\n';
+            new_url.has_value()) {
+            err << duplicate_url_message(*new_url, *error.bookmark_id) << '\n';
             return kExitConflict;
         }
         err << sql_error_message("update the bookmarks", error) << '\n';

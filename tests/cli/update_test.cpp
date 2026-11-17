@@ -193,6 +193,9 @@ void check_refused(const Fixture& fixture, const std::vector<std::string>& args,
 
 const std::string kUsageTail = " Run 'bucu --help' for usage.\n";
 
+// The exit code for an ID that is not stored (product section 6).
+constexpr int kNotFoundCode = 5;
+
 }  // namespace
 
 TEST_CASE("update with no field option, or both --immutable and --no-immutable, is a usage error",
@@ -235,7 +238,7 @@ TEST_CASE("update of an ID that is not stored exits 5 and changes nothing", "[cl
     const Fixture fixture;
     add_two(fixture);
 
-    check_refused(fixture, {"42", "--title", "x"}, 5,
+    check_refused(fixture, {"42", "--title", "x"}, kNotFoundCode,
                   "bucu: no bookmark has ID 42. Run 'bucu list' to see IDs.\n");
 }
 
@@ -267,7 +270,7 @@ TEST_CASE("update reports the first problem in the order usage, validation, not 
     check_refused(fixture, {"42", "--url", "example.org"}, 3,
                   "bucu: invalid URL 'example.org': it has no scheme, such as https://.\n");
     // Not found beats a conflict.
-    check_refused(fixture, {"42", "--url", "https://b.example"}, 5,
+    check_refused(fixture, {"42", "--url", "https://b.example"}, kNotFoundCode,
                   "bucu: no bookmark has ID 42. Run 'bucu list' to see IDs.\n");
 }
 
@@ -282,10 +285,12 @@ TEST_CASE("--help lists exit code 5", "[cli][update]") {
 
 namespace {
 
+constexpr int kStoredCount = 11;
+
 // Stores bookmarks 1 to 11 with the URLs https://<n>.example/ and the title "T<n>", then deletes
 // 1, 2, 4, 6, 7, and 10, so 3, 5, 8, 9, and 11 are stored.
 void add_with_gaps(const Fixture& fixture) {
-    for (int n = 1; n <= 11; ++n) {
+    for (int n = 1; n <= kStoredCount; ++n) {
         const std::string number = std::to_string(n);
         REQUIRE(
             fixture.bucu({"add", "https://" + number + ".example", "--title", "T" + number}).code ==
@@ -525,7 +530,7 @@ TEST_CASE("update with no ID and no bookmark exits 5 before any prompt", "[cli][
             fixture.input = "y\n";
             std::vector<std::string> args = {"update", "--immutable"};
             if (yes) {
-                args.push_back("--yes");
+                args.emplace_back("--yes");
             }
 
             const Result result = fixture.bucu(args);
