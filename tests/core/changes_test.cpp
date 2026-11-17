@@ -129,11 +129,12 @@ TEST_CASE("setting a flag that is set, or clearing one that is clear, changes no
 }
 
 TEST_CASE("every field can change in one request", "[core][changes]") {
-    const Bookmark result = applied(ChangeRequest{.url = "https://new.example",
-                                                  .title = "T",
-                                                  .description = "D",
-                                                  .tags = TagChange{TagOperation::kReplace, "x"},
-                                                  .flag = FlagChange::kClear});
+    const Bookmark result =
+        applied(ChangeRequest{.url = "https://new.example",
+                              .title = "T",
+                              .description = "D",
+                              .tags = TagChange{.operation = TagOperation::kReplace, .text = "x"},
+                              .flag = FlagChange::kClear});
 
     CHECK(result == Bookmark{.url = "https://new.example/",
                              .title = "T",
@@ -176,18 +177,20 @@ TEST_CASE("a bad tag is refused in every operation", "[core][changes]") {
 
 TEST_CASE("the first broken rule is returned, in the order URL, title, description, tags",
           "[core][changes]") {
-    const auto all = make_changes(ChangeRequest{.url = "bad",
-                                                .title = "\xff",
-                                                .description = "\xff",
-                                                .tags = TagChange{TagOperation::kAdd, "\xff"}});
-    const auto no_url = make_changes(ChangeRequest{.url = "https://a.example",
-                                                   .title = "\xff",
-                                                   .description = "\xff",
-                                                   .tags = TagChange{TagOperation::kAdd, "\xff"}});
-    const auto no_title = make_changes(
-        ChangeRequest{.description = "\xff", .tags = TagChange{TagOperation::kAdd, "\xff"}});
-    const auto only_tag =
-        make_changes(ChangeRequest{.tags = TagChange{TagOperation::kAdd, "\xff"}});
+    const auto all = make_changes(
+        ChangeRequest{.url = "bad",
+                      .title = "\xff",
+                      .description = "\xff",
+                      .tags = TagChange{.operation = TagOperation::kAdd, .text = "\xff"}});
+    const auto no_url = make_changes(
+        ChangeRequest{.url = "https://a.example",
+                      .title = "\xff",
+                      .description = "\xff",
+                      .tags = TagChange{.operation = TagOperation::kAdd, .text = "\xff"}});
+    const auto no_title = make_changes(ChangeRequest{
+        .description = "\xff", .tags = TagChange{.operation = TagOperation::kAdd, .text = "\xff"}});
+    const auto only_tag = make_changes(
+        ChangeRequest{.tags = TagChange{.operation = TagOperation::kAdd, .text = "\xff"}});
 
     REQUIRE_FALSE(all.has_value());
     CHECK(all.error().field == Field::kUrl);

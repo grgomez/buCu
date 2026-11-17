@@ -428,7 +428,8 @@ TEST_CASE("update_bookmarks leaves a bookmark whose values do not change as it w
     // Bookmark 1 already has this title and tag, so only bookmark 2 changes.
     const auto done = bucu::db::update_bookmarks(
         fixture.database, select({"1-2"}),
-        changes(ChangeRequest{.title = "Title 1", .tags = TagChange{TagOperation::kAdd, "all"}}),
+        changes(ChangeRequest{.title = "Title 1",
+                              .tags = TagChange{.operation = TagOperation::kAdd, .text = "all"}}),
         kLater);
 
     REQUIRE(done.has_value());
@@ -604,7 +605,8 @@ TEST_CASE("a failure part way leaves every row and tag as it was", "[db]") {
 
     const auto done = bucu::db::update_bookmarks(
         fixture.database, select({}),
-        changes(ChangeRequest{.title = "New", .tags = TagChange{TagOperation::kReplace, "z"}}),
+        changes(ChangeRequest{.title = "New",
+                              .tags = TagChange{.operation = TagOperation::kReplace, .text = "z"}}),
         kLater);
 
     REQUIRE_FALSE(done.has_value());
