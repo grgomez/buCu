@@ -27,6 +27,7 @@ Test and quality tools:
 | --- | --- | --- |
 | Catch2 v3, vendored amalgamated | Unit, integration, and golden-file tests; micro-benchmarks | Two files to vendor; sections, generators, and matchers; built-in benchmarking. Chosen over doctest (fewer matchers, no benchmarks) and GoogleTest (heavier to vendor) |
 | RapidCheck, vendored at a pinned commit | Property tests of the pure `core` functions, with generators and shrinking | BSD-2-Clause. No tagged releases, so `scripts/update-deps.sh` pins a commit archive by SHA256; our own CMake file builds it, because the upstream one forces C++11 and changes global flags ([ADR 0009](adr/0009-rapidcheck-property-tests.md)) |
+| libFuzzer | Fuzz targets of the `core` text parsers, run under ASan and UBSan | Apache-2.0 WITH LLVM-exception. Part of LLVM compiler-rt, installed with the compiler (`libclang-rt-19-dev`); nothing is vendored or shipped. LLVM Clang on Linux only ([ADR 0010](adr/0010-libfuzzer-fuzz-targets.md)) |
 | ctest | Test runner across platforms | Ships with CMake |
 | clang-format | Formatting authority (`.clang-format`) | |
 | ccache | Compiler cache in CI only; not linked into BuCu | Keeps the matrix fast; local builds stay free of it |
@@ -79,7 +80,7 @@ Moving a responsibility needs an ADR (constitution §4).
 CMakeLists.txt, CMakePresets.json
 include/bucu/<module>/  # public headers (module contracts, §5)
 src/<module>/           # module sources
-tests/                  # Catch2 tests: unit, integration, golden files
+tests/                  # Catch2 tests: unit, integration, golden files; fuzz targets and seed corpus in tests/fuzz/
 benchmarks/             # datasets, harness, results (docs/performance.md)
 third_party/            # vendored dependencies with licences (§2)
 scripts/                # format, bench, update-deps
@@ -163,3 +164,4 @@ flowchart LR
 - Every bug fix has a regression test (constitution §3).
 - Test behaviour, not implementation details.
 - `core` properties take their rules from product §4 and cite the rule in the test name. ctest runs them as `core-property` with a fixed seed; run `bucu_core_property_tests` with another `RC_PARAMS` (for example `seed=7 max_success=2000`) to explore more inputs.
+- Fuzz targets for the `core` text parsers live in `tests/fuzz/` with seed corpora in `tests/fuzz/corpus/<target>/` ([ADR 0010](adr/0010-libfuzzer-fuzz-targets.md)). They build only with `BUCU_FUZZ`, which the `fuzz` preset sets (LLVM Clang, Linux). ctest replays each corpus as `fuzz-<target>`; `scripts/fuzz.sh [seconds]` fuzzes each target for the time and exits non-zero on a finding.
