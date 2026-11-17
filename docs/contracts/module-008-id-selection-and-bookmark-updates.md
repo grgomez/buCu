@@ -25,7 +25,7 @@
   - The new enums (`IdItemKind`, `TagOperation`, `FlagChange`) use `std::uint8_t`.
 - **Outputs:**
   - `core::IdSelection` (`all`, and `items` sorted by low end, a single ID before a range, no item twice); `core::IdItem`, `IdRange`, `IdError` (the whole argument); `core::covered_ranges` (ascending ranges that neither overlap nor touch; one range from 1 to the largest ID for every bookmark); `core::named_id_count` (distinct IDs named, 0 for every bookmark).
-  - `core::BookmarkChanges` (the checked request: normalized URL, valid texts, parsed tags); `core::apply_changes(Bookmark, const BookmarkChanges&) -> Bookmark`; a defaulted `Bookmark::operator==`.
+  - `core::BookmarkChanges` (the checked request: normalized URL, valid texts, and a `core::CheckedTagChange`, the `TagOperation` with its parsed `TagSet`); `core::apply_changes(Bookmark, const BookmarkChanges&) -> Bookmark`; a defaulted `Bookmark::operator==`.
   - `db::count_bookmarks -> std::expected<std::int64_t, Error>`; `db::for_each_bookmark -> std::expected<void, Error>`: visits the stored bookmarks of the selection, with their tags, in ascending ID order in one read transaction, skips an ID that is not stored, and stops without error when the visitor returns `false`; `db::update_bookmarks -> std::expected<void, Error>`: one `BEGIN IMMEDIATE` transaction, writes only a bookmark whose values change (`updated_at = now`, `created_at` kept), and deletes tags that no bookmark links before the commit.
   - Every new function is `[[nodiscard]]`.
 - **Errors:**
