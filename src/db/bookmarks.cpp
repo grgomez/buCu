@@ -59,6 +59,31 @@ std::expected<void, Error> run(Statement& statement, const Values&... values) {
     return {};
 }
 
+constexpr const char* kSelectTags =
+    "SELECT tag.name FROM bookmark_tag JOIN tag ON tag.id = bookmark_tag.tag_id "
+    "WHERE bookmark_tag.bookmark_id = ?";
+
+// The tags that bookmark `id` links, read with the prepared `statement` (kSelectTags).
+std::expected<core::TagSet, Error> read_tags(Statement& statement, core::BookmarkId id) {
+    if (auto bound = statement.bind(1, id.value()); !bound) {
+        return std::unexpected(std::move(bound.error()));
+    }
+    core::TagSet tags;
+    for (;;) {
+        auto row = statement.step();
+        if (!row) {
+            std::ignore = statement.reset();
+            return std::unexpected(std::move(row.error()));
+        }
+        if (!*row) {
+            break;
+        }
+        tags.insert(statement.column_text(0));
+    }
+    std::ignore = statement.reset();
+    return tags;
+}
+
 }  // namespace
 
 std::expected<core::BookmarkId, Error> insert_bookmark(Database& database,
@@ -119,6 +144,70 @@ std::expected<core::BookmarkId, Error> insert_bookmark(Database& database,
         return std::unexpected(std::move(committed.error()));
     }
     return id;
+}
+
+std::expected<std::int64_t, Error> count_bookmarks(Database& database) {
+    auto statement = Statement::prepare(detail::handle(database), "SELECT count(*) FROM bookmark");
+    if (!statement) {
+        return std::unexpected(std::move(statement.error()));
+    }
+    auto row = statement->step();
+    if (!row) {
+        return std::unexpected(std::move(row.error()));
+    }
+    return statement->column_int(0);
+}
+
+std::expected<void, Error> for_each_bookmark(Database& database, const core::IdSelection& selection,
+                                             const BookmarkVisitor& visit) {
+    sqlite3* const connection = detail::handle(database);
+    // One read transaction, so every record comes from the same snapshot.
+    auto transaction = Transaction::begin(connection);
+    if (!transaction) {
+        return std::unexpected(std::move(transaction.error()));
+    }
+    auto select = Statement::prepare(connection,
+                                     "SELECT id, url, title, description, flags FROM bookmark "
+                                     "WHERE id >= ? AND id <= ? ORDER BY id");
+    if (!select) {
+        return std::unexpected(std::move(select.error()));
+    }
+    auto select_tags = Statement::prepare(connection, kSelectTags);
+    if (!select_tags) {
+        return std::unexpected(std::move(select_tags.error()));
+    }
+    for (const core::IdRange& range : core::covered_ranges(selection)) {
+        if (auto bound = select->bind(1, range.first.value()); !bound) {
+            return std::unexpected(std::move(bound.error()));
+        }
+        if (auto bound = select->bind(2, range.last.value()); !bound) {
+            return std::unexpected(std::move(bound.error()));
+        }
+        for (;;) {
+            auto row = select->step();
+            if (!row) {
+                return std::unexpected(std::move(row.error()));
+            }
+            if (!*row) {
+                break;
+            }
+            const core::BookmarkId id(select->column_int(0));
+            auto tags = read_tags(*select_tags, id);
+            if (!tags) {
+                return std::unexpected(std::move(tags.error()));
+            }
+            const core::Bookmark bookmark{.url = select->column_text(1),
+                                          .title = select->column_text(2),
+                                          .description = select->column_text(3),
+                                          .tags = std::move(*tags),
+                                          .flags = core::FlagSet(select->column_int(4))};
+            if (!visit(id, bookmark)) {
+                return {};
+            }
+        }
+        std::ignore = select->reset();
+    }
+    return {};
 }
 
 }  // namespace bucu::db
