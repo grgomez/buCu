@@ -104,6 +104,12 @@ class SizeTest(unittest.TestCase):
         text = body(tasks=self.wrap("TASKS", self.tasks(13)))
         self.assertTrue(any("tasks" in f for f in sdd_check.check_size(text)))
 
+    def test_indented_task_is_counted(self):
+        for indent in ("  ", "\t"):
+            tasks = "".join(f"{indent}- [ ] T{i:03d} t\n" for i in range(1, 14))
+            text = body(tasks=self.wrap("TASKS", tasks))
+            self.assertTrue(any("tasks" in f for f in sdd_check.check_size(text)), repr(indent))
+
     def test_tier0_counts_scope_bullets_and_task_stories(self):
         scope = "## Scope\n\n" + "".join(f"- item {i}\n" for i in range(13)) + "\n## Out of scope\n"
         text = body(original="Goal.\n\n" + scope, spec="",

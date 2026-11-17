@@ -96,7 +96,7 @@ def check_parts(body, names):
 _LIMITS = (("user stories", 3), ("criteria", 12), ("tasks", 12))
 _STORY = re.compile(r"^#{2,3} US\d+\b", re.M)
 _CRITERION = re.compile(r"^[ \t]*- \[[ xX]\] US\d+-AC\d+:", re.M)
-_TASK = re.compile(r"^- \[[ xX]\] T\d{3}\b", re.M)
+_TASK = re.compile(r"^[ \t]*- \[[ xX]\] T\d{3}\b", re.M)
 _OPEN_MARKER = re.compile(r"\[NEEDS CLARIFICATION:")
 
 
