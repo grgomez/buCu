@@ -105,6 +105,11 @@ std::string duplicate_url_message(std::string_view url, core::BookmarkId id) {
            ". Use 'bucu update " + number + "' to change it.";
 }
 
+std::string invalid_id_message(std::string_view argument) {
+    return "bucu: invalid ID '" + escape_controls(argument) +
+           "': it is not a positive whole number. Run 'bucu --help' for usage.";
+}
+
 std::string open_error_message(std::string_view file, const db::Error& error) {
     std::string line = "bucu: cannot open " + std::string(file) + ": " + sentence(error.message);
     switch (error.code) {

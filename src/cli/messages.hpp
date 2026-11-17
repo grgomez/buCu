@@ -20,6 +20,10 @@ std::string validation_error_message(const core::ValidationError& error);
 // The normalized URL is already stored as bookmark `id`.
 std::string duplicate_url_message(std::string_view url, core::BookmarkId id);
 
+// An ID argument that is not a positive whole number (product section 5, IDs and ranges). The
+// argument is shown with each control character written as an escape.
+std::string invalid_id_message(std::string_view argument);
+
 // A database that cannot be opened: names the file.
 std::string open_error_message(std::string_view file, const db::Error& error);
 

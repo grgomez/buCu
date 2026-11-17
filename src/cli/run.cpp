@@ -40,6 +40,18 @@ Commands:
         --description <text>  Set the description.
         --tag <tags>          Add tags; repeat the option for more.
         --immutable           Keep a later title fetch from replacing the title.
+  update [ids...]
+      Change bookmarks. IDs are numbers, ranges such as 3-7, or comma lists;
+      with no ID, every bookmark changes after confirmation. Give at least
+      one of these:
+        --url <url>           Set the URL (one bookmark only).
+        --title <text>        Set the title; '' clears it.
+        --description <text>  Set the description; '' clears it.
+        --tag <tags>          Replace the tags; repeat the option for more;
+                              '' clears them.
+        --immutable           Keep a later title fetch from replacing the title.
+        --no-immutable        Allow a later title fetch to replace the title.
+        --yes                 Confirm changing every bookmark.
   db path               Print the database location.
   db version            Print the schema version.
   db check              Check the database for damage.
@@ -128,6 +140,23 @@ std::optional<int> parse_and_run(const std::vector<std::string>& args,
     add->add_option("--tag", add_args.tag_options)->allow_extra_args(false);
     add->add_flag("--immutable", add_args.immutable);
 
+    UpdateArgs update_args;
+    CLI::App* update = app.add_subcommand("update");
+    // The command words (add, db, update) stay plain words inside `update`.
+    update->subcommand_fallthrough(false);
+    update->add_option("ids", update_args.ids);
+    CLI::Option* update_url = update->add_option("--url", update_args.url.emplace())->expected(1);
+    CLI::Option* update_title =
+        update->add_option("--title", update_args.title.emplace())->expected(1);
+    CLI::Option* update_description =
+        update->add_option("--description", update_args.description.emplace())->expected(1);
+    std::vector<std::string> update_tags;
+    // One value per use, as in `add`.
+    CLI::Option* update_tag = update->add_option("--tag", update_tags)->allow_extra_args(false);
+    update->add_flag("--immutable", update_args.immutable);
+    update->add_flag("--no-immutable", update_args.no_immutable);
+    update->add_flag("--yes", update_args.yes);
+
     CLI::App* db = app.add_subcommand("db");
     db->require_subcommand(1);
     CLI::App* db_path = db->add_subcommand("path");
@@ -168,6 +197,22 @@ std::optional<int> parse_and_run(const std::vector<std::string>& args,
     add_args.tags.insert(add_args.tags.end(), extra_tags.begin(), extra_tags.end());
     if (add->parsed()) {
         return finish(run_add(add_args, globals, context, out, err), out, err);
+    }
+    if (update->parsed()) {
+        // An option that was not given is no value, even though CLI11 holds an empty string.
+        if (update_url->count() == 0) {
+            update_args.url.reset();
+        }
+        if (update_title->count() == 0) {
+            update_args.title.reset();
+        }
+        if (update_description->count() == 0) {
+            update_args.description.reset();
+        }
+        if (update_tag->count() > 0) {
+            update_args.tags = update_tags;
+        }
+        return finish(run_update(update_args, globals, context, out, err), out, err);
     }
     if (db_path->parsed()) {
         return finish(run_db_path(globals, context, out, err), out, err);

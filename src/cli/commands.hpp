@@ -25,6 +25,19 @@ struct AddArgs {
     bool immutable = false;
 };
 
+// The arguments of `update`, as CLI11 read them. An option that was not given is a std::nullopt,
+// so an empty value is told apart from no value.
+struct UpdateArgs {
+    std::vector<std::string> ids;  // the positional ID arguments; none means every bookmark
+    std::optional<std::string> url;
+    std::optional<std::string> title;
+    std::optional<std::string> description;
+    std::optional<std::vector<std::string>> tags;  // each --tag value, when --tag was given
+    bool immutable = false;
+    bool no_immutable = false;
+    bool yes = false;
+};
+
 // Opens the database this run uses (product section 3), creating it when missing. On failure
 // prints one error line to `err` and returns no value.
 std::optional<db::Database> open_database(const Globals& globals, const Context& context,
@@ -34,6 +47,11 @@ std::optional<db::Database> open_database(const Globals& globals, const Context&
 // NOLINTNEXTLINE(bugprone-easily-swappable-parameters): out and err are distinct streams by design
 int run_add(const AddArgs& args, const Globals& globals, const Context& context, std::ostream& out,
             std::ostream& err);
+
+// Runs `update` and returns the exit code.
+// NOLINTNEXTLINE(bugprone-easily-swappable-parameters): out and err are distinct streams by design
+int run_update(const UpdateArgs& args, const Globals& globals, const Context& context,
+               std::ostream& out, std::ostream& err);
 
 // The `db` subcommands. Each returns the exit code.
 // NOLINTNEXTLINE(bugprone-easily-swappable-parameters): out and err are distinct streams by design
