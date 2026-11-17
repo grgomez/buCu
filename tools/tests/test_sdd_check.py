@@ -259,6 +259,11 @@ class DoneTest(unittest.TestCase):
     def test_unticked_task(self):
         self.assertTrue(any("T001" in f for f in self.failures(done_body(task="- [ ] T001 x"))))
 
+    def test_indented_unticked_task(self):
+        for indent in ("  ", "\t"):
+            text = done_body(task=f"{indent}- [ ] T001 x")
+            self.assertTrue(any("T001" in f for f in self.failures(text)), repr(indent))
+
     def test_checked_criterion_needs_evidence(self):
         text = done_body(criterion="- [x] US1-AC1: x")
         self.assertTrue(any("US1-AC1" in f for f in self.failures(text)))

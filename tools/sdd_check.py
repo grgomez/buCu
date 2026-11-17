@@ -147,7 +147,7 @@ def check_size(body):
 
 _CLOSES = re.compile(r"^\s*Closes #(\d+)\b", re.M | re.I)
 _CHECKBOX = re.compile(r"^\s*- \[([ xX])\] ")
-_UNTICKED_TASK = re.compile(r"^- \[ \] (T\d{3})\b", re.M)
+_UNTICKED_TASK = re.compile(r"^[ \t]*- \[ \] (T\d{3})\b", re.M)
 _LOCATED = re.compile(r": [^:\s][^:]*: \S")
 _DELIVERED = {
     "test": _LOCATED,
