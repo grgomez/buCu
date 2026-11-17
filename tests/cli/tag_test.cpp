@@ -1,3 +1,5 @@
+#include <sqlite3.h>
+
 #include <string>
 #include <vector>
 
@@ -125,4 +127,60 @@ TEST_CASE("--help lists tag", "[cli][tag]") {
     const Result result = fixture.invoke({"--help"});
 
     CHECK(result.out.find("tag [ids...] <operation> [tags...]") != std::string::npos);
+}
+
+namespace {
+
+// Stores bookmarks 1 to 11 with the URLs https://<n>.example/, then deletes 1, 2, 4, 6, 7, and 10,
+// so 3, 5, 8, 9, and 11 are stored.
+void add_with_gaps(const Fixture& fixture) {
+    for (int n = 1; n <= 11; ++n) {
+        REQUIRE(fixture.bucu({"add", "https://" + std::to_string(n) + ".example"}).code == 0);
+    }
+    sqlite3* connection = nullptr;
+    REQUIRE(sqlite3_open(fixture.db_text().c_str(), &connection) == SQLITE_OK);
+    REQUIRE(sqlite3_exec(connection, "DELETE FROM bookmark WHERE id IN (1, 2, 4, 6, 7, 10)",
+                         nullptr, nullptr, nullptr) == SQLITE_OK);
+    REQUIRE(sqlite3_close(connection) == SQLITE_OK);
+}
+
+}  // namespace
+
+TEST_CASE("tag changes a list and a range, and prints the records in ascending ID order",
+          "[cli][tag]") {
+    const Fixture fixture;
+    add_with_gaps(fixture);
+
+    const Result result = fixture.bucu({"tag", "3,5", "11-8", "add", "x"});
+
+    CHECK(result.code == 0);
+    CHECK(result.err.empty());
+    CHECK(result.out ==
+          "3\n   url:   https://3.example/\n   tags:  x\n"
+          "\n"
+          "5\n   url:   https://5.example/\n   tags:  x\n"
+          "\n"
+          "8\n   url:   https://8.example/\n   tags:  x\n"
+          "\n"
+          "9\n   url:   https://9.example/\n   tags:  x\n"
+          "\n"
+          "11\n   url:   https://11.example/\n   tags:  x\n");
+    CHECK(fixture.rows("SELECT bookmark_id FROM bookmark_tag ORDER BY bookmark_id") ==
+          Rows{{"3"}, {"5"}, {"8"}, {"9"}, {"11"}});
+}
+
+TEST_CASE("tag with a missing ID, or a range with no stored ID, exits 5 and changes nothing",
+          "[cli][tag]") {
+    const Fixture fixture;
+    add_with_gaps(fixture);
+
+    const Result missing = fixture.bucu({"tag", "3,4", "add", "x"});
+    const Result range = fixture.bucu({"tag", "20-30", "replace", "x"});
+
+    CHECK(missing.code == 5);
+    CHECK(missing.out.empty());
+    CHECK(missing.err == "bucu: no bookmark has ID 4. Run 'bucu list' to see IDs.\n");
+    CHECK(range.code == 5);
+    CHECK(range.err == "bucu: no bookmark has an ID in 20-30. Run 'bucu list' to see IDs.\n");
+    CHECK(fixture.tags().empty());
 }
