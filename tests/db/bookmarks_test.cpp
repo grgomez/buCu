@@ -66,7 +66,8 @@ private:
 
 bucu::core::Bookmark make(const char* url, const char* tags = "", const char* title = "",
                           const char* description = "") {
-    auto bookmark = bucu::core::make_bookmark(url, title, description, tags);
+    auto bookmark = bucu::core::make_bookmark(
+        {.url = url, .title = title, .description = description, .tags = tags});
     REQUIRE(bookmark.has_value());
     return std::move(*bookmark);
 }

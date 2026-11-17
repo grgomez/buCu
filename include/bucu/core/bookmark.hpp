@@ -58,12 +58,23 @@ bool has_flag(FlagSet flags, Flag flag);
 FlagSet set_flag(FlagSet flags, Flag flag);
 FlagSet clear_flag(FlagSet flags, Flag flag);
 
+// The text inputs of make_bookmark, named at each call so that none can be swapped
+// (Core Guidelines I.4). `url`, `title`, and `description` are required: a designated initializer
+// that leaves one out does not build under -Wextra -Werror. `tags` is optional; leaving it out
+// means no tags. The views are read during the call only.
+struct BookmarkFields {
+    std::string_view url;
+    std::string_view title;
+    std::string_view description;
+    // The initializer is what makes `tags` optional in a designated initializer: without it, a
+    // call that leaves `tags` out fails to build.
+    std::string_view tags = {};  // NOLINT(readability-redundant-member-init)
+};
+
 // A new bookmark with no flag set. The URL is validated and normalized (product section 4); the
-// title and description must be valid UTF-8 and are stored as given. `tags` is the raw tag text,
-// parsed with parse_tags, so a Bookmark holds only valid tags. The first broken rule is returned,
-// checked in the order URL, title, description, tags.
-std::expected<Bookmark, ValidationError> make_bookmark(std::string_view url, std::string_view title,
-                                                       std::string_view description,
-                                                       std::string_view tags = {});
+// title and description must be valid UTF-8 and are stored as given. `fields.tags` is the raw tag
+// text, parsed with parse_tags, so a Bookmark holds only valid tags. The first broken rule is
+// returned, checked in the order URL, title, description, tags.
+std::expected<Bookmark, ValidationError> make_bookmark(const BookmarkFields& fields);
 
 }  // namespace bucu::core
