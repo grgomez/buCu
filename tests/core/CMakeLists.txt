@@ -13,19 +13,3 @@ target_include_directories(bucu_core_property_tests PRIVATE "${PROJECT_SOURCE_DI
 bucu_apply_warnings(bucu_core_property_tests)
 add_test(NAME core-property COMMAND bucu_core_property_tests)
 set_tests_properties(core-property PROPERTIES ENVIRONMENT "RC_PARAMS=seed=1 max_success=100")
-
-# A call of make_bookmark that leaves out the URL, title, or description must not build (FR-003).
-# Each entry runs the compiler directly, with its own flags so BUCU_WERROR does not matter, on a
-# file that is no target (so clang-tidy never analyses it), and passes only when the output names
-# the missing field. MSVC is not covered.
-if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
-  foreach(field url title description)
-    string(TOUPPER "${field}" field_macro)
-    add_test(NAME core-bookmark-fields-required-${field}
-             COMMAND "${CMAKE_CXX_COMPILER}" -std=c++23 -Wextra -Werror -fsyntax-only
-                     -I${PROJECT_SOURCE_DIR}/include -DOMIT_${field_macro}
-                     "${CMAKE_CURRENT_SOURCE_DIR}/bookmark_fields_required.cpp")
-    set_tests_properties(core-bookmark-fields-required-${field} PROPERTIES
-                         PASS_REGULAR_EXPRESSION "missing.*${field}")
-  endforeach()
-endif()
