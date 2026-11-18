@@ -58,12 +58,31 @@ bool has_flag(FlagSet flags, Flag flag);
 FlagSet set_flag(FlagSet flags, Flag flag);
 FlagSet clear_flag(FlagSet flags, Flag flag);
 
+// A required piece of text. Leaving one out of a designated initializer is ill-formed on every
+// compiler, because it has no default constructor; the constructor is explicit so a plain view does
+// not convert on its own.
+struct RequiredText {
+    explicit RequiredText(std::string_view text) : value(text) {}
+    std::string_view value;
+};
+
+// The text inputs of make_bookmark, named at each call so that none can be swapped
+// (Core Guidelines I.4). `url`, `title`, and `description` are required: a designated initializer
+// that leaves one out does not build. `tags` is optional; leaving it out
+// means no tags. The views are read during the call only.
+struct BookmarkFields {
+    RequiredText url;
+    RequiredText title;
+    RequiredText description;
+    // The initializer is what makes `tags` optional in a designated initializer: without it, a
+    // call that leaves `tags` out fails to build.
+    std::string_view tags = {};  // NOLINT(readability-redundant-member-init)
+};
+
 // A new bookmark with no flag set. The URL is validated and normalized (product section 4); the
-// title and description must be valid UTF-8 and are stored as given. `tags` is the raw tag text,
-// parsed with parse_tags, so a Bookmark holds only valid tags. The first broken rule is returned,
-// checked in the order URL, title, description, tags.
-std::expected<Bookmark, ValidationError> make_bookmark(std::string_view url, std::string_view title,
-                                                       std::string_view description,
-                                                       std::string_view tags = {});
+// title and description must be valid UTF-8 and are stored as given. `fields.tags` is the raw tag
+// text, parsed with parse_tags, so a Bookmark holds only valid tags. The first broken rule is
+// returned, checked in the order URL, title, description, tags.
+std::expected<Bookmark, ValidationError> make_bookmark(const BookmarkFields& fields);
 
 }  // namespace bucu::core

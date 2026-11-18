@@ -69,16 +69,43 @@ TEST_CASE("Changing the flag keeps the bits BuCu does not know", "[core][bookmar
 
 namespace {
 
+using bucu::core::BookmarkFields;
 using bucu::core::Field;
 using bucu::core::make_bookmark;
 using bucu::core::Reason;
+using bucu::core::RequiredText;
 using bucu::core::TagSet;
+
+// Issue #60: each concept asks whether a designated initializer with the named fields is valid for
+// the fields type. A required field that is left out is ill-formed on every compiler.
+template <typename Fields>
+concept FromAllRequired = requires {
+    Fields{.url = RequiredText{"u"}, .title = RequiredText{"t"}, .description = RequiredText{"d"}};
+};
+template <typename Fields>
+concept FromAllRequiredAndTags = requires {
+    Fields{.url = RequiredText{"u"},
+           .title = RequiredText{"t"},
+           .description = RequiredText{"d"},
+           .tags = "a"};
+};
+template <typename Fields>
+concept FromNoUrl =
+    requires { Fields{.title = RequiredText{"t"}, .description = RequiredText{"d"}}; };
+template <typename Fields>
+concept FromNoTitle =
+    requires { Fields{.url = RequiredText{"u"}, .description = RequiredText{"d"}}; };
+template <typename Fields>
+concept FromNoDescription =
+    requires { Fields{.url = RequiredText{"u"}, .title = RequiredText{"t"}}; };
 
 }  // namespace
 
 TEST_CASE("make_bookmark normalizes the URL and keeps the text as given", "[core][bookmark]") {
-    const auto result =
-        make_bookmark("HTTPS://Example.ORG:443", " A Title\n", "line 1\nline 2\n", " B, a,,A");
+    const auto result = make_bookmark({.url = RequiredText{"HTTPS://Example.ORG:443"},
+                                       .title = RequiredText{" A Title\n"},
+                                       .description = RequiredText{"line 1\nline 2\n"},
+                                       .tags = " B, a,,A"});
     REQUIRE(result.has_value());
     CHECK(result->url == "https://example.org/");
     CHECK(result->title == " A Title\n");
@@ -88,7 +115,9 @@ TEST_CASE("make_bookmark normalizes the URL and keeps the text as given", "[core
 }
 
 TEST_CASE("make_bookmark accepts an empty title and description", "[core][bookmark]") {
-    const auto result = make_bookmark("about:blank", "", "");
+    const auto result = make_bookmark({.url = RequiredText{"about:blank"},
+                                       .title = RequiredText{""},
+                                       .description = RequiredText{""}});
     REQUIRE(result.has_value());
     CHECK(result->title.empty());
     CHECK(result->description.empty());
@@ -98,64 +127,145 @@ TEST_CASE("make_bookmark accepts an empty title and description", "[core][bookma
 TEST_CASE("make_bookmark accepts any valid UTF-8 text without a length limit", "[core][bookmark]") {
     const std::string long_text(100000, 'x');
     const std::string text = "\xC3\xB1\xE2\x82\xAC\xF0\x9F\x98\x80\t\x01";
-    const auto result = make_bookmark("about:blank", text, long_text);
+    const auto result = make_bookmark({.url = RequiredText{"about:blank"},
+                                       .title = RequiredText{text},
+                                       .description = RequiredText{long_text}});
     REQUIRE(result.has_value());
     CHECK(result->title == text);
     CHECK(result->description == long_text);
 }
 
 TEST_CASE("make_bookmark refuses invalid UTF-8 and names the field", "[core][bookmark]") {
-    const auto title = make_bookmark("about:blank", "bad\xC3", "ok");
+    const auto title = make_bookmark({.url = RequiredText{"about:blank"},
+                                      .title = RequiredText{"bad\xC3"},
+                                      .description = RequiredText{"ok"}});
     REQUIRE_FALSE(title.has_value());
     CHECK(title.error().field == Field::kTitle);
     CHECK(title.error().reason == Reason::kInvalidUtf8);
     CHECK(title.error().value == "bad\xC3");
 
-    const auto description = make_bookmark("about:blank", "ok", "\xFF");
+    const auto description = make_bookmark({.url = RequiredText{"about:blank"},
+                                            .title = RequiredText{"ok"},
+                                            .description = RequiredText{"\xFF"}});
     REQUIRE_FALSE(description.has_value());
     CHECK(description.error().field == Field::kDescription);
     CHECK(description.error().reason == Reason::kInvalidUtf8);
 }
 
 TEST_CASE("make_bookmark refuses an invalid URL and names the field", "[core][bookmark]") {
-    const auto result = make_bookmark("example.org", "t", "d");
+    const auto result = make_bookmark({.url = RequiredText{"example.org"},
+                                       .title = RequiredText{"t"},
+                                       .description = RequiredText{"d"}});
     REQUIRE_FALSE(result.has_value());
     CHECK(result.error().field == Field::kUrl);
     CHECK(result.error().reason == Reason::kNoScheme);
 }
 
 TEST_CASE("make_bookmark reports the URL before the title and description", "[core][bookmark]") {
-    const auto result = make_bookmark("", "\xFF", "\xFF");
+    const auto result = make_bookmark({.url = RequiredText{""},
+                                       .title = RequiredText{"\xFF"},
+                                       .description = RequiredText{"\xFF"}});
     REQUIRE_FALSE(result.has_value());
     CHECK(result.error().field == Field::kUrl);
 }
 
 TEST_CASE("make_bookmark parses the raw tag text", "[core][bookmark]") {
-    const auto result = make_bookmark("about:blank", "t", "d", "Linux, cli   tools,,LINUX");
+    const auto result = make_bookmark({.url = RequiredText{"about:blank"},
+                                       .title = RequiredText{"t"},
+                                       .description = RequiredText{"d"},
+                                       .tags = "Linux, cli   tools,,LINUX"});
     REQUIRE(result.has_value());
     CHECK(result->tags == TagSet{"cli tools", "linux"});
 }
 
 TEST_CASE("make_bookmark returns the tag error", "[core][bookmark]") {
-    const auto control = make_bookmark("about:blank", "t", "d",
-                                       "ok,a\x01"
-                                       "b");
+    const auto control = make_bookmark({.url = RequiredText{"about:blank"},
+                                        .title = RequiredText{"t"},
+                                        .description = RequiredText{"d"},
+                                        .tags = "ok,a\x01"
+                                                "b"});
     REQUIRE_FALSE(control.has_value());
     CHECK(control.error().field == Field::kTag);
     CHECK(control.error().reason == Reason::kControlCharacter);
 
-    const auto too_long = make_bookmark("about:blank", "t", "d", std::string(129, 'a'));
+    const auto too_long = make_bookmark({.url = RequiredText{"about:blank"},
+                                         .title = RequiredText{"t"},
+                                         .description = RequiredText{"d"},
+                                         .tags = std::string(129, 'a')});
     REQUIRE_FALSE(too_long.has_value());
     CHECK(too_long.error().field == Field::kTag);
     CHECK(too_long.error().reason == Reason::kTooLong);
 
-    const auto bad_utf8 = make_bookmark("about:blank", "t", "d", "\xFF");
+    const auto bad_utf8 = make_bookmark({.url = RequiredText{"about:blank"},
+                                         .title = RequiredText{"t"},
+                                         .description = RequiredText{"d"},
+                                         .tags = "\xFF"});
     REQUIRE_FALSE(bad_utf8.has_value());
     CHECK(bad_utf8.error().reason == Reason::kInvalidUtf8);
 }
 
 TEST_CASE("make_bookmark reports the title and description before the tags", "[core][bookmark]") {
-    const auto result = make_bookmark("about:blank", "\xFF", "d", "\xFF");
+    const auto result = make_bookmark({.url = RequiredText{"about:blank"},
+                                       .title = RequiredText{"\xFF"},
+                                       .description = RequiredText{"d"},
+                                       .tags = "\xFF"});
     REQUIRE_FALSE(result.has_value());
     CHECK(result.error().field == Field::kTitle);
+}
+
+TEST_CASE("make_bookmark gives each named value to the field of the same name",
+          "[core][bookmark]") {
+    const auto result = make_bookmark({.url = RequiredText{"https://one.example/"},
+                                       .title = RequiredText{"two"},
+                                       .description = RequiredText{"three"},
+                                       .tags = "four"});
+    REQUIRE(result.has_value());
+    CHECK(result->url == "https://one.example/");
+    CHECK(result->title == "two");
+    CHECK(result->description == "three");
+    CHECK(result->tags == TagSet{"four"});
+}
+
+TEST_CASE("make_bookmark gives no tags when the tag text is left out or named empty",
+          "[core][bookmark]") {
+    const auto left_out = make_bookmark({.url = RequiredText{"about:blank"},
+                                         .title = RequiredText{"t"},
+                                         .description = RequiredText{"d"}});
+    REQUIRE(left_out.has_value());
+    CHECK(left_out->tags.empty());
+
+    const auto empty = make_bookmark({.url = RequiredText{"about:blank"},
+                                      .title = RequiredText{"t"},
+                                      .description = RequiredText{"d"},
+                                      .tags = ""});
+    REQUIRE(empty.has_value());
+    CHECK(empty->tags.empty());
+}
+
+TEST_CASE("make_bookmark reports the title before the description", "[core][bookmark]") {
+    const auto result = make_bookmark({.url = RequiredText{"about:blank"},
+                                       .title = RequiredText{"\xFF"},
+                                       .description = RequiredText{"\xFF"}});
+    REQUIRE_FALSE(result.has_value());
+    CHECK(result.error().field == Field::kTitle);
+}
+
+TEST_CASE("make_bookmark reports the description before the tags", "[core][bookmark]") {
+    const auto result = make_bookmark({.url = RequiredText{"about:blank"},
+                                       .title = RequiredText{"t"},
+                                       .description = RequiredText{"\xFF"},
+                                       .tags = "\xFF"});
+    REQUIRE_FALSE(result.has_value());
+    CHECK(result.error().field == Field::kDescription);
+}
+
+TEST_CASE("BookmarkFields cannot be built without the URL, title, or description",
+          "[core][bookmark]") {
+    // Positive controls: a concept that is always false would pass the negative checks. The proof
+    // is compile-time: this binary does not build when one of these fails.
+    static_assert(FromAllRequired<BookmarkFields>);
+    static_assert(FromAllRequiredAndTags<BookmarkFields>);
+    static_assert(!FromNoUrl<BookmarkFields>);
+    static_assert(!FromNoTitle<BookmarkFields>);
+    static_assert(!FromNoDescription<BookmarkFields>);
 }

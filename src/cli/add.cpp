@@ -34,7 +34,10 @@ std::string tag_text(const AddArgs& args) {
 
 int run_add(const AddArgs& args, const Globals& globals, const Context& context, std::ostream& out,
             std::ostream& err) {
-    auto bookmark = core::make_bookmark(args.url, args.title, args.description, tag_text(args));
+    auto bookmark = core::make_bookmark({.url = core::RequiredText{args.url},
+                                         .title = core::RequiredText{args.title},
+                                         .description = core::RequiredText{args.description},
+                                         .tags = tag_text(args)});
     if (!bookmark) {
         err << validation_error_message(bookmark.error()) << '\n';
         return kExitInvalid;

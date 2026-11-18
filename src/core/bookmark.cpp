@@ -30,11 +30,11 @@ FlagSet clear_flag(FlagSet flags, Flag flag) {
         static_cast<std::int64_t>(unsigned_bits(flags.bits()) & ~unsigned_bits(flag.bits())));
 }
 
-// A parameter struct for the four text parameters is the make_bookmark issue (#60).
-// NOLINTBEGIN(bugprone-easily-swappable-parameters)
-std::expected<Bookmark, ValidationError> make_bookmark(std::string_view url, std::string_view title,
-                                                       std::string_view description,
-                                                       std::string_view tags) {
+std::expected<Bookmark, ValidationError> make_bookmark(const BookmarkFields& fields) {
+    const std::string_view url = fields.url.value;
+    const std::string_view title = fields.title.value;
+    const std::string_view description = fields.description.value;
+    const std::string_view tags = fields.tags;
     auto normalized = normalize_url(url);
     if (!normalized) {
         return std::unexpected(std::move(normalized.error()));
@@ -58,6 +58,5 @@ std::expected<Bookmark, ValidationError> make_bookmark(std::string_view url, std
                     .tags = std::move(*parsed_tags),
                     .flags = FlagSet()};
 }
-// NOLINTEND(bugprone-easily-swappable-parameters)
 
 }  // namespace bucu::core
