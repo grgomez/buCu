@@ -49,6 +49,8 @@ struct Bookmark {
     std::string description;
     TagSet tags;
     FlagSet flags;
+
+    friend bool operator==(const Bookmark&, const Bookmark&) = default;
 };
 
 // Whether every bit of `flag` is set in `flags`.

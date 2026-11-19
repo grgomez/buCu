@@ -4,5 +4,5 @@ add_library(bucu_db STATIC bookmarks.cpp database.cpp maintenance.cpp statement.
 target_include_directories(bucu_db
     PUBLIC "${PROJECT_SOURCE_DIR}/include"
     PRIVATE "${PROJECT_SOURCE_DIR}/src")
-target_link_libraries(bucu_db PRIVATE bucu::sqlite)
+target_link_libraries(bucu_db PUBLIC bucu_core PRIVATE bucu::sqlite)
 bucu_apply_warnings(bucu_db)

@@ -8,61 +8,16 @@
 #include <vector>
 
 #include "catch_amalgamated.hpp"
+#include "cli/fixture.hpp"
 #include "cli/run.hpp"
 #include "platform/fake_environment.hpp"
 #include "support/sqlite_read.hpp"
 #include "support/temp_dir.hpp"
 
 namespace {
-
-using Rows = std::vector<std::vector<std::string>>;
-
-struct Result {
-    int code;
-    std::string out;
-    std::string err;
-};
-
-constexpr std::chrono::sys_seconds kNow{std::chrono::seconds{1700000000}};
-
-// A database file in a fresh directory, and `bucu` runs against it with a fixed clock.
-struct Fixture {
-    bucu::test::TempDir dir;
-    bucu::platform::test::FakeEnvironment environment;
-    std::filesystem::path db = dir.path() / "bookmarks.db";
-
-    // `bucu --db <db> <args>`
-    [[nodiscard]] Result bucu(std::vector<std::string> args) const {
-        args.insert(args.begin(), {"--db", bucu::test::utf8_path(db)});
-        return invoke(args);
-    }
-
-    // `bucu <args>`, with no --db added.
-    [[nodiscard]] Result invoke(const std::vector<std::string>& args) const {
-        const bucu::cli::Context context{
-            .os = bucu::platform::Os::kLinuxOrBsd, .environment = environment, .now = kNow};
-        std::ostringstream out;
-        std::ostringstream err;
-        const int code = bucu::cli::run(args, out, err, context);
-        return {.code = code, .out = out.str(), .err = err.str()};
-    }
-
-    Rows rows(const char* sql) const { return bucu::test::read_rows(db, sql); }
-
-    [[nodiscard]] Rows bookmarks() const {
-        return rows(
-            "SELECT id, url, title, description, flags, created_at, updated_at "
-            "FROM bookmark ORDER BY id");
-    }
-
-    [[nodiscard]] std::string tags() const {
-        std::string joined;
-        for (const auto& row : rows("SELECT name FROM tag ORDER BY name")) {
-            joined += (joined.empty() ? "" : ",") + row[0];
-        }
-        return joined;
-    }
-};
+using bucu::test::cli::Fixture;
+using bucu::test::cli::Result;
+using bucu::test::cli::Rows;
 
 }  // namespace
 
@@ -347,4 +302,26 @@ TEST_CASE("a control character in the echoed value is escaped, so the error is o
     const Result line_break = fixture.bucu({"add", "https://a\nb.example"});
     CHECK(line_break.code == 3);
     CHECK(line_break.err == "bucu: invalid URL 'https://a\\nb.example': it contains whitespace.\n");
+}
+
+TEST_CASE("command words after the URL are tags, not commands", "[cli][add]") {
+    for (const std::vector<std::string>& words :
+         {std::vector<std::string>{"db"}, {"tag", "update"}, {"add"}, {"update", "db", "path"}}) {
+        CAPTURE(words);
+        const Fixture fixture;
+        std::vector<std::string> args = {"add", "https://example.org"};
+        args.insert(args.end(), words.begin(), words.end());
+        std::string joined;
+        for (const std::string& word : words) {
+            joined += (joined.empty() ? "" : " ") + word;
+        }
+
+        const Result result = fixture.bucu(args);
+
+        CHECK(result.code == 0);
+        CHECK(result.err.empty());
+        CHECK(result.out.find("   tags:  " + joined + "\n") != std::string::npos);
+        CHECK(fixture.tags() == joined);
+        CHECK(fixture.bookmarks().size() == 1);
+    }
 }

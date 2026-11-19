@@ -93,19 +93,22 @@ std::expected<void, Error> backup(Database& database, const std::filesystem::pat
     if (std::filesystem::exists(destination, status)) {
         return std::unexpected(Error{.code = ErrorCode::kDestinationExists,
                                      .message = "the file already exists",
-                                     .bookmark_id = std::nullopt});
+                                     .bookmark_id = std::nullopt,
+                                     .range = std::nullopt});
     }
     if (status) {
         return std::unexpected(Error{.code = ErrorCode::kCannotOpen,
                                      .message = status.message(),
-                                     .bookmark_id = std::nullopt});
+                                     .bookmark_id = std::nullopt,
+                                     .range = std::nullopt});
     }
     const std::filesystem::path parent = destination.parent_path();
     if (!parent.empty() && !std::filesystem::is_directory(parent, status)) {
         return std::unexpected(
             Error{.code = ErrorCode::kCannotOpen,
                   .message = "the directory " + utf8_text(parent) + " does not exist",
-                  .bookmark_id = std::nullopt});
+                  .bookmark_id = std::nullopt,
+                  .range = std::nullopt});
     }
 
     const std::string name = utf8_text(destination);
@@ -117,8 +120,10 @@ std::expected<void, Error> backup(Database& database, const std::filesystem::pat
     const auto fail = [&](ErrorCode code, std::string message) {
         target.reset();
         remove_partial_copy(destination);
-        return std::unexpected(
-            Error{.code = code, .message = std::move(message), .bookmark_id = std::nullopt});
+        return std::unexpected(Error{.code = code,
+                                     .message = std::move(message),
+                                     .bookmark_id = std::nullopt,
+                                     .range = std::nullopt});
     };
     if (opened != SQLITE_OK) {
         return fail(ErrorCode::kCannotOpen, message_of(raw, opened));

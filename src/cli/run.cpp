@@ -40,6 +40,24 @@ Commands:
         --description <text>  Set the description.
         --tag <tags>          Add tags; repeat the option for more.
         --immutable           Keep a later title fetch from replacing the title.
+  tag [ids...] <operation> [tags...]
+      Change tags. The operation is add, remove, or replace; replace with no
+      tags removes them all. IDs are numbers, ranges such as 3-7, or comma
+      lists; with no ID, every bookmark changes after confirmation. A tag that
+      starts with - goes after --.
+        --yes                 Confirm changing every bookmark.
+  update [ids...]
+      Change bookmarks. IDs are numbers, ranges such as 3-7, or comma lists;
+      with no ID, every bookmark changes after confirmation. Give at least
+      one of these:
+        --url <url>           Set the URL (one bookmark only).
+        --title <text>        Set the title; '' clears it.
+        --description <text>  Set the description; '' clears it.
+        --tag <tags>          Replace the tags; repeat the option for more;
+                              '' clears them.
+        --immutable           Keep a later title fetch from replacing the title.
+        --no-immutable        Allow a later title fetch to replace the title.
+        --yes                 Confirm changing every bookmark.
   db path               Print the database location.
   db version            Print the schema version.
   db check              Check the database for damage.
@@ -51,6 +69,7 @@ Exit codes:
   2  a usage error
   3  a validation error: a value broke a bookmark rule
   4  a conflict: the URL is already bookmarked
+  5  not found: no stored bookmark matches the IDs given
 )";
 
 // Replaces CLI11's generated help with the fixed text above.
@@ -98,8 +117,9 @@ std::optional<db::Database> open_database(const Globals& globals, const Context&
 
 namespace {
 
-// Parses and runs `args`; `extra_tags` are more positional tags for `add`. A probe is silent: when
-// its parse fails or the command is not `add`, it returns no value and nothing has run.
+// Parses and runs `args`; `extra_tags` are more positional tags for `add` and `tag`. A probe is
+// silent: when its parse fails or the command is neither `add` nor `tag`, it returns no value and
+// nothing has run.
 // NOLINTNEXTLINE(bugprone-easily-swappable-parameters): out and err are distinct streams by design
 std::optional<int> parse_and_run(const std::vector<std::string>& args,
                                  const std::vector<std::string>& extra_tags, bool probe,
@@ -119,7 +139,10 @@ std::optional<int> parse_and_run(const std::vector<std::string>& args,
     app.add_flag("--offline", offline);
 
     AddArgs add_args;
+    // No subcommand has fallthrough: the command words (add, db, tag, update) stay plain words
+    // inside every command, so `add <url> db` stores the tag db instead of starting `db`.
     CLI::App* add = app.add_subcommand("add");
+    add->subcommand_fallthrough(false);
     add->add_option("url", add_args.url)->required();
     add->add_option("tags", add_args.tags);
     add->add_option("--title", add_args.title)->expected(1);
@@ -128,7 +151,31 @@ std::optional<int> parse_and_run(const std::vector<std::string>& args,
     add->add_option("--tag", add_args.tag_options)->allow_extra_args(false);
     add->add_flag("--immutable", add_args.immutable);
 
+    UpdateArgs update_args;
+    CLI::App* update = app.add_subcommand("update");
+    update->subcommand_fallthrough(false);
+    update->add_option("ids", update_args.ids);
+    CLI::Option* update_url = update->add_option("--url", update_args.url.emplace())->expected(1);
+    CLI::Option* update_title =
+        update->add_option("--title", update_args.title.emplace())->expected(1);
+    CLI::Option* update_description =
+        update->add_option("--description", update_args.description.emplace())->expected(1);
+    std::vector<std::string> update_tags;
+    // One value per use, as in `add`.
+    CLI::Option* update_tag = update->add_option("--tag", update_tags)->allow_extra_args(false);
+    update->add_flag("--immutable", update_args.immutable);
+    update->add_flag("--no-immutable", update_args.no_immutable);
+    update->add_flag("--yes", update_args.yes);
+
+    TagArgs tag_args;
+    CLI::App* tag = app.add_subcommand("tag");
+    tag->subcommand_fallthrough(false);
+    // The IDs, the operation word, and the tags are one word list; run_tag tells them apart.
+    tag->add_option("words", tag_args.words);
+    tag->add_flag("--yes", tag_args.yes);
+
     CLI::App* db = app.add_subcommand("db");
+    db->subcommand_fallthrough(false);
     db->require_subcommand(1);
     CLI::App* db_path = db->add_subcommand("path");
     CLI::App* db_version = db->add_subcommand("version");
@@ -136,6 +183,9 @@ std::optional<int> parse_and_run(const std::vector<std::string>& args,
     std::string backup_file;
     CLI::App* db_backup = db->add_subcommand("backup");
     db_backup->add_option("file", backup_file)->required();
+    for (CLI::App* child : {db_path, db_version, db_check, db_backup}) {
+        child->subcommand_fallthrough(false);
+    }
 
     // CLI11 reads the arguments from the back of the vector.
     std::vector<std::string> reversed(args.rbegin(), args.rend());
@@ -162,12 +212,32 @@ std::optional<int> parse_and_run(const std::vector<std::string>& args,
         err << "bucu: " << what << ". Run 'bucu --help' for usage.\n";
         return kExitUsage;
     }
-    if (probe && !add->parsed()) {
+    if (probe && !add->parsed() && !tag->parsed()) {
         return std::nullopt;
     }
     add_args.tags.insert(add_args.tags.end(), extra_tags.begin(), extra_tags.end());
+    tag_args.words.insert(tag_args.words.end(), extra_tags.begin(), extra_tags.end());
     if (add->parsed()) {
         return finish(run_add(add_args, globals, context, out, err), out, err);
+    }
+    if (tag->parsed()) {
+        return finish(run_tag(tag_args, globals, context, out, err), out, err);
+    }
+    if (update->parsed()) {
+        // An option that was not given is no value, even though CLI11 holds an empty string.
+        if (update_url->count() == 0) {
+            update_args.url.reset();
+        }
+        if (update_title->count() == 0) {
+            update_args.title.reset();
+        }
+        if (update_description->count() == 0) {
+            update_args.description.reset();
+        }
+        if (update_tag->count() > 0) {
+            update_args.tags = update_tags;
+        }
+        return finish(run_update(update_args, globals, context, out, err), out, err);
     }
     if (db_path->parsed()) {
         return finish(run_db_path(globals, context, out, err), out, err);
@@ -197,10 +267,10 @@ int run(const std::vector<std::string>& args, std::ostream& out, std::ostream& e
         return kExitUsage;
     }
 
-    // CLI11 ends `add` at "--" once a positional word was read, which would lose a tag such as -x
-    // in `add <url> web -- -x` (product section 5). So when `add` parses without the words after
-    // "--", those words are appended to its tags. Any other command, and any failure, is parsed
-    // whole.
+    // CLI11 ends `add` and `tag` at "--" once a positional word was read, which would lose a tag
+    // such as -x in `add <url> web -- -x` (product section 5). So when one of them parses without
+    // the words after "--", those words are appended to its tags. Any other command, and any
+    // failure, is parsed whole.
     const auto marker = std::ranges::find(args, "--");
     if (marker != args.end()) {
         const std::vector<std::string> head(args.begin(), marker);

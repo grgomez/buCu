@@ -2,12 +2,14 @@
 
 #include <chrono>
 #include <functional>
-#include <iosfwd>
+#include <istream>
+#include <ostream>
 #include <string>
 #include <vector>
 
 #include "bucu/platform/environment.hpp"
 #include "bucu/platform/paths.hpp"
+#include "bucu/platform/terminal.hpp"
 
 namespace bucu::cli {
 
@@ -17,6 +19,8 @@ struct Context {
     platform::Os os = platform::Os::kLinuxOrBsd;
     std::reference_wrapper<const platform::Environment> environment;
     std::chrono::sys_seconds now;
+    std::reference_wrapper<std::istream> input;  // standard input
+    platform::StandardStreams terminals;         // whether standard input and output are terminals
 };
 
 // Runs bucu with the command-line arguments (without the program name), writes normal output to

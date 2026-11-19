@@ -20,6 +20,21 @@ std::string validation_error_message(const core::ValidationError& error);
 // The normalized URL is already stored as bookmark `id`.
 std::string duplicate_url_message(std::string_view url, core::BookmarkId id);
 
+// An ID argument that is not a positive whole number (product section 5, IDs and ranges). The
+// argument is shown with each control character written as an escape.
+std::string invalid_id_message(std::string_view argument);
+
+// A usage error: `bucu: <what failed>. Run 'bucu --help' for usage.` `what` has no final period.
+std::string usage_error_message(std::string_view what);
+
+// A usage error: `word` is neither an ID nor a tag operation. The word is shown with each control
+// character written as an escape.
+std::string not_an_operation_message(std::string_view word);
+
+// No stored bookmark matches the IDs given: names the missing ID or the range with no stored ID,
+// or says there are no bookmarks when `error` names neither (product section 6).
+std::string not_found_message(const db::Error& error);
+
 // A database that cannot be opened: names the file.
 std::string open_error_message(std::string_view file, const db::Error& error);
 

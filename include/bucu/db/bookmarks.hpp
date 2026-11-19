@@ -1,10 +1,14 @@
 #pragma once
 
 #include <chrono>
+#include <cstdint>
 #include <expected>
+#include <functional>
 
 #include "bucu/core/bookmark.hpp"
 #include "bucu/core/bookmark_id.hpp"
+#include "bucu/core/changes.hpp"
+#include "bucu/core/id_selection.hpp"
 #include "bucu/db/database.hpp"
 #include "bucu/db/error.hpp"
 
@@ -17,5 +21,30 @@ namespace bucu::db {
 std::expected<core::BookmarkId, Error> insert_bookmark(Database& database,
                                                        const core::Bookmark& bookmark,
                                                        std::chrono::sys_seconds now);
+
+// How many bookmarks are stored.
+[[nodiscard]] std::expected<std::int64_t, Error> count_bookmarks(Database& database);
+
+// Receives each stored bookmark with its ID. Returning `false` stops the walk.
+using BookmarkVisitor = std::function<bool(core::BookmarkId, const core::Bookmark&)>;
+
+// Calls `visit` for each stored bookmark that `selection` covers, with its tags, in ascending ID
+// order, in one read transaction. An ID that is not stored is skipped. Nothing is buffered, so a
+// range such as 1-9999999999 costs one record at a time.
+[[nodiscard]] std::expected<void, Error> for_each_bookmark(Database& database,
+                                                           const core::IdSelection& selection,
+                                                           const BookmarkVisitor& visit);
+
+// Applies `changes` to each bookmark that `selection` covers, in one transaction (all or nothing).
+// Fails with `kNotFound` when a single ID is not stored, a range holds no stored ID, or, for every
+// bookmark, none is stored; the first such item in ascending order of its low end is named. That
+// check comes before the URL check: `kDuplicateUrl` when another bookmark holds `changes.url`
+// (a bookmark that already has the URL is no conflict). Only a bookmark whose values change is
+// written: it gets `updated_at = now` and keeps `created_at`. Tags that no bookmark links any more
+// are deleted before the commit (docs/database-schema.md section 3).
+[[nodiscard]] std::expected<void, Error> update_bookmarks(Database& database,
+                                                          const core::IdSelection& selection,
+                                                          const core::BookmarkChanges& changes,
+                                                          std::chrono::sys_seconds now);
 
 }  // namespace bucu::db

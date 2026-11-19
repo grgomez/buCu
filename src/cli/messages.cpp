@@ -105,6 +105,33 @@ std::string duplicate_url_message(std::string_view url, core::BookmarkId id) {
            ". Use 'bucu update " + number + "' to change it.";
 }
 
+std::string invalid_id_message(std::string_view argument) {
+    return "bucu: invalid ID '" + escape_controls(argument) +
+           "': it is not a positive whole number. Run 'bucu --help' for usage.";
+}
+
+std::string usage_error_message(std::string_view what) {
+    return "bucu: " + std::string(what) + ". Run 'bucu --help' for usage.";
+}
+
+std::string not_an_operation_message(std::string_view word) {
+    return usage_error_message("'" + escape_controls(word) +
+                               "' is not a tag operation; use add, remove, or replace");
+}
+
+std::string not_found_message(const db::Error& error) {
+    constexpr std::string_view kHint = ". Run 'bucu list' to see IDs.";
+    if (error.bookmark_id.has_value()) {
+        return "bucu: no bookmark has ID " + std::to_string(error.bookmark_id->value()) +
+               std::string(kHint);
+    }
+    if (error.range.has_value()) {
+        return "bucu: no bookmark has an ID in " + std::to_string(error.range->first.value()) +
+               "-" + std::to_string(error.range->last.value()) + std::string(kHint);
+    }
+    return "bucu: there are no bookmarks.";
+}
+
 std::string open_error_message(std::string_view file, const db::Error& error) {
     std::string line = "bucu: cannot open " + std::string(file) + ": " + sentence(error.message);
     switch (error.code) {
@@ -120,6 +147,7 @@ std::string open_error_message(std::string_view file, const db::Error& error) {
         case db::ErrorCode::kSql:
         case db::ErrorCode::kDuplicateUrl:
         case db::ErrorCode::kDestinationExists:
+        case db::ErrorCode::kNotFound:
             break;
     }
     return line;

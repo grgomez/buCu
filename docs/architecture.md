@@ -65,7 +65,7 @@ Each module is a CMake library target under `src/<module>/`, with its public hea
 
 | Module | Owns | MUST NOT |
 | --- | --- | --- |
-| `core` | Bookmark model, URL validation and normalization, tag parsing and operations, search query parsing, validation errors | Include SQLite, CLI11, libcurl, or any operating-system header; read the clock or the environment (receive them as parameters) |
+| `core` | Bookmark model, URL validation and normalization, tag parsing and operations, ID selection parsing (IDs, ranges, and every bookmark), the rules for checking and applying changes to a bookmark, search query parsing, validation errors | Include SQLite, CLI11, libcurl, or any operating-system header; read the clock or the environment (receive them as parameters) |
 | `db` | Connection setup, schema migrations, prepared statements, transactions, repositories that stream rows, integrity check and backup | Format output; parse command lines; contain rules that belong in `core` |
 | `io` | Import and export formats over streams, one transaction per import | Load a whole file or result set into memory; open files by itself (receive streams) |
 | `net` | The fetch interface and the libcurl implementation, timeouts, size caps | Be required by any other module; run unless asked (constitution principle 8) |
@@ -123,6 +123,7 @@ flowchart LR
 
 - Expected failures (invalid input, a missing bookmark, a malformed import file, a constraint violation) MUST return a typed error (`std::expected`) that `cli` maps to a message and an exit code (product §6).
 - A duplicate URL is a typed `db` error (`kDuplicateUrl`) that carries the ID of the bookmark that already holds the URL, so `cli` can name it (product §6).
+- An ID that is not stored is a typed `db` error (`kNotFound`) that carries the missing single ID or the range with no stored ID, and neither when no bookmark exists, so `cli` can name it (product §6).
 - An import validates as it streams, inside one transaction; a failed import changes no data.
 - Writes that change more than one table run in one transaction.
 - BuCu code MUST NOT throw an exception for an expected failure: no `throw` in `src/` or `tests/` (a test helper that fails calls Catch2 `FAIL`; Catch2's `*_THROWS` assertions are allowed). Only `src/cli/` MAY catch, and only around third-party code that throws (CLI11 today). `scripts/tidy.sh` enforces this.

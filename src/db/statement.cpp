@@ -31,7 +31,8 @@ std::expected<void, Error> Statement::check(int code) const {
     }
     return std::unexpected(Error{.code = ErrorCode::kSql,
                                  .message = sqlite3_errmsg(connection_),
-                                 .bookmark_id = std::nullopt});
+                                 .bookmark_id = std::nullopt,
+                                 .range = std::nullopt});
 }
 
 std::expected<Statement, Error> Statement::prepare(sqlite3* connection, std::string_view sql) {

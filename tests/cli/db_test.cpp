@@ -12,6 +12,7 @@
 #include "bucu/db/error.hpp"
 #include "bucu/platform/paths.hpp"
 #include "catch_amalgamated.hpp"
+#include "cli/fixture.hpp"
 #include "cli/run.hpp"
 #include "platform/fake_environment.hpp"
 #include "support/damage.hpp"
@@ -20,41 +21,13 @@
 
 namespace {
 
+using bucu::test::cli::Result;
+
 // A schema version above any this build knows.
 constexpr int kNewerSchema = bucu::db::kSchemaVersion.value() + 1;
 
-struct Result {
-    int code;
-    std::string out;
-    std::string err;
-};
-
-constexpr std::chrono::sys_seconds kNow{std::chrono::seconds{1700000000}};
-
-// A database file in a fresh directory, and `bucu` runs against it.
-struct Fixture {
-    bucu::test::TempDir dir;
-    bucu::platform::test::FakeEnvironment environment;
-    std::filesystem::path db = dir.path() / "bookmarks.db";
-
-    [[nodiscard]] std::string db_text() const { return bucu::test::utf8_path(db); }
-
-    // `bucu --db <db> <args>`
-    [[nodiscard]] Result bucu(std::vector<std::string> args) const {
-        args.insert(args.begin(), {"--db", db_text()});
-        return invoke(args, environment);
-    }
-
-    static Result invoke(const std::vector<std::string>& args,
-                         const bucu::platform::Environment& environment) {
-        const bucu::cli::Context context{
-            .os = bucu::platform::Os::kLinuxOrBsd, .environment = environment, .now = kNow};
-        std::ostringstream out;
-        std::ostringstream err;
-        const int code = bucu::cli::run(args, out, err, context);
-        return {.code = code, .out = out.str(), .err = err.str()};
-    }
-
+// The shared fixture, with two ways to damage the database file.
+struct Fixture : bucu::test::cli::Fixture {
     // A file that is not a SQLite database.
     void write_text_file() const {
         std::ofstream file(db, std::ios::binary);
