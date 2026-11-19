@@ -33,6 +33,8 @@ Test and quality tools:
 | ccache | Compiler cache in CI only; not linked into BuCu | Keeps the matrix fast; local builds stay free of it |
 | clang-tidy 19 or newer | Static analysis (`.clang-tidy`): `google-*`, `cppcoreguidelines-*`, `bugprone-*`, `performance-*`, and the naming checks | Run by `scripts/tidy.sh` and the CI `tidy` job. Version 18 cannot parse `std::expected` ([ADR 0006](adr/0006-coding-standard-google-and-core-guidelines.md)) |
 | AddressSanitizer, UndefinedBehaviorSanitizer, ThreadSanitizer | Memory, undefined-behaviour, and data-race checks | Presets `asan-ubsan` and `tsan`, where the compiler supports them |
+| llvm-cov and llvm-profdata (LLVM 19 or newer) | Source-based coverage report (`coverage` preset, `scripts/coverage.sh`) | Apache-2.0 WITH LLVM-exception. Installed with LLVM (`llvm-19`); not shipped. Linux and macOS, clang only ([ADR 0011](adr/0011-coverage-and-crap-report.md)) |
+| lizard 1.26.1 | Cyclomatic complexity for the CRAP score | MIT. A Python tool, not vendored; CI installs the pinned version with `pipx`, developers with `uv tool install lizard==1.26.1`. `scripts/coverage.sh` names it and exits 2 when it is missing ([ADR 0011](adr/0011-coverage-and-crap-report.md)) |
 | hyperfine (optional) | Command-line benchmarks | `scripts/bench.sh` falls back to a portable timer |
 
 Each vendored dependency lives in `third_party/<name>/` with its licence file and a `VERSION.txt` file, and `scripts/update-deps.sh` refreshes it. No other dependency is allowed without a plan decision (constitution §4). The choice of this stack: [ADR 0001](adr/0001-cpp20-cmake-sqlite.md).
@@ -83,7 +85,7 @@ src/<module>/           # module sources
 tests/                  # Catch2 tests: unit, integration, golden files; fuzz targets and seed corpus in tests/fuzz/
 benchmarks/             # datasets, harness, results (docs/performance.md)
 third_party/            # vendored dependencies with licences (§2)
-scripts/                # format, bench, update-deps
+scripts/                # format, bench, update-deps, coverage
 docs/                   # living documents
 docs/adr/, docs/contracts/
 tools/                  # SDD workflow tools (CLAUDE.md Commands); not part of BuCu
@@ -166,3 +168,4 @@ flowchart LR
 - Test behaviour, not implementation details.
 - `core` properties take their rules from product §4 and cite the rule in the test name. ctest runs them as `core-property` with a fixed seed; run `bucu_core_property_tests` with another `RC_PARAMS` (for example `seed=7 max_success=2000`) to explore more inputs.
 - Fuzz targets for the `core` text parsers live in `tests/fuzz/` with seed corpora in `tests/fuzz/corpus/<target>/` ([ADR 0010](adr/0010-libfuzzer-fuzz-targets.md)). They build only with `BUCU_FUZZ`, which the `fuzz` preset sets (LLVM Clang, Linux). ctest replays each corpus as `fuzz-<target>`; `scripts/fuzz.sh [seconds]` fuzzes each target for the time and exits non-zero on a finding.
+- The `coverage` preset (clang, Linux and macOS) and `scripts/coverage.sh` report line, region, branch, and function coverage and a CRAP score for each function of `src/` and `include/` ([ADR 0011](adr/0011-coverage-and-crap-report.md)). The CI `coverage` job runs them on every PR and is informational: it fails on a broken tool, never on a threshold.
