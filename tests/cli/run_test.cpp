@@ -27,11 +27,13 @@ std::istream& no_input() {
     return input;
 }
 
+constexpr std::chrono::sys_seconds kNow{std::chrono::seconds{1700000000}};
+
 // A context that writes to `out` and `err`.
 bucu::cli::Context make_context(std::ostream& out, std::ostream& err) {
     return {.os = bucu::platform::Os::kLinuxOrBsd,
             .environment = kEnvironment,
-            .now = std::chrono::sys_seconds{std::chrono::seconds{1700000000}},
+            .now = kNow,
             .input = no_input(),
             .out = out,
             .err = err,
