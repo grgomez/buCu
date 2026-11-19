@@ -19,8 +19,6 @@ struct ChangeCommand {
 
 // Runs a change on the bookmarks the ID arguments name, and prints the record of each one that was
 // selected (docs/product.md section 5). Returns the exit code.
-// NOLINTNEXTLINE(bugprone-easily-swappable-parameters): out and err are distinct streams by design
-int run_change(const ChangeCommand& command, const Globals& globals, const Context& context,
-               std::ostream& out, std::ostream& err);
+int run_change(const ChangeCommand& command, const Globals& globals, const Context& context);
 
 }  // namespace bucu::cli

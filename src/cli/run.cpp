@@ -220,10 +220,10 @@ std::optional<int> parse_and_run(const std::vector<std::string>& args,
     add_args.tags.insert(add_args.tags.end(), extra_tags.begin(), extra_tags.end());
     tag_args.words.insert(tag_args.words.end(), extra_tags.begin(), extra_tags.end());
     if (add->parsed()) {
-        return finish(run_add(add_args, globals, context, out, err), context);
+        return finish(run_add(add_args, globals, context), context);
     }
     if (tag->parsed()) {
-        return finish(run_tag(tag_args, globals, context, out, err), context);
+        return finish(run_tag(tag_args, globals, context), context);
     }
     if (update->parsed()) {
         // An option that was not given is no value, even though CLI11 holds an empty string.
@@ -239,19 +239,19 @@ std::optional<int> parse_and_run(const std::vector<std::string>& args,
         if (update_tag->count() > 0) {
             update_args.tags = update_tags;
         }
-        return finish(run_update(update_args, globals, context, out, err), context);
+        return finish(run_update(update_args, globals, context), context);
     }
     if (db_path->parsed()) {
-        return finish(run_db_path(globals, context, out, err), context);
+        return finish(run_db_path(globals, context), context);
     }
     if (db_version->parsed()) {
-        return finish(run_db_version(globals, context, out, err), context);
+        return finish(run_db_version(globals, context), context);
     }
     if (db_check->parsed()) {
-        return finish(run_db_check(globals, context, out, err), context);
+        return finish(run_db_check(globals, context), context);
     }
     if (db_backup->parsed()) {
-        return finish(run_db_backup(backup_file, globals, context, out, err), context);
+        return finish(run_db_backup(backup_file, globals, context), context);
     }
     // Only global options were given. An unknown argument was already refused by the parser.
     err << "bucu: no command was given. Run 'bucu --help' for usage.\n";

@@ -26,8 +26,8 @@ std::string joined_tags(const std::vector<std::string>& values) {
 
 }  // namespace
 
-int run_update(const UpdateArgs& args, const Globals& globals, const Context& context,
-               std::ostream& out, std::ostream& err) {
+int run_update(const UpdateArgs& args, const Globals& globals, const Context& context) {
+    std::ostream& err = context.err;
     const bool has_field = args.url || args.title || args.description || args.tags ||
                            args.immutable || args.no_immutable;
     if (!has_field) {
@@ -56,7 +56,7 @@ int run_update(const UpdateArgs& args, const Globals& globals, const Context& co
     if (args.no_immutable) {
         command.request.flag = core::FlagChange::kClear;
     }
-    return run_change(command, globals, context, out, err);
+    return run_change(command, globals, context);
 }
 
 }  // namespace bucu::cli

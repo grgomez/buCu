@@ -32,8 +32,9 @@ std::string tag_text(const AddArgs& args) {
 
 }  // namespace
 
-int run_add(const AddArgs& args, const Globals& globals, const Context& context, std::ostream& out,
-            std::ostream& err) {
+int run_add(const AddArgs& args, const Globals& globals, const Context& context) {
+    std::ostream& out = context.out;
+    std::ostream& err = context.err;
     auto bookmark = core::make_bookmark({.url = core::RequiredText{args.url},
                                          .title = core::RequiredText{args.title},
                                          .description = core::RequiredText{args.description},

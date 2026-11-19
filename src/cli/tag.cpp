@@ -44,8 +44,8 @@ std::string missing_operation_message(const std::vector<std::string>& words) {
 
 }  // namespace
 
-int run_tag(const TagArgs& args, const Globals& globals, const Context& context, std::ostream& out,
-            std::ostream& err) {
+int run_tag(const TagArgs& args, const Globals& globals, const Context& context) {
+    std::ostream& err = context.err;
     // The first word that names an operation is the operation: the words before it are IDs, and
     // the words after it are tags, even when they look like operations or commands.
     auto operation_word = args.words.begin();
@@ -76,7 +76,7 @@ int run_tag(const TagArgs& args, const Globals& globals, const Context& context,
         .request = {},
         .yes = args.yes};
     command.request.tags = core::TagChange{.operation = operation, .text = std::move(text)};
-    return run_change(command, globals, context, out, err);
+    return run_change(command, globals, context);
 }
 
 }  // namespace bucu::cli

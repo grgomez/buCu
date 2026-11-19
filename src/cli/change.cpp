@@ -59,9 +59,9 @@ bool is_yes(std::string_view answer) {
 
 // The checks and the question before a change to every bookmark (product section 5). Returns the
 // exit code when the run ends here, or no value when the change goes on.
-// NOLINTBEGIN(bugprone-easily-swappable-parameters): out and err are distinct streams by design
-std::optional<int> confirm_all(db::Database& database, bool yes, const Context& context,
-                               std::ostream& out, std::ostream& err) {
+std::optional<int> confirm_all(db::Database& database, bool yes, const Context& context) {
+    std::ostream& out = context.out;
+    std::ostream& err = context.err;
     const auto count = db::count_bookmarks(database);
     if (!count) {
         err << sql_error_message("count the bookmarks", count.error()) << '\n';
@@ -96,12 +96,11 @@ std::optional<int> confirm_all(db::Database& database, bool yes, const Context& 
     out << "Cancelled.\n";
     return kExitOk;
 }
-// NOLINTEND(bugprone-easily-swappable-parameters)
 
 }  // namespace
 
-int run_change(const ChangeCommand& command, const Globals& globals, const Context& context,
-               std::ostream& out, std::ostream& err) {
+int run_change(const ChangeCommand& command, const Globals& globals, const Context& context) {
+    std::ostream& err = context.err;
     const auto selection = core::parse_id_selection(command.id_arguments);
     if (!selection) {
         err << invalid_id_message(selection.error().argument) << '\n';
@@ -125,7 +124,7 @@ int run_change(const ChangeCommand& command, const Globals& globals, const Conte
         return kExitFailure;
     }
     if (selection->all) {
-        if (const auto code = confirm_all(*database, command.yes, context, out, err)) {
+        if (const auto code = confirm_all(*database, command.yes, context)) {
             return *code;
         }
     }
@@ -144,7 +143,7 @@ int run_change(const ChangeCommand& command, const Globals& globals, const Conte
         err << sql_error_message("update the bookmarks", error) << '\n';
         return kExitFailure;
     }
-    if (auto printed = print_records(*database, *selection, out); !printed) {
+    if (auto printed = print_records(*database, *selection, context.out); !printed) {
         err << sql_error_message("read the bookmarks", printed.error()) << '\n';
         return kExitFailure;
     }
