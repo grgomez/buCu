@@ -58,14 +58,16 @@ struct Fixture {
                          const platform::Environment& environment, const std::string& input = "",
                          platform::StandardStreams terminals = kPiped) {
         std::istringstream in(input);
+        std::ostringstream out;
+        std::ostringstream err;
         const bucu::cli::Context context{.os = platform::Os::kLinuxOrBsd,
                                          .environment = environment,
                                          .now = kNow,
                                          .input = in,
+                                         .out = out,
+                                         .err = err,
                                          .terminals = terminals};
-        std::ostringstream out;
-        std::ostringstream err;
-        const int code = bucu::cli::run(args, out, err, context);
+        const int code = bucu::cli::run(args, context);
         return {.code = code, .out = out.str(), .err = err.str()};
     }
 

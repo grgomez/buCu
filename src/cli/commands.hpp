@@ -50,34 +50,20 @@ std::optional<db::Database> open_database(const Globals& globals, const Context&
                                           std::ostream& err);
 
 // Runs `add` and returns the exit code.
-// NOLINTNEXTLINE(bugprone-easily-swappable-parameters): out and err are distinct streams by design
-int run_add(const AddArgs& args, const Globals& globals, const Context& context, std::ostream& out,
-            std::ostream& err);
+int run_add(const AddArgs& args, const Globals& globals, const Context& context);
 
 // Runs `update` and returns the exit code.
-// NOLINTNEXTLINE(bugprone-easily-swappable-parameters): out and err are distinct streams by design
-int run_update(const UpdateArgs& args, const Globals& globals, const Context& context,
-               std::ostream& out, std::ostream& err);
+int run_update(const UpdateArgs& args, const Globals& globals, const Context& context);
 
 // Runs `tag` and returns the exit code.
-// NOLINTNEXTLINE(bugprone-easily-swappable-parameters): out and err are distinct streams by design
-int run_tag(const TagArgs& args, const Globals& globals, const Context& context, std::ostream& out,
-            std::ostream& err);
+int run_tag(const TagArgs& args, const Globals& globals, const Context& context);
 
 // The `db` subcommands. Each returns the exit code.
-// NOLINTNEXTLINE(bugprone-easily-swappable-parameters): out and err are distinct streams by design
-int run_db_path(const Globals& globals, const Context& context, std::ostream& out,
-                std::ostream& err);
-// NOLINTNEXTLINE(bugprone-easily-swappable-parameters): out and err are distinct streams by design
-int run_db_version(const Globals& globals, const Context& context, std::ostream& out,
-                   std::ostream& err);
+int run_db_path(const Globals& globals, const Context& context);
+int run_db_version(const Globals& globals, const Context& context);
 
-// NOLINTNEXTLINE(bugprone-easily-swappable-parameters): out and err are distinct streams by design
-int run_db_check(const Globals& globals, const Context& context, std::ostream& out,
-                 std::ostream& err);
+int run_db_check(const Globals& globals, const Context& context);
 
-// NOLINTNEXTLINE(bugprone-easily-swappable-parameters): out and err are distinct streams by design
-int run_db_backup(const std::string& file, const Globals& globals, const Context& context,
-                  std::ostream& out, std::ostream& err);
+int run_db_backup(const std::string& file, const Globals& globals, const Context& context);
 
 }  // namespace bucu::cli

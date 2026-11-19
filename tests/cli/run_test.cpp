@@ -27,18 +27,24 @@ std::istream& no_input() {
     return input;
 }
 
-const bucu::cli::Context kContext{
-    .os = bucu::platform::Os::kLinuxOrBsd,
-    .environment = kEnvironment,
-    .now = std::chrono::sys_seconds{std::chrono::seconds{1700000000}},
-    .input = no_input(),
-    .terminals = {.input = bucu::platform::TerminalStatus::kNotTerminal,
-                  .output = bucu::platform::TerminalStatus::kNotTerminal}};
+constexpr std::chrono::sys_seconds kNow{std::chrono::seconds{1700000000}};
+
+// A context that writes to `out` and `err`.
+bucu::cli::Context make_context(std::ostream& out, std::ostream& err) {
+    return {.os = bucu::platform::Os::kLinuxOrBsd,
+            .environment = kEnvironment,
+            .now = kNow,
+            .input = no_input(),
+            .out = out,
+            .err = err,
+            .terminals = {.input = bucu::platform::TerminalStatus::kNotTerminal,
+                          .output = bucu::platform::TerminalStatus::kNotTerminal}};
+}
 
 Result invoke(const std::vector<std::string>& args) {
     std::ostringstream out;
     std::ostringstream err;
-    const int code = bucu::cli::run(args, out, err, kContext);
+    const int code = bucu::cli::run(args, make_context(out, err));
     return {.code = code, .out = out.str(), .err = err.str()};
 }
 
@@ -110,7 +116,7 @@ TEST_CASE("a failed write to standard output reports it and exits 1 (product sec
         std::ostringstream out;
         out.setstate(std::ios::badbit);
         std::ostringstream err;
-        const int code = bucu::cli::run({flag}, out, err, kContext);
+        const int code = bucu::cli::run({flag}, make_context(out, err));
         CHECK(err.str() == "bucu: cannot write to standard output\n");
         CHECK(code == 1);
     }

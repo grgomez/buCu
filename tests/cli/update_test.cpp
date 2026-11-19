@@ -136,17 +136,19 @@ TEST_CASE("update keeps the change when writing standard output fails, and exits
     const Fixture fixture;
     add_first(fixture);
     std::istringstream in;
+    std::ostringstream out;
+    out.setstate(std::ios::badbit);
+    std::ostringstream err;
     const bucu::cli::Context context{.os = bucu::platform::Os::kLinuxOrBsd,
                                      .environment = fixture.environment,
                                      .now = kNow,
                                      .input = in,
+                                     .out = out,
+                                     .err = err,
                                      .terminals = kPiped};
-    std::ostringstream out;
-    out.setstate(std::ios::badbit);
-    std::ostringstream err;
 
-    const int code = bucu::cli::run({"--db", fixture.db_text(), "update", "1", "--title", "New"},
-                                    out, err, context);
+    const int code =
+        bucu::cli::run({"--db", fixture.db_text(), "update", "1", "--title", "New"}, context);
 
     CHECK(code == 1);
     CHECK(err.str() == "bucu: cannot write to standard output\n");

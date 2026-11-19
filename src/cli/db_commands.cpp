@@ -12,8 +12,9 @@
 
 namespace bucu::cli {
 
-int run_db_path(const Globals& globals, const Context& context, std::ostream& out,
-                std::ostream& err) {
+int run_db_path(const Globals& globals, const Context& context) {
+    std::ostream& out = context.out;
+    std::ostream& err = context.err;
     const auto location =
         platform::resolve_database_location(context.os, context.environment.get(), globals.db);
     if (!location) {
@@ -31,9 +32,9 @@ int run_db_path(const Globals& globals, const Context& context, std::ostream& ou
     return kExitOk;
 }
 
-// NOLINTNEXTLINE(bugprone-easily-swappable-parameters): out and err are distinct streams by design
-int run_db_version(const Globals& globals, const Context& context, std::ostream& out,
-                   std::ostream& err) {
+int run_db_version(const Globals& globals, const Context& context) {
+    std::ostream& out = context.out;
+    std::ostream& err = context.err;
     const auto database = open_database(globals, context, err);
     if (!database) {
         return kExitFailure;
@@ -43,8 +44,9 @@ int run_db_version(const Globals& globals, const Context& context, std::ostream&
     return kExitOk;
 }
 
-int run_db_check(const Globals& globals, const Context& context, std::ostream& out,
-                 std::ostream& err) {
+int run_db_check(const Globals& globals, const Context& context) {
+    std::ostream& out = context.out;
+    std::ostream& err = context.err;
     auto database = open_database(globals, context, err);
     if (!database) {
         return kExitFailure;
@@ -67,8 +69,9 @@ int run_db_check(const Globals& globals, const Context& context, std::ostream& o
     return kExitFailure;
 }
 
-int run_db_backup(const std::string& file, const Globals& globals, const Context& context,
-                  std::ostream& out, std::ostream& err) {
+int run_db_backup(const std::string& file, const Globals& globals, const Context& context) {
+    std::ostream& out = context.out;
+    std::ostream& err = context.err;
     auto database = open_database(globals, context, err);
     if (!database) {
         return kExitFailure;
