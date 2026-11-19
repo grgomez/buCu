@@ -84,9 +84,10 @@ public:
 // Returns `code`, or 1 with a message when writing to `out` failed (product section 6).
 int finish(int code, const Context& context) {
     std::ostream& out = context.out;
+    std::ostream& err = context.err;
     out.flush();
     if (!out) {
-        context.err.get() << "bucu: cannot write to standard output\n";
+        err << "bucu: cannot write to standard output\n";
         return kExitFailure;
     }
     return code;
