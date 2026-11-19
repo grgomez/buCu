@@ -82,11 +82,11 @@ public:
 };
 
 // Returns `code`, or 1 with a message when writing to `out` failed (product section 6).
-// NOLINTNEXTLINE(bugprone-easily-swappable-parameters): out and err are distinct streams by design
-int finish(int code, std::ostream& out, std::ostream& err) {
+int finish(int code, const Context& context) {
+    std::ostream& out = context.out;
     out.flush();
     if (!out) {
-        err << "bucu: cannot write to standard output\n";
+        context.err.get() << "bucu: cannot write to standard output\n";
         return kExitFailure;
     }
     return code;
@@ -120,10 +120,12 @@ namespace {
 // Parses and runs `args`; `extra_tags` are more positional tags for `add` and `tag`. A probe is
 // silent: when its parse fails or the command is neither `add` nor `tag`, it returns no value and
 // nothing has run.
-// NOLINTNEXTLINE(bugprone-easily-swappable-parameters): out and err are distinct streams by design
+// NOLINTNEXTLINE(bugprone-easily-swappable-parameters): args and extra_tags are two word lists
 std::optional<int> parse_and_run(const std::vector<std::string>& args,
                                  const std::vector<std::string>& extra_tags, bool probe,
-                                 std::ostream& out, std::ostream& err, const Context& context) {
+                                 const Context& context) {
+    std::ostream& out = context.out;
+    std::ostream& err = context.err;
     // An empty name keeps CLI11 from prefixing its messages with the program name.
     CLI::App app{"", ""};
     app.formatter(std::make_shared<HelpFormatter>());
@@ -195,12 +197,12 @@ std::optional<int> parse_and_run(const std::vector<std::string>& args,
         if (probe) {
             return std::nullopt;
         }
-        return finish(app.exit(help, out, err), out, err);
+        return finish(app.exit(help, out, err), context);
     } catch (const CLI::CallForVersion& version) {
         if (probe) {
             return std::nullopt;
         }
-        return finish(app.exit(version, out, err), out, err);
+        return finish(app.exit(version, out, err), context);
     } catch (const CLI::ParseError& error) {
         if (probe) {
             return std::nullopt;
@@ -218,10 +220,10 @@ std::optional<int> parse_and_run(const std::vector<std::string>& args,
     add_args.tags.insert(add_args.tags.end(), extra_tags.begin(), extra_tags.end());
     tag_args.words.insert(tag_args.words.end(), extra_tags.begin(), extra_tags.end());
     if (add->parsed()) {
-        return finish(run_add(add_args, globals, context, out, err), out, err);
+        return finish(run_add(add_args, globals, context, out, err), context);
     }
     if (tag->parsed()) {
-        return finish(run_tag(tag_args, globals, context, out, err), out, err);
+        return finish(run_tag(tag_args, globals, context, out, err), context);
     }
     if (update->parsed()) {
         // An option that was not given is no value, even though CLI11 holds an empty string.
@@ -237,19 +239,19 @@ std::optional<int> parse_and_run(const std::vector<std::string>& args,
         if (update_tag->count() > 0) {
             update_args.tags = update_tags;
         }
-        return finish(run_update(update_args, globals, context, out, err), out, err);
+        return finish(run_update(update_args, globals, context, out, err), context);
     }
     if (db_path->parsed()) {
-        return finish(run_db_path(globals, context, out, err), out, err);
+        return finish(run_db_path(globals, context, out, err), context);
     }
     if (db_version->parsed()) {
-        return finish(run_db_version(globals, context, out, err), out, err);
+        return finish(run_db_version(globals, context, out, err), context);
     }
     if (db_check->parsed()) {
-        return finish(run_db_check(globals, context, out, err), out, err);
+        return finish(run_db_check(globals, context, out, err), context);
     }
     if (db_backup->parsed()) {
-        return finish(run_db_backup(backup_file, globals, context, out, err), out, err);
+        return finish(run_db_backup(backup_file, globals, context, out, err), context);
     }
     // Only global options were given. An unknown argument was already refused by the parser.
     err << "bucu: no command was given. Run 'bucu --help' for usage.\n";
@@ -258,9 +260,8 @@ std::optional<int> parse_and_run(const std::vector<std::string>& args,
 
 }  // namespace
 
-// NOLINTNEXTLINE(bugprone-easily-swappable-parameters): out and err are distinct streams by design
-int run(const std::vector<std::string>& args, std::ostream& out, std::ostream& err,
-        const Context& context) {
+int run(const std::vector<std::string>& args, const Context& context) {
+    std::ostream& err = context.err;
     // A lone "--" has nothing after it to run, so it counts as a bare call.
     if (args.empty() || (args.size() == 1 && args[0] == "--")) {
         err << kHelpText;
@@ -275,12 +276,12 @@ int run(const std::vector<std::string>& args, std::ostream& out, std::ostream& e
     if (marker != args.end()) {
         const std::vector<std::string> head(args.begin(), marker);
         const std::vector<std::string> tail(marker + 1, args.end());
-        if (const auto result = parse_and_run(head, tail, true, out, err, context)) {
+        if (const auto result = parse_and_run(head, tail, true, context)) {
             return *result;
         }
     }
     // Only a probe returns no value, so this run always has one.
-    const std::optional<int> code = parse_and_run(args, {}, false, out, err, context);
+    const std::optional<int> code = parse_and_run(args, {}, false, context);
     if (!code.has_value()) {
         err << "bucu: internal error: no exit code\n";
         return kExitFailure;

@@ -26,9 +26,11 @@ int main(int argc, char** argv) {
             .environment = environment,
             .now = now,
             .input = std::cin,
+            .out = std::cout,
+            .err = std::cerr,
             .terminals = {.input = bucu::platform::stdin_is_terminal(),
                           .output = bucu::platform::stdout_is_terminal()}};
-        return bucu::cli::run(args, std::cout, std::cerr, context);
+        return bucu::cli::run(args, context);
     } catch (const std::exception& error) {
         // Reports the failure; nothing is swallowed (architecture section 7).
         std::cerr << "bucu: internal error: " << error.what() << '\n';
