@@ -100,6 +100,7 @@ std::optional<int> confirm_all(db::Database& database, bool yes, const Context& 
 }  // namespace
 
 int run_change(const ChangeCommand& command, const Globals& globals, const Context& context) {
+    std::ostream& out = context.out;
     std::ostream& err = context.err;
     const auto selection = core::parse_id_selection(command.id_arguments);
     if (!selection) {
@@ -143,7 +144,7 @@ int run_change(const ChangeCommand& command, const Globals& globals, const Conte
         err << sql_error_message("update the bookmarks", error) << '\n';
         return kExitFailure;
     }
-    if (auto printed = print_records(*database, *selection, context.out); !printed) {
+    if (auto printed = print_records(*database, *selection, out); !printed) {
         err << sql_error_message("read the bookmarks", printed.error()) << '\n';
         return kExitFailure;
     }
