@@ -2,7 +2,7 @@
 
 - Kind: Module
 - Version: 9 (from 8)
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-11-20
 - Issue: #88
 - Previous record: [`module-008`](module-008-id-selection-and-bookmark-updates.md)
