@@ -29,8 +29,10 @@ std::expected<core::BookmarkId, Error> insert_bookmark(Database& database,
 using BookmarkVisitor = std::function<bool(core::BookmarkId, const core::Bookmark&)>;
 
 // Calls `visit` for each stored bookmark that `selection` covers, with its tags, in ascending ID
-// order, in one read transaction. An ID that is not stored is skipped. Nothing is buffered, so a
-// range such as 1-9999999999 costs one record at a time.
+// order, in one read transaction. Fails with `kNotFound`, before the first visit, when a named
+// ID is not stored or a range holds no stored ID; the first such item in ascending order of its
+// low end is named. Every bookmark has no such check, so an empty database visits nothing. Nothing
+// is buffered, so a range such as 1-9999999999 costs one record at a time.
 [[nodiscard]] std::expected<void, Error> for_each_bookmark(Database& database,
                                                            const core::IdSelection& selection,
                                                            const BookmarkVisitor& visit);

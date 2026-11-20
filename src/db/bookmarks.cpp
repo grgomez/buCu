@@ -314,6 +314,12 @@ std::expected<void, Error> for_each_bookmark(Database& database, const core::IdS
     if (!transaction) {
         return std::unexpected(std::move(transaction.error()));
     }
+    // Named IDs must be stored, checked before the first visit; every bookmark may be none.
+    if (!selection.all) {
+        if (auto found = check_targets_exist(connection, selection); !found) {
+            return std::unexpected(std::move(found.error()));
+        }
+    }
     auto select = Statement::prepare(connection,
                                      "SELECT id, url, title, description, flags FROM bookmark "
                                      "WHERE id >= ? AND id <= ? ORDER BY id");
