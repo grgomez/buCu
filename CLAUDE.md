@@ -74,7 +74,7 @@ scripts/tidy.sh [build-dir]                            # clang-tidy 19 (CLANG_TI
 scripts/fuzz.sh [seconds]                              # libFuzzer targets (LLVM Clang), seconds per target, default 60
 python3 tools/sdd_check.py issue <n>                   # issue body parts, size, markers
 python3 -m unittest discover -s scripts/tests          # coverage report script tests
-cmake --preset coverage && cmake --build --preset coverage && ctest --preset coverage   # clang only
+cmake --preset coverage && cmake --build --preset coverage && cmake -E rm -rf build/coverage/profiles && ctest --preset coverage   # clang only
 scripts/coverage.sh [build-dir]                        # coverage and CRAP report in <build-dir>/report (LLVM_COV, LLVM_PROFDATA, LIZARD=<path>)
 ```
 
