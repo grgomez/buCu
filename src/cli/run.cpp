@@ -45,7 +45,7 @@ Commands:
       tags removes them all. IDs are numbers, ranges such as 3-7, or comma
       lists; with no ID, every bookmark changes after confirmation. A tag that
       starts with - goes after --.
-        --yes                 Confirm changing every bookmark.
+        --yes                 Confirm without asking.
   update [ids...]
       Change bookmarks. IDs are numbers, ranges such as 3-7, or comma lists;
       with no ID, every bookmark changes after confirmation. Give at least
@@ -57,7 +57,17 @@ Commands:
                               '' clears them.
         --immutable           Keep a later title fetch from replacing the title.
         --no-immutable        Allow a later title fetch to replace the title.
-        --yes                 Confirm changing every bookmark.
+        --yes                 Confirm without asking.
+  delete [ids...]
+      Delete bookmarks after showing them and asking. IDs are numbers, ranges
+      such as 3-7, or comma lists; with no ID, every bookmark is deleted
+      without showing them. The other bookmarks keep their IDs.
+        --yes                 Confirm without asking.
+  swap <id> <id>
+      Exchange the IDs of two bookmarks.
+  reorder
+      Renumber the IDs to 1, 2, 3, and so on, keeping their order.
+        --yes                 Confirm without asking.
   db path               Print the database location.
   db version            Print the schema version.
   db check              Check the database for damage.
