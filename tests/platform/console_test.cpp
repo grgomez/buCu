@@ -43,7 +43,9 @@ TEST_CASE("ConsoleSetup turns on escape sequence processing for a console and re
     }
     {
         const bucu::platform::ConsoleSetup guard;
-        CHECK((test::console_output_mode().value() & kVirtualTerminalProcessing) != 0);
+        const std::optional<unsigned int> during = test::console_output_mode();
+        REQUIRE(during.has_value());
+        CHECK((during.value_or(0) & kVirtualTerminalProcessing) != 0);
     }
     CHECK(test::console_output_mode() == before);
 }

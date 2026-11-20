@@ -390,6 +390,8 @@ TEST_CASE("for_each_bookmark on an empty database visits nothing", "[db]") {
 
 namespace {
 
+constexpr int kManyStored = 100;
+
 // The IDs that for_each_last_bookmark gives for `count`, in the order given.
 std::vector<std::int64_t> last_visited(Fixture& fixture, std::int64_t count) {
     std::vector<std::int64_t> ids;
@@ -423,7 +425,7 @@ TEST_CASE("for_each_last_bookmark gives every bookmark when fewer than n are sto
 
 TEST_CASE("for_each_last_bookmark counts stored bookmarks, not ID values", "[db]") {
     Fixture fixture;
-    insert_numbered(fixture, 100);
+    insert_numbered(fixture, kManyStored);
     fixture.exec("DELETE FROM bookmark WHERE id > 1 AND id < 100");
 
     CHECK(last_visited(fixture, 2) == std::vector<std::int64_t>{1, 100});

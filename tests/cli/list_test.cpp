@@ -34,6 +34,10 @@ std::string record(int n) {
     return number + "  Title " + number + "\n   url:   https://" + number + ".example/\n";
 }
 
+constexpr int kEightStored = 8;
+constexpr int kNineStored = 9;
+constexpr int kHundredStored = 100;
+
 // Deletes the bookmarks with the IDs in `ids` ("3, 5") with SQLite directly, as a tool other than
 // BuCu would.
 void delete_bookmarks(const Fixture& fixture, const std::string& ids) {
@@ -69,7 +73,7 @@ TEST_CASE("list with no ID prints every bookmark in ascending ID order, separate
 TEST_CASE("list prints the bookmarks that IDs and ranges cover, in ascending ID order",
           "[cli][list]") {
     const Fixture fixture;
-    add_numbered(fixture, 8);
+    add_numbered(fixture, kEightStored);
 
     CHECK(fixture.bucu({"list", "8,3"}).out == record(3) + "\n" + record(8));
     CHECK(fixture.bucu({"list", "2-4"}).out == record(2) + "\n" + record(3) + "\n" + record(4));
@@ -178,7 +182,7 @@ TEST_CASE("list prints every field kind as the plain golden file", "[cli][list]"
 
 TEST_CASE("list --last n prints the n highest stored IDs in ascending order", "[cli][list]") {
     const Fixture fixture;
-    add_numbered(fixture, 9);
+    add_numbered(fixture, kNineStored);
     delete_bookmarks(fixture, "3, 5, 6, 8");  // bookmarks 1, 2, 4, 7, and 9 stay
 
     const Result three = fixture.bucu({"list", "--last", "3"});
@@ -194,11 +198,16 @@ TEST_CASE("list --last n prints the n highest stored IDs in ascending order", "[
 
 TEST_CASE("list --last counts stored bookmarks, not ID values", "[cli][list]") {
     const Fixture fixture;
-    add_numbered(fixture, 100);
-    delete_bookmarks(fixture, "2, 3, 4, 5, 6, 7, 8, 9, 10");
+    add_numbered(fixture, kHundredStored);
+    std::string middle = "2";
+    for (int id = 3; id < kHundredStored; ++id) {
+        middle += ", " + std::to_string(id);
+    }
+    delete_bookmarks(fixture, middle);  // bookmarks 1 and 100 stay
+
     const Result two = fixture.bucu({"list", "--last", "2"});
 
-    CHECK(two.out == record(99) + "\n" + record(100));
+    CHECK(two.out == record(1) + "\n" + record(kHundredStored));
 }
 
 TEST_CASE("list --last with no bookmark stored prints nothing and exits 0", "[cli][list]") {

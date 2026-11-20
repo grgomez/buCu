@@ -202,6 +202,8 @@ public:
     }
 
 private:
+    // The two statements differ by their SQL only; a type for each would add nothing.
+    // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
     RowReader(Statement select, Statement select_tags)
         : select_(std::move(select)), select_tags_(std::move(select_tags)) {}
 

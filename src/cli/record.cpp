@@ -2,7 +2,6 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <functional>
 #include <string>
 #include <string_view>
 
@@ -38,16 +37,24 @@ void append_part(std::string& out, std::string_view code, std::string_view text)
     out.append("\x1b[0m");
 }
 
-// Appends `value` in the colour `code`, with each line after the first indented to the value
-// column, the colour repeated on it with its indent, and an LF after each line.
-void append_value(std::string& out, std::string_view code, std::string_view value) {
+// A text and the colour code it takes; an empty code means none.
+struct Value {
+    std::string_view code;
+    std::string_view text;
+};
+
+// Appends `value` in its colour, with each line after the first indented to the value column, the
+// colour repeated on it with its indent, and an LF after each line.
+void append_value(std::string& out, const Value& value) {
+    const std::string_view text = value.text;
     std::size_t start = 0;
     bool first = true;
     for (;;) {
-        const std::size_t end = value.find('\n', start);
+        const std::size_t end = text.find('\n', start);
         const std::string_view line =
-            value.substr(start, end == std::string_view::npos ? end : end - start);
-        append_part(out, code, first ? std::string(line) : std::string(kValueIndent).append(line));
+            text.substr(start, end == std::string_view::npos ? end : end - start);
+        append_part(out, value.code,
+                    first ? std::string(line) : std::string(kValueIndent).append(line));
         out.push_back('\n');
         if (end == std::string_view::npos) {
             return;
@@ -62,8 +69,7 @@ constexpr std::size_t kLabelWidth = 7;
 // A labelled line's text and the colour of its value.
 struct Field {
     std::string_view label;
-    std::string_view value;
-    std::string_view value_code;
+    Value value;
 };
 
 // A labelled line: three spaces, the label padded to kLabelWidth characters, then the value. The
@@ -73,7 +79,7 @@ void append_field(std::string& out, std::string_view label_code, const Field& fi
     head.append(field.label);
     head.append(kLabelWidth - field.label.size(), ' ');
     append_part(out, label_code, head);
-    append_value(out, field.value_code, field.value);
+    append_value(out, field.value);
 }
 
 }  // namespace
@@ -84,19 +90,20 @@ std::string format_record(core::BookmarkId id, const core::Bookmark& bookmark, b
     std::string out;
     if (!bookmark.title.empty()) {
         append_part(out, code(kIdCode), std::to_string(id.value()) + "  ");
-        append_value(out, code(kTitleCode), escape_controls(bookmark.title, LineFeed::kKeep));
+        append_value(out, {.code = code(kTitleCode),
+                           .text = escape_controls(bookmark.title, LineFeed::kKeep)});
     } else {
         append_part(out, code(kIdCode), std::to_string(id.value()));
         out.push_back('\n');
     }
 
     append_field(out, code(kLabelCode),
-                 {.label = "url:", .value = bookmark.url, .value_code = code(kUrlCode)});
+                 {.label = "url:", .value = {.code = code(kUrlCode), .text = bookmark.url}});
     if (!bookmark.description.empty()) {
         append_field(out, code(kLabelCode),
                      {.label = "desc:",
-                      .value = escape_controls(bookmark.description, LineFeed::kKeep),
-                      .value_code = {}});
+                      .value = {.code = {},
+                                .text = escape_controls(bookmark.description, LineFeed::kKeep)}});
     }
     if (!bookmark.tags.empty()) {
         std::string joined;
@@ -105,52 +112,43 @@ std::string format_record(core::BookmarkId id, const core::Bookmark& bookmark, b
             joined.append(tag);
         }
         append_field(out, code(kLabelCode),
-                     {.label = "tags:", .value = joined, .value_code = code(kTagsCode)});
+                     {.label = "tags:", .value = {.code = code(kTagsCode), .text = joined}});
     }
     if (core::has_flag(bookmark.flags, core::kFlagImmutableTitle)) {
         append_field(
             out, code(kLabelCode),
-            {.label = "flags:", .value = "immutable-title", .value_code = code(kFlagsCode)});
+            {.label = "flags:", .value = {.code = code(kFlagsCode), .text = "immutable-title"}});
     }
     return out;
 }
 
 namespace {
 
-// Writes each record it is given to `out`, with one empty line between records.
-class RecordWriter {
-public:
-    RecordWriter(std::ostream& out, bool colour) : out_(out), colour_(colour) {}
-
-    // Returns whether the stream is still good, so a failed write ends the walk.
-    bool operator()(core::BookmarkId id, const core::Bookmark& bookmark) {
-        if (!first_) {
-            out_ << '\n';
-        }
-        first_ = false;
-        out_ << format_record(id, bookmark, colour_);
-        return static_cast<bool>(out_);
-    }
-
-private:
-    std::ostream& out_;
-    bool colour_;
-    bool first_ = true;
-};
+// A visitor that writes each record it is given to `out`, with one empty line between records. It
+// returns whether the stream is still good, so a failed write ends the walk.
+db::BookmarkVisitor record_writer(std::ostream& out, bool colour) {
+    return
+        [&out, colour, first = true](core::BookmarkId id, const core::Bookmark& bookmark) mutable {
+            if (!first) {
+                out << '\n';
+            }
+            first = false;
+            out << format_record(id, bookmark, colour);
+            return static_cast<bool>(out);
+        };
+}
 
 }  // namespace
 
 std::expected<void, db::Error> print_records(db::Database& database,
                                              const core::IdSelection& selection, std::ostream& out,
                                              bool colour) {
-    RecordWriter writer(out, colour);
-    return db::for_each_bookmark(database, selection, std::ref(writer));
+    return db::for_each_bookmark(database, selection, record_writer(out, colour));
 }
 
 std::expected<void, db::Error> print_last_records(db::Database& database, std::int64_t count,
                                                   std::ostream& out, bool colour) {
-    RecordWriter writer(out, colour);
-    return db::for_each_last_bookmark(database, count, std::ref(writer));
+    return db::for_each_last_bookmark(database, count, record_writer(out, colour));
 }
 
 }  // namespace bucu::cli
