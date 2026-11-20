@@ -67,6 +67,19 @@ TEST_CASE("tag add, remove, and replace change the tags and print the record", "
     CHECK(fixture.tags().empty());
 }
 
+TEST_CASE("tag --color always colours the printed record", "[cli][tag]") {
+    const Fixture fixture;
+    add_first(fixture);
+
+    const Result result = fixture.bucu({"--color", "always", "tag", "1", "add", "c"});
+
+    CHECK(result.code == 0);
+    CHECK(result.out ==
+          "\x1b[96m1  \x1b[0m\x1b[92;1mA\x1b[0m\n"
+          "\x1b[91m   url:   \x1b[0m\x1b[93mhttps://a.example/\x1b[0m\n"
+          "\x1b[91m   tags:  \x1b[0m\x1b[94ma, b, c\x1b[0m\n");
+}
+
 TEST_CASE("tag with no tags for add or remove, or an unknown operation, is a usage error",
           "[cli][tag]") {
     const Fixture fixture;
@@ -252,7 +265,7 @@ TEST_CASE("tag with no ID in an interactive run applies on y and cancels on an e
     CHECK(fixture.tags().empty());
 
     fixture.input = "y\n";
-    const Result applied = fixture.bucu({"tag", "add", "x"});
+    const Result applied = fixture.bucu({"--color", "never", "tag", "add", "x"});
 
     CHECK(applied.code == 0);
     CHECK(applied.out.starts_with(std::string(kPrompt) + "1\n"));

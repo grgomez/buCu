@@ -5,6 +5,7 @@
 #include "bucu/core/bookmark.hpp"
 #include "bucu/core/bookmark_id.hpp"
 #include "bucu/db/bookmarks.hpp"
+#include "bucu/platform/terminal.hpp"
 #include "cli/commands.hpp"
 #include "cli/exit_codes.hpp"
 #include "cli/messages.hpp"
@@ -61,7 +62,9 @@ int run_add(const AddArgs& args, const Globals& globals, const Context& context)
         err << sql_error_message("store the bookmark", id.error()) << '\n';
         return kExitFailure;
     }
-    out << format_record(*id, *bookmark, false);
+    const bool colour =
+        platform::use_color(globals.color, context.terminals.output, context.environment.get());
+    out << format_record(*id, *bookmark, colour);
     return kExitOk;
 }
 

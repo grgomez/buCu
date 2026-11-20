@@ -3,10 +3,12 @@
 #include <fstream>
 #include <sstream>
 #include <string>
+#include <vector>
 
 #include "catch_amalgamated.hpp"
 #include "cli/fixture.hpp"
 #include "cli/run.hpp"
+#include "platform/fake_environment.hpp"
 
 namespace {
 
@@ -119,7 +121,7 @@ TEST_CASE("list does not ask for confirmation or change the database", "[cli][li
     const auto before = fixture.bookmarks();
     fixture.terminals = kTerminal;
 
-    const Result result = fixture.bucu({"list"});
+    const Result result = fixture.bucu({"--color", "never", "list"});
 
     CHECK(result.code == 0);
     CHECK(result.out == record(1) + "\n" + record(2));
@@ -280,6 +282,62 @@ TEST_CASE("list writes a stored escape sequence as escapes, never as raw bytes",
           "   desc:  x\\ry\n"
           "          z\n");
     CHECK(result.out.find('\x1b') == std::string::npos);
+}
+
+namespace {
+
+// The colour golden form of the record that add_numbered stores as bookmark `n`.
+std::string coloured_record(int n) {
+    const std::string number = std::to_string(n);
+    return "\x1b[96m" + number + "  \x1b[0m\x1b[92;1mTitle " + number +
+           "\x1b[0m\n\x1b[91m   url:   \x1b[0m\x1b[93mhttps://" + number + ".example/\x1b[0m\n";
+}
+
+}  // namespace
+
+TEST_CASE("list --color always colours the records even when output is not a terminal",
+          "[cli][list]") {
+    const Fixture fixture;
+    add_numbered(fixture, 2);
+
+    const Result result = fixture.bucu({"--color", "always", "list"});
+
+    CHECK(result.code == 0);
+    CHECK(result.out == coloured_record(1) + "\n" + coloured_record(2));
+}
+
+TEST_CASE("list colours on a terminal in auto mode, unless NO_COLOR is set or colour is never",
+          "[cli][list]") {
+    Fixture fixture;
+    add_numbered(fixture, 1);
+    fixture.terminals = kTerminal;
+
+    CHECK(fixture.bucu({"list", "1"}).out == coloured_record(1));
+    CHECK(fixture.bucu({"--color", "auto", "list", "1"}).out == coloured_record(1));
+    CHECK(fixture.bucu({"--color", "never", "list", "1"}).out == record(1));
+
+    const bucu::platform::test::FakeEnvironment no_color({{"NO_COLOR", "1"}});
+    const auto with_no_color = [&](std::vector<std::string> args) {
+        args.insert(args.begin(), {"--db", fixture.db_text()});
+        return Fixture::invoke(args, no_color, "", kTerminal);
+    };
+    CHECK(with_no_color({"list", "1"}).out == record(1));
+    CHECK(with_no_color({"--color", "always", "list", "1"}).out == coloured_record(1));
+}
+
+TEST_CASE("list --color auto has no colour when output is not a terminal", "[cli][list]") {
+    const Fixture fixture;
+    add_numbered(fixture, 1);
+
+    CHECK(fixture.bucu({"list", "1"}).out == record(1));
+    CHECK(fixture.bucu({"--color", "auto", "list", "1"}).out == record(1));
+}
+
+TEST_CASE("list --last takes the colour rule too", "[cli][list]") {
+    const Fixture fixture;
+    add_numbered(fixture, 2);
+
+    CHECK(fixture.bucu({"--color", "always", "list", "--last", "1"}).out == coloured_record(2));
 }
 
 TEST_CASE("--help lists list", "[cli][list]") {

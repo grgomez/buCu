@@ -19,15 +19,16 @@ namespace bucu::cli {
 // as escapes.
 std::string format_record(core::BookmarkId id, const core::Bookmark& bookmark, bool colour);
 
-// Prints the stored record of each selected bookmark, with one empty line between records, one at
-// a time as they are read. Stops early, with the stream bad, when writing fails. Fails as
-// `db::for_each_bookmark` does.
+// Prints the stored record of each selected bookmark, in `colour` or plain, with one empty line
+// between records, one at a time as they are read. Stops early, with the stream bad, when writing
+// fails. Fails as `db::for_each_bookmark` does.
 std::expected<void, db::Error> print_records(db::Database& database,
-                                             const core::IdSelection& selection, std::ostream& out);
+                                             const core::IdSelection& selection, std::ostream& out,
+                                             bool colour);
 
 // Prints the stored record of each of the `count` bookmarks with the highest IDs, as
 // `print_records` does. Fails as `db::for_each_last_bookmark` does.
 std::expected<void, db::Error> print_last_records(db::Database& database, std::int64_t count,
-                                                  std::ostream& out);
+                                                  std::ostream& out, bool colour);
 
 }  // namespace bucu::cli

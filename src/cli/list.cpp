@@ -3,6 +3,7 @@
 #include <ostream>
 
 #include "bucu/core/id_selection.hpp"
+#include "bucu/platform/terminal.hpp"
 #include "cli/commands.hpp"
 #include "cli/exit_codes.hpp"
 #include "cli/messages.hpp"
@@ -35,8 +36,10 @@ int run_list(const ListArgs& args, const Globals& globals, const Context& contex
     if (!database) {
         return kExitFailure;
     }
-    const auto printed = last_count ? print_last_records(*database, *last_count, out)
-                                    : print_records(*database, *selection, out);
+    const bool colour =
+        platform::use_color(globals.color, context.terminals.output, context.environment.get());
+    const auto printed = last_count ? print_last_records(*database, *last_count, out, colour)
+                                    : print_records(*database, *selection, out, colour);
     if (!printed) {
         const db::Error& error = printed.error();
         if (error.code == db::ErrorCode::kNotFound) {

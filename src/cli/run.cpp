@@ -122,6 +122,17 @@ std::optional<db::Database> open_database(const Globals& globals, const Context&
 
 namespace {
 
+// The mode that the checked --color value names; an option that was not given is auto.
+platform::ColorMode color_mode(const std::string& value) {
+    if (value == "always") {
+        return platform::ColorMode::kAlways;
+    }
+    if (value == "never") {
+        return platform::ColorMode::kNever;
+    }
+    return platform::ColorMode::kAuto;
+}
+
 // Parses and runs `args`; `extra_tags` are more positional tags for `add` and `tag`. A probe is
 // silent: when its parse fails or the command is neither `add` nor `tag`, it returns no value and
 // nothing has run.
@@ -137,7 +148,7 @@ std::optional<int> parse_and_run(const std::vector<std::string>& args,
     app.set_version_flag("--version", "bucu " BUCU_VERSION);
 
     // The global options come before the command; CLI11 refuses them after it (product section 5).
-    // --color and --offline are checked here and take effect with later issues.
+    // --offline is checked here and takes effect with a later issue.
     Globals globals;
     std::string color;
     bool offline = false;
@@ -226,6 +237,7 @@ std::optional<int> parse_and_run(const std::vector<std::string>& args,
         err << "bucu: " << what << ". Run 'bucu --help' for usage.\n";
         return kExitUsage;
     }
+    globals.color = color_mode(color);
     if (probe && !add->parsed() && !tag->parsed()) {
         return std::nullopt;
     }

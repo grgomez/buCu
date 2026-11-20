@@ -6,13 +6,15 @@
 #include <vector>
 
 #include "bucu/db/database.hpp"
+#include "bucu/platform/terminal.hpp"
 #include "cli/run.hpp"
 
 namespace bucu::cli {
 
 // The global options that a command needs.
 struct Globals {
-    std::optional<std::string> db;  // --db
+    std::optional<std::string> db;                           // --db
+    platform::ColorMode color = platform::ColorMode::kAuto;  // --color
 };
 
 // The arguments of `add`, as CLI11 read them.

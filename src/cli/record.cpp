@@ -120,7 +120,7 @@ namespace {
 // Writes each record it is given to `out`, with one empty line between records.
 class RecordWriter {
 public:
-    explicit RecordWriter(std::ostream& out) : out_(out) {}
+    RecordWriter(std::ostream& out, bool colour) : out_(out), colour_(colour) {}
 
     // Returns whether the stream is still good, so a failed write ends the walk.
     bool operator()(core::BookmarkId id, const core::Bookmark& bookmark) {
@@ -128,27 +128,28 @@ public:
             out_ << '\n';
         }
         first_ = false;
-        out_ << format_record(id, bookmark, false);
+        out_ << format_record(id, bookmark, colour_);
         return static_cast<bool>(out_);
     }
 
 private:
     std::ostream& out_;
+    bool colour_;
     bool first_ = true;
 };
 
 }  // namespace
 
 std::expected<void, db::Error> print_records(db::Database& database,
-                                             const core::IdSelection& selection,
-                                             std::ostream& out) {
-    RecordWriter writer(out);
+                                             const core::IdSelection& selection, std::ostream& out,
+                                             bool colour) {
+    RecordWriter writer(out, colour);
     return db::for_each_bookmark(database, selection, std::ref(writer));
 }
 
 std::expected<void, db::Error> print_last_records(db::Database& database, std::int64_t count,
-                                                  std::ostream& out) {
-    RecordWriter writer(out);
+                                                  std::ostream& out, bool colour) {
+    RecordWriter writer(out, colour);
     return db::for_each_last_bookmark(database, count, std::ref(writer));
 }
 

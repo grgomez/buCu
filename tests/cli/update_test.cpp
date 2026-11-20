@@ -73,6 +73,20 @@ TEST_CASE("update writes a control character in the title as an escape in the pr
     CHECK(fixture.bookmarks()[0][2] == "a\x1b[31mb\tc");  // stored as typed
 }
 
+TEST_CASE("update --color always colours the printed record", "[cli][update]") {
+    const Fixture fixture;
+    add_first(fixture);
+
+    const Result result = fixture.bucu({"--color", "always", "update", "1", "--title", "T"});
+
+    CHECK(result.code == 0);
+    CHECK(result.out ==
+          "\x1b[96m1  \x1b[0m\x1b[92;1mT\x1b[0m\n"
+          "\x1b[91m   url:   \x1b[0m\x1b[93mhttps://old.example/\x1b[0m\n"
+          "\x1b[91m   desc:  \x1b[0mWords\n"
+          "\x1b[91m   tags:  \x1b[0m\x1b[94ma, b\x1b[0m\n");
+}
+
 TEST_CASE("update with an empty title or description clears it", "[cli][update]") {
     const Fixture fixture;
     add_first(fixture);
@@ -495,7 +509,7 @@ TEST_CASE("update with no ID in an interactive run asks first, and y or yes in a
         fixture.terminals = bucu::test::cli::kTerminal;
         fixture.input = answer;
 
-        const Result result = fixture.bucu({"update", "--immutable"});
+        const Result result = fixture.bucu({"--color", "never", "update", "--immutable"});
 
         CHECK(result.code == 0);
         CHECK(result.err.empty());

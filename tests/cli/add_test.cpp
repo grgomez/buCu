@@ -303,6 +303,20 @@ TEST_CASE("add writes a control character in the title as an escape in the print
     CHECK(fixture.bookmarks()[0][2] == "a\x1b[31mb\tc");  // stored as typed
 }
 
+TEST_CASE("add --color always colours the printed record, and --color never does not",
+          "[cli][add]") {
+    const Fixture fixture;
+
+    const Result coloured =
+        fixture.bucu({"--color", "always", "add", "https://a.example", "--title", "T"});
+    CHECK(coloured.out ==
+          "\x1b[96m1  \x1b[0m\x1b[92;1mT\x1b[0m\n"
+          "\x1b[91m   url:   \x1b[0m\x1b[93mhttps://a.example/\x1b[0m\n");
+
+    const Result plain = fixture.bucu({"--color", "never", "add", "https://b.example"});
+    CHECK(plain.out.find('\x1b') == std::string::npos);
+}
+
 TEST_CASE("a control character in the echoed value is escaped, so the error is one line",
           "[cli][add]") {
     const Fixture fixture;
