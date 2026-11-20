@@ -2,6 +2,7 @@
 
 #include <chrono>
 #include <iostream>
+#include <optional>
 #include <thread>
 
 #include "catch_amalgamated.hpp"
@@ -12,6 +13,7 @@ namespace {
 namespace test = bucu::platform::test;
 
 constexpr unsigned int kUtf8CodePage = 65001;
+constexpr unsigned int kVirtualTerminalProcessing = 0x0004;  // ENABLE_VIRTUAL_TERMINAL_PROCESSING
 
 }  // namespace
 
@@ -31,6 +33,21 @@ TEST_CASE("ConsoleSetup selects the UTF-8 code page and restores the previous on
         CHECK(test::console_output_code_page() == kUtf8CodePage);
     }
     CHECK(test::console_output_code_page() == before);
+}
+
+TEST_CASE("ConsoleSetup turns on escape sequence processing for a console and restores the mode",
+          "[platform][console]") {
+    const std::optional<unsigned int> before = test::console_output_mode();
+    if (!before.has_value()) {
+        SKIP("standard output is not a console");
+    }
+    {
+        const bucu::platform::ConsoleSetup guard;
+        const std::optional<unsigned int> during = test::console_output_mode();
+        REQUIRE(during.has_value());
+        CHECK((during.value_or(0) & kVirtualTerminalProcessing) != 0);
+    }
+    CHECK(test::console_output_mode() == before);
 }
 
 // Hidden: run by hand (#8) to check that Ctrl+C restores the code page. It holds the

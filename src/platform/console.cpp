@@ -14,13 +14,20 @@ namespace bucu::platform {
 #ifdef _WIN32
 namespace {
 
-// The code page to put back on Ctrl+C or Ctrl+Break. Written before the handler is registered; the
-// handler runs on another thread and only reads it.
+// The code page and the console output mode to put back on Ctrl+C or Ctrl+Break; 0 for either means
+// nothing was changed. Written before the handler is registered; the handler runs on another
+// thread and only reads them.
 std::atomic<UINT> g_code_page_to_restore{0};
+std::atomic<DWORD> g_output_mode_to_restore{0};
 
 BOOL WINAPI restore_on_interrupt(DWORD event) {
     if (event == CTRL_C_EVENT || event == CTRL_BREAK_EVENT) {
-        SetConsoleOutputCP(g_code_page_to_restore.load());
+        if (g_code_page_to_restore.load() != 0) {
+            SetConsoleOutputCP(g_code_page_to_restore.load());
+        }
+        if (g_output_mode_to_restore.load() != 0) {
+            SetConsoleMode(GetStdHandle(STD_OUTPUT_HANDLE), g_output_mode_to_restore.load());
+        }
     }
     return FALSE;  // The default handling then ends the process.
 }
@@ -38,6 +45,18 @@ ConsoleSetup::ConsoleSetup() {
     if (previous != 0 && previous != CP_UTF8 && SetConsoleOutputCP(CP_UTF8) != 0) {
         previous_code_page_ = previous;
         g_code_page_to_restore.store(previous);
+    }
+    // Escape sequence processing, so colour codes are not printed as text. Only when standard
+    // output is a console that has it off; when it fails, output still goes out, with raw codes.
+    DWORD mode = 0;
+    const HANDLE output = GetStdHandle(STD_OUTPUT_HANDLE);
+    if (GetConsoleMode(output, &mode) != 0 && (mode & ENABLE_VIRTUAL_TERMINAL_PROCESSING) == 0 &&
+        SetConsoleMode(output, mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING) != 0) {
+        previous_output_console_mode_ = mode;
+        output_console_mode_changed_ = true;
+        g_output_mode_to_restore.store(mode);
+    }
+    if (previous_code_page_ != 0 || output_console_mode_changed_) {
         SetConsoleCtrlHandler(restore_on_interrupt, TRUE);
     }
 #endif
@@ -51,9 +70,14 @@ ConsoleSetup::~ConsoleSetup() {
     if (previous_stderr_mode_ != -1) {
         _setmode(_fileno(stderr), previous_stderr_mode_);
     }
-    if (previous_code_page_ != 0) {
+    if (previous_code_page_ != 0 || output_console_mode_changed_) {
         SetConsoleCtrlHandler(restore_on_interrupt, FALSE);
+    }
+    if (previous_code_page_ != 0) {
         SetConsoleOutputCP(previous_code_page_);
+    }
+    if (output_console_mode_changed_) {
+        SetConsoleMode(GetStdHandle(STD_OUTPUT_HANDLE), previous_output_console_mode_);
     }
 #endif
 }

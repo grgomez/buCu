@@ -46,6 +46,9 @@ endfunction()
 run(add 0 add https://example.org web dev --title "Example" --description "one\ntwo")
 check_lf("${WORK_DIR}/add.out")
 
+run(list 0 list)
+check_lf("${WORK_DIR}/list.out")
+
 run(version 0 db version)
 check_lf("${WORK_DIR}/version.out")
 

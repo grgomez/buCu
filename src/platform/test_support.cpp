@@ -1,6 +1,7 @@
 #include "platform/test_support.hpp"
 
 #include <cstdlib>
+#include <optional>
 #include <string>
 #include <string_view>
 
@@ -42,6 +43,18 @@ unsigned int console_output_code_page() {
     return GetConsoleOutputCP();
 #else
     return 0;
+#endif
+}
+
+std::optional<unsigned int> console_output_mode() {
+#ifdef _WIN32
+    DWORD mode = 0;
+    if (GetConsoleMode(GetStdHandle(STD_OUTPUT_HANDLE), &mode) == 0) {
+        return std::nullopt;
+    }
+    return static_cast<unsigned int>(mode);
+#else
+    return std::nullopt;
 #endif
 }
 

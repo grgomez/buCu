@@ -4,6 +4,7 @@
 
 #include <chrono>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -309,13 +310,49 @@ TEST_CASE("for_each_bookmark walks single IDs and ranges with gaps in ascending 
     CHECK(visited(fixture, {"11", "3"}) == std::vector<std::int64_t>{3, 11});
 }
 
-TEST_CASE("for_each_bookmark skips an ID that is not stored", "[db]") {
+namespace {
+
+// The error that for_each_bookmark returns for `arguments`, with the IDs the visitor saw.
+bucu::db::Error not_found_for(Fixture& fixture, const std::vector<std::string>& arguments,
+                              std::vector<std::int64_t>& seen) {
+    const auto done = bucu::db::for_each_bookmark(
+        fixture.database, select(arguments),
+        [&seen](bucu::core::BookmarkId id, const bucu::core::Bookmark&) {
+            seen.push_back(id.value());
+            return true;
+        });
+    REQUIRE_FALSE(done.has_value());
+    return done.error();
+}
+
+}  // namespace
+
+TEST_CASE("for_each_bookmark fails with kNotFound before any visit when a named ID is not stored",
+          "[db]") {
+    Fixture fixture;
+    insert_with_gaps(fixture);
+    std::vector<std::int64_t> seen;
+
+    const auto single = not_found_for(fixture, {"3,4"}, seen);
+    CHECK(single.code == ErrorCode::kNotFound);
+    CHECK(single.bookmark_id == std::optional(bucu::core::BookmarkId(4)));
+
+    const auto range = not_found_for(fixture, {"20-30"}, seen);
+    CHECK(range.code == ErrorCode::kNotFound);
+    CHECK(range.range.has_value());
+
+    CHECK(not_found_for(fixture, {"5,99,4"}, seen).bookmark_id ==
+          std::optional(bucu::core::BookmarkId(4)));
+    CHECK(seen.empty());
+}
+
+TEST_CASE("for_each_bookmark accepts a range that holds a stored ID and visits only stored IDs",
+          "[db]") {
     Fixture fixture;
     insert_with_gaps(fixture);
 
-    CHECK(visited(fixture, {"4"}).empty());
-    CHECK(visited(fixture, {"20-30"}).empty());
-    CHECK(visited(fixture, {"4,5,99"}) == std::vector<std::int64_t>{5});
+    CHECK(visited(fixture, {"4-6"}) == std::vector<std::int64_t>{5});
+    CHECK(visited(fixture, {"1-9999999999"}) == std::vector<std::int64_t>{3, 5, 8, 9, 11});
 }
 
 TEST_CASE("for_each_bookmark gives a bookmark once when items overlap", "[db]") {
@@ -353,7 +390,96 @@ TEST_CASE("for_each_bookmark on an empty database visits nothing", "[db]") {
     Fixture fixture;
 
     CHECK(visited(fixture, {}).empty());
-    CHECK(visited(fixture, {"1-5"}).empty());
+}
+
+namespace {
+
+constexpr int kManyStored = 100;
+
+// The IDs that for_each_last_bookmark gives for `count`, in the order given.
+std::vector<std::int64_t> last_visited(Fixture& fixture, std::int64_t count) {
+    std::vector<std::int64_t> ids;
+    const auto done = bucu::db::for_each_last_bookmark(
+        fixture.database, count, [&ids](bucu::core::BookmarkId id, const bucu::core::Bookmark&) {
+            ids.push_back(id.value());
+            return true;
+        });
+    REQUIRE(done.has_value());
+    return ids;
+}
+
+}  // namespace
+
+TEST_CASE("for_each_last_bookmark gives the n highest stored IDs in ascending order", "[db]") {
+    Fixture fixture;
+    insert_with_gaps(fixture);
+
+    CHECK(last_visited(fixture, 1) == std::vector<std::int64_t>{11});
+    CHECK(last_visited(fixture, 3) == std::vector<std::int64_t>{8, 9, 11});
+    CHECK(last_visited(fixture, 5) == std::vector<std::int64_t>{3, 5, 8, 9, 11});
+}
+
+TEST_CASE("for_each_last_bookmark gives every bookmark when fewer than n are stored", "[db]") {
+    Fixture fixture;
+    insert_with_gaps(fixture);
+
+    CHECK(last_visited(fixture, 6) == std::vector<std::int64_t>{3, 5, 8, 9, 11});
+    CHECK(last_visited(fixture, 9223372036854775807) == std::vector<std::int64_t>{3, 5, 8, 9, 11});
+}
+
+TEST_CASE("for_each_last_bookmark counts stored bookmarks, not ID values", "[db]") {
+    Fixture fixture;
+    insert_numbered(fixture, kManyStored);
+    fixture.exec("DELETE FROM bookmark WHERE id > 1 AND id < 100");
+
+    CHECK(last_visited(fixture, 2) == std::vector<std::int64_t>{1, 100});
+}
+
+TEST_CASE("for_each_last_bookmark on an empty database visits nothing", "[db]") {
+    Fixture fixture;
+
+    CHECK(last_visited(fixture, 3).empty());
+}
+
+TEST_CASE("for_each_last_bookmark gives each bookmark with its tags and stops when asked", "[db]") {
+    Fixture fixture;
+    insert_numbered(fixture, 4);
+    std::vector<std::pair<std::int64_t, bucu::core::TagSet>> seen;
+
+    const auto done = bucu::db::for_each_last_bookmark(
+        fixture.database, 3,
+        [&seen](bucu::core::BookmarkId id, const bucu::core::Bookmark& bookmark) {
+            seen.emplace_back(id.value(), bookmark.tags);
+            return seen.size() < 2;
+        });
+
+    REQUIRE(done.has_value());
+    REQUIRE(seen.size() == 2);
+    CHECK(seen[0].first == 2);
+    CHECK(seen[0].second == bucu::core::TagSet{"all", "t2"});
+    CHECK(seen[1].first == 3);
+}
+
+TEST_CASE("for_each_last_bookmark reads one snapshot while another connection adds a bookmark",
+          "[db]") {
+    Fixture fixture;
+    insert_numbered(fixture, 3);
+    auto other = Database::open(fixture.dir.path() / "bookmarks.db");
+    REQUIRE(other.has_value());
+    std::vector<std::int64_t> ids;
+
+    const auto done = bucu::db::for_each_last_bookmark(
+        fixture.database, 2, [&](bucu::core::BookmarkId id, const bucu::core::Bookmark&) {
+            if (ids.empty()) {
+                REQUIRE(bucu::db::insert_bookmark(*other, make("https://new.example/"), kNow)
+                            .has_value());
+            }
+            ids.push_back(id.value());
+            return true;
+        });
+
+    REQUIRE(done.has_value());
+    CHECK(ids == std::vector<std::int64_t>{2, 3});
 }
 
 namespace {

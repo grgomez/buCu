@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <limits>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -149,4 +150,21 @@ TEST_CASE("the first bad argument is the one returned", "[core][id]") {
 
     REQUIRE_FALSE(result.has_value());
     CHECK(result.error().argument == "x");
+}
+
+TEST_CASE("parse_id reads ASCII digits, with leading zeros, from 1 to the largest 64-bit integer",
+          "[core][id]") {
+    CHECK(bucu::core::parse_id("1") == std::optional<std::int64_t>(1));
+    CHECK(bucu::core::parse_id("007") == std::optional<std::int64_t>(7));
+    CHECK(bucu::core::parse_id("9223372036854775807") == std::optional<std::int64_t>(kMaxId));
+    CHECK(bucu::core::parse_id("0000000000000000000000012") == std::optional<std::int64_t>(12));
+}
+
+TEST_CASE("parse_id gives no value for 0, a sign, a space, an empty text, or an overflow",
+          "[core][id]") {
+    for (const char* text : {"0", "000", "-2", "+2", " 2", "2 ", "", "x", "2x", "1.5", "1,2",
+                             "9223372036854775808", "99999999999999999999"}) {
+        CAPTURE(text);
+        CHECK_FALSE(bucu::core::parse_id(text).has_value());
+    }
 }
