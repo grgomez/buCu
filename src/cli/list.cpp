@@ -1,3 +1,4 @@
+#include <cstdint>
 #include <optional>
 #include <ostream>
 
@@ -12,6 +13,19 @@ namespace bucu::cli {
 int run_list(const ListArgs& args, const Globals& globals, const Context& context) {
     std::ostream& out = context.out;
     std::ostream& err = context.err;
+    // The usage errors come in a fixed order: --last with IDs, a bad --last value, a bad ID.
+    if (args.last.has_value() && !args.ids.empty()) {
+        err << usage_error_message("--last cannot be used with IDs") << '\n';
+        return kExitUsage;
+    }
+    std::optional<std::int64_t> last_count;
+    if (args.last.has_value()) {
+        last_count = core::parse_id(*args.last);
+        if (!last_count) {
+            err << invalid_last_message(*args.last) << '\n';
+            return kExitUsage;
+        }
+    }
     const auto selection = core::parse_id_selection(args.ids);
     if (!selection) {
         err << invalid_id_message(selection.error().argument) << '\n';
@@ -21,7 +35,9 @@ int run_list(const ListArgs& args, const Globals& globals, const Context& contex
     if (!database) {
         return kExitFailure;
     }
-    if (auto printed = print_records(*database, *selection, out); !printed) {
+    const auto printed = last_count ? print_last_records(*database, *last_count, out)
+                                    : print_records(*database, *selection, out);
+    if (!printed) {
         const db::Error& error = printed.error();
         if (error.code == db::ErrorCode::kNotFound) {
             err << not_found_message(error) << '\n';

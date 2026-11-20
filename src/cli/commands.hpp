@@ -38,9 +38,11 @@ struct UpdateArgs {
     bool yes = false;
 };
 
-// The arguments of `list`: the positional ID arguments; none means every bookmark.
+// The arguments of `list`: the positional ID arguments (none means every bookmark), and the value
+// of --last when it was given.
 struct ListArgs {
     std::vector<std::string> ids;
+    std::optional<std::string> last;
 };
 
 // The arguments of `tag`: the IDs, the operation word, and the tags, in the order given.

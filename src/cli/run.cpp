@@ -61,6 +61,7 @@ Commands:
   list [ids...]
       Print bookmarks. IDs are numbers, ranges such as 3-7, or comma lists;
       with no ID, every bookmark prints.
+        --last <n>            Print only the n newest bookmarks (no IDs).
   db path               Print the database location.
   db version            Print the schema version.
   db check              Check the database for damage.
@@ -177,6 +178,8 @@ std::optional<int> parse_and_run(const std::vector<std::string>& args,
     CLI::App* list = app.add_subcommand("list");
     list->subcommand_fallthrough(false);
     list->add_option("ids", list_args.ids);
+    std::string last_value;
+    CLI::Option* list_last = list->add_option("--last", last_value)->expected(1);
 
     TagArgs tag_args;
     CLI::App* tag = app.add_subcommand("tag");
@@ -251,6 +254,9 @@ std::optional<int> parse_and_run(const std::vector<std::string>& args,
         return finish(run_update(update_args, globals, context), context);
     }
     if (list->parsed()) {
+        if (list_last->count() > 0) {
+            list_args.last = last_value;
+        }
         return finish(run_list(list_args, globals, context), context);
     }
     if (db_path->parsed()) {

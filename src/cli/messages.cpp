@@ -110,6 +110,11 @@ std::string invalid_id_message(std::string_view argument) {
            "': it is not a positive whole number. Run 'bucu --help' for usage.";
 }
 
+std::string invalid_last_message(std::string_view argument) {
+    return "bucu: invalid value for --last '" + escape_controls(argument) +
+           "': it is not a positive whole number. Run 'bucu --help' for usage.";
+}
+
 std::string usage_error_message(std::string_view what) {
     return "bucu: " + std::string(what) + ". Run 'bucu --help' for usage.";
 }

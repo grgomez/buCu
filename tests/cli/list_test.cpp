@@ -1,3 +1,5 @@
+#include <sqlite3.h>
+
 #include <fstream>
 #include <sstream>
 #include <string>
@@ -28,6 +30,16 @@ void add_numbered(const Fixture& fixture, int count) {
 std::string record(int n) {
     const std::string number = std::to_string(n);
     return number + "  Title " + number + "\n   url:   https://" + number + ".example/\n";
+}
+
+// Deletes the bookmarks with the IDs in `ids` ("3, 5") with SQLite directly, as a tool other than
+// BuCu would.
+void delete_bookmarks(const Fixture& fixture, const std::string& ids) {
+    sqlite3* connection = nullptr;
+    REQUIRE(sqlite3_open(fixture.db_text().c_str(), &connection) == SQLITE_OK);
+    const std::string sql = "DELETE FROM bookmark WHERE id IN (" + ids + ")";
+    REQUIRE(sqlite3_exec(connection, sql.c_str(), nullptr, nullptr, nullptr) == SQLITE_OK);
+    REQUIRE(sqlite3_close(connection) == SQLITE_OK);
 }
 
 std::string read_golden(const std::string& name) {
@@ -160,6 +172,96 @@ TEST_CASE("list prints every field kind as the plain golden file", "[cli][list]"
     CHECK(result.code == 0);
     CHECK(result.out == read_golden("list_plain.txt"));
     CHECK(result.out.find('\r') == std::string::npos);
+}
+
+TEST_CASE("list --last n prints the n highest stored IDs in ascending order", "[cli][list]") {
+    const Fixture fixture;
+    add_numbered(fixture, 9);
+    delete_bookmarks(fixture, "3, 5, 6, 8");  // bookmarks 1, 2, 4, 7, and 9 stay
+
+    const Result three = fixture.bucu({"list", "--last", "3"});
+    CHECK(three.code == 0);
+    CHECK(three.out == record(4) + "\n" + record(7) + "\n" + record(9));
+
+    CHECK(fixture.bucu({"list", "--last", "10"}).out ==
+          record(1) + "\n" + record(2) + "\n" + record(4) + "\n" + record(7) + "\n" + record(9));
+    CHECK(fixture.bucu({"list", "--last=2"}).out == record(7) + "\n" + record(9));
+    CHECK(fixture.bucu({"list", "--last", "0002"}).out == record(7) + "\n" + record(9));
+    CHECK(fixture.bucu({"list", "--last", "9223372036854775807"}).code == 0);
+}
+
+TEST_CASE("list --last counts stored bookmarks, not ID values", "[cli][list]") {
+    const Fixture fixture;
+    add_numbered(fixture, 100);
+    delete_bookmarks(fixture, "2, 3, 4, 5, 6, 7, 8, 9, 10");
+    const Result two = fixture.bucu({"list", "--last", "2"});
+
+    CHECK(two.out == record(99) + "\n" + record(100));
+}
+
+TEST_CASE("list --last with no bookmark stored prints nothing and exits 0", "[cli][list]") {
+    const Fixture fixture;
+
+    const Result result = fixture.bucu({"list", "--last", "5"});
+
+    CHECK(result.code == 0);
+    CHECK(result.out.empty());
+    CHECK(result.err.empty());
+}
+
+TEST_CASE("list --last fails with exit 2 for a value that is not a positive whole number",
+          "[cli][list]") {
+    const Fixture fixture;
+    add_numbered(fixture, 3);
+
+    for (const char* value :
+         {"0", "-2", "x", "2x", "1.5", "+2", "", "99999999999999999999", "9223372036854775808"}) {
+        CAPTURE(value);
+        const Result result = fixture.bucu({"list", "--last", value});
+        CHECK(result.code == 2);
+        CHECK(result.out.empty());
+        CHECK(result.err == std::string("bucu: invalid value for --last '") + value +
+                                "': it is not a positive whole number. Run 'bucu --help' for "
+                                "usage.\n");
+    }
+}
+
+TEST_CASE("list --last escapes control characters of a bad value in the error", "[cli][list]") {
+    const Fixture fixture;
+
+    const Result result = fixture.bucu({"list", "--last", "a\x1b[31m\tb"});
+
+    CHECK(result.code == 2);
+    CHECK(result.err ==
+          "bucu: invalid value for --last 'a\\x1b[31m\\tb': it is not a positive whole number. "
+          "Run 'bucu --help' for usage.\n");
+}
+
+TEST_CASE("list --last with ID arguments, or twice, or with no value, is a usage error",
+          "[cli][list]") {
+    const Fixture fixture;
+    add_numbered(fixture, 3);
+
+    const Result with_ids = fixture.bucu({"list", "--last", "2", "3"});
+    CHECK(with_ids.code == 2);
+    CHECK(with_ids.out.empty());
+    CHECK(with_ids.err == "bucu: --last cannot be used with IDs. Run 'bucu --help' for usage.\n");
+
+    CHECK(fixture.bucu({"list", "--last"}).code == 2);
+    CHECK(fixture.bucu({"list", "--last", "1", "--last", "2"}).code == 2);
+}
+
+TEST_CASE("list reports --last with IDs before a bad --last value, and that before a bad ID",
+          "[cli][list]") {
+    const Fixture fixture;
+    add_numbered(fixture, 3);
+    const std::string with_ids =
+        "bucu: --last cannot be used with IDs. Run 'bucu --help' for usage.\n";
+
+    CHECK(fixture.bucu({"list", "--last", "x", "3"}).err == with_ids);
+    CHECK(fixture.bucu({"list", "abc", "--last", "2"}).err == with_ids);
+    CHECK(fixture.bucu({"list", "abc", "--last", "x"}).err == with_ids);
+    CHECK(fixture.bucu({"list", "abc"}).err.starts_with("bucu: invalid ID 'abc'"));
 }
 
 TEST_CASE("--help lists list", "[cli][list]") {
