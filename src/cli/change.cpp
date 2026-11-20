@@ -1,13 +1,9 @@
 #include "cli/change.hpp"
 
-#include <cstdint>
-#include <expected>
 #include <optional>
 #include <ostream>
 #include <string>
 
-#include "bucu/core/bookmark.hpp"
-#include "bucu/core/bookmark_id.hpp"
 #include "bucu/core/id_selection.hpp"
 #include "bucu/db/bookmarks.hpp"
 #include "cli/confirm.hpp"
@@ -18,23 +14,6 @@
 namespace bucu::cli {
 
 namespace {
-
-// Prints the stored record of each selected bookmark, with one empty line between records. Stops
-// early, with the stream bad, when writing fails.
-std::expected<void, db::Error> print_records(db::Database& database,
-                                             const core::IdSelection& selection,
-                                             std::ostream& out) {
-    bool first = true;
-    return db::for_each_bookmark(database, selection,
-                                 [&](core::BookmarkId id, const core::Bookmark& bookmark) {
-                                     if (!first) {
-                                         out << '\n';
-                                     }
-                                     first = false;
-                                     out << format_record(id, bookmark);
-                                     return static_cast<bool>(out);
-                                 });
-}
 
 // The checks and the question before a change to every bookmark (product section 5). Returns the
 // exit code when the run ends here, or no value when the change goes on.

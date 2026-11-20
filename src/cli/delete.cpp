@@ -1,11 +1,5 @@
-#include <cstdint>
-#include <expected>
 #include <ostream>
-#include <string>
-#include <utility>
 
-#include "bucu/core/bookmark.hpp"
-#include "bucu/core/bookmark_id.hpp"
 #include "bucu/core/id_selection.hpp"
 #include "bucu/db/bookmarks.hpp"
 #include "cli/commands.hpp"
@@ -15,31 +9,6 @@
 #include "cli/record.hpp"
 
 namespace bucu::cli {
-
-namespace {
-
-// Prints the record of each selected bookmark, with one empty line between records, and returns
-// how many it printed. Stops early, with the stream bad, when writing fails.
-std::expected<std::int64_t, db::Error> print_records(db::Database& database,
-                                                     const core::IdSelection& selection,
-                                                     std::ostream& out) {
-    std::int64_t count = 0;
-    auto done = db::for_each_bookmark(database, selection,
-                                      [&](core::BookmarkId id, const core::Bookmark& bookmark) {
-                                          if (count > 0) {
-                                              out << '\n';
-                                          }
-                                          ++count;
-                                          out << format_record(id, bookmark);
-                                          return static_cast<bool>(out);
-                                      });
-    if (!done) {
-        return std::unexpected(std::move(done.error()));
-    }
-    return count;
-}
-
-}  // namespace
 
 int run_delete(const DeleteArgs& args, const Globals& globals, const Context& context) {
     std::ostream& out = context.out;
@@ -78,10 +47,7 @@ int run_delete(const DeleteArgs& args, const Globals& globals, const Context& co
     if (!selection->all && *count > 0) {
         out << '\n';
     }
-    const std::string prompt = std::string("Delete ") + (selection->all ? "all " : "") +
-                               std::to_string(*count) + (*count == 1 ? " bookmark" : " bookmarks") +
-                               "? [y/N] ";
-    if (ask(context, args.yes, prompt) == Answer::kCancelled) {
+    if (ask(context, args.yes, delete_prompt(selection->all, *count)) == Answer::kCancelled) {
         return kExitOk;
     }
     const auto deleted = db::delete_bookmarks(*database, *selection);

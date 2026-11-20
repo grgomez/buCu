@@ -49,6 +49,9 @@ struct IdError {
 [[nodiscard]] std::expected<IdSelection, IdError> parse_id_selection(
     const std::vector<std::string>& arguments);
 
+// The selection of the two IDs `a` and `b` as single items, in ascending order. `a` and `b` differ.
+[[nodiscard]] IdSelection select_two_ids(BookmarkId a, BookmarkId b);
+
 // Why an argument is not one ID.
 enum class SingleIdError : std::uint8_t {
     kNotAnIdItem,  // not a positive whole number, a range, or a list of these

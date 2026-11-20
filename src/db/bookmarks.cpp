@@ -441,14 +441,8 @@ std::expected<void, Error> swap_bookmark_ids(Database& database, core::BookmarkI
     if (!transaction) {
         return std::unexpected(std::move(transaction.error()));
     }
-    // Both IDs as single items in ascending order, so the first failure is the lower ID.
-    const auto single = [](core::BookmarkId id) {
-        return core::IdItem{.kind = core::IdItemKind::kSingle,
-                            .range = core::IdRange{.first = id, .last = id}};
-    };
-    const core::IdSelection selection{.all = false,
-                                      .items = {single(std::min(a, b)), single(std::max(a, b))}};
-    if (auto found = check_targets_exist(connection, selection); !found) {
+    // The items are in ascending order, so the first failure is the lower ID.
+    if (auto found = check_targets_exist(connection, core::select_two_ids(a, b)); !found) {
         return std::unexpected(std::move(found.error()));
     }
 

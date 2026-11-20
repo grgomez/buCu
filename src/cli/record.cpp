@@ -65,4 +65,23 @@ std::string format_record(core::BookmarkId id, const core::Bookmark& bookmark) {
     return out;
 }
 
+std::expected<std::int64_t, db::Error> print_records(db::Database& database,
+                                                     const core::IdSelection& selection,
+                                                     std::ostream& out) {
+    std::int64_t count = 0;
+    auto done = db::for_each_bookmark(database, selection,
+                                      [&](core::BookmarkId id, const core::Bookmark& bookmark) {
+                                          if (count > 0) {
+                                              out << '\n';
+                                          }
+                                          ++count;
+                                          out << format_record(id, bookmark);
+                                          return static_cast<bool>(out);
+                                      });
+    if (!done) {
+        return std::unexpected(std::move(done.error()));
+    }
+    return count;
+}
+
 }  // namespace bucu::cli

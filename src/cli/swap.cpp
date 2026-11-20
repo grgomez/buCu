@@ -1,11 +1,7 @@
-#include <algorithm>
-#include <expected>
 #include <ostream>
 #include <string>
-#include <utility>
 #include <vector>
 
-#include "bucu/core/bookmark.hpp"
 #include "bucu/core/bookmark_id.hpp"
 #include "bucu/core/id_selection.hpp"
 #include "bucu/db/bookmarks.hpp"
@@ -15,20 +11,6 @@
 #include "cli/record.hpp"
 
 namespace bucu::cli {
-
-namespace {
-
-// The selection of the two IDs, which differ.
-core::IdSelection selection_of(core::BookmarkId a, core::BookmarkId b) {
-    const auto single = [](core::BookmarkId id) {
-        return core::IdItem{.kind = core::IdItemKind::kSingle,
-                            .range = core::IdRange{.first = id, .last = id}};
-    };
-    return core::IdSelection{.all = false,
-                             .items = {single(std::min(a, b)), single(std::max(a, b))}};
-}
-
-}  // namespace
 
 int run_swap(const SwapArgs& args, const Globals& globals, const Context& context) {
     std::ostream& out = context.out;
@@ -68,17 +50,7 @@ int run_swap(const SwapArgs& args, const Globals& globals, const Context& contex
         err << sql_error_message("swap the IDs", error) << '\n';
         return kExitFailure;
     }
-    bool first = true;
-    const auto printed =
-        db::for_each_bookmark(*database, selection_of(ids[0], ids[1]),
-                              [&](core::BookmarkId id, const core::Bookmark& bookmark) {
-                                  if (!first) {
-                                      out << '\n';
-                                  }
-                                  first = false;
-                                  out << format_record(id, bookmark);
-                                  return static_cast<bool>(out);
-                              });
+    const auto printed = print_records(*database, core::select_two_ids(ids[0], ids[1]), out);
     if (!printed) {
         err << sql_error_message("read the bookmarks", printed.error()) << '\n';
         return kExitFailure;

@@ -151,6 +151,16 @@ TEST_CASE("the first bad argument is the one returned", "[core][id]") {
     CHECK(result.error().argument == "x");
 }
 
+TEST_CASE("select_two_ids names both IDs in ascending order, whichever comes first", "[core][id]") {
+    for (const auto& [a, b] : {std::pair<std::int64_t, std::int64_t>{3, 9}, {9, 3}}) {
+        const IdSelection selection = bucu::core::select_two_ids(BookmarkId(a), BookmarkId(b));
+
+        CHECK_FALSE(selection.all);
+        CHECK(selection.items == parsed({"3,9"}).items);
+        CHECK(named_id_count(selection) == 2);
+    }
+}
+
 TEST_CASE("parse_single_id reads one ID, with leading zeros", "[core][id]") {
     for (const char* text : {"7", "007"}) {
         CAPTURE(text);

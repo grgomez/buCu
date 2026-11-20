@@ -1,4 +1,3 @@
-#include <optional>
 #include <ostream>
 #include <string>
 
@@ -27,11 +26,7 @@ int run_reorder(const ReorderArgs& args, const Globals& globals, const Context& 
         return kExitFailure;
     }
     if (*count == 0) {
-        err << not_found_message(db::Error{.code = db::ErrorCode::kNotFound,
-                                           .message = "no bookmark is stored",
-                                           .bookmark_id = std::nullopt,
-                                           .range = std::nullopt})
-            << '\n';
+        err << no_bookmarks_message() << '\n';
         return kExitNotFound;
     }
     const auto misplaced = db::count_misplaced_ids(*database);
@@ -40,7 +35,7 @@ int run_reorder(const ReorderArgs& args, const Globals& globals, const Context& 
         return kExitFailure;
     }
     if (*misplaced == 0) {
-        out << "IDs are already 1-" << *count << ".\n";
+        out << already_in_order_message(*count) << '\n';
         return kExitOk;
     }
     if (const auto code = check_can_confirm(context, args.yes, "renumbering bookmarks")) {

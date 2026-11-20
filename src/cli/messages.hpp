@@ -48,6 +48,16 @@ std::string backup_error_message(std::string_view file, const db::Error& error);
 // `Deleted <count> bookmarks.`, or `Deleted 1 bookmark.` for one (product section 5, delete).
 std::string deleted_message(std::int64_t count);
 
+// `bucu: there are no bookmarks.` (product section 6).
+std::string no_bookmarks_message();
+
+// `Delete <count> bookmarks? [y/N] ` (`Delete 1 bookmark? [y/N] ` for one), and with `all`,
+// `Delete all <count> bookmarks? [y/N] `: the trailing space, no LF.
+std::string delete_prompt(bool all, std::int64_t count);
+
+// `IDs are already 1-<count>.`
+std::string already_in_order_message(std::int64_t count);
+
 // `Renumber <count> bookmarks? [y/N] ` (`Renumber 1 bookmark? [y/N] ` for one), with the trailing
 // space and no LF (product section 5, swap and reorder).
 std::string renumber_prompt(std::int64_t count);

@@ -129,7 +129,18 @@ std::string not_found_message(const db::Error& error) {
         return "bucu: no bookmark has an ID in " + std::to_string(error.range->first.value()) +
                "-" + std::to_string(error.range->last.value()) + std::string(kHint);
     }
-    return "bucu: there are no bookmarks.";
+    return no_bookmarks_message();
+}
+
+std::string no_bookmarks_message() { return "bucu: there are no bookmarks."; }
+
+std::string delete_prompt(bool all, std::int64_t count) {
+    return std::string("Delete ") + (all ? "all " : "") + std::to_string(count) +
+           (count == 1 ? " bookmark" : " bookmarks") + "? [y/N] ";
+}
+
+std::string already_in_order_message(std::int64_t count) {
+    return "IDs are already 1-" + std::to_string(count) + ".";
 }
 
 std::string open_error_message(std::string_view file, const db::Error& error) {
