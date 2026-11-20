@@ -73,6 +73,9 @@ scripts/format.sh [--check]                            # clang-format
 scripts/tidy.sh [build-dir]                            # clang-tidy 19 (CLANG_TIDY=<path>), NOLINT, magic-number NOLINTBEGIN, and throw checks
 scripts/fuzz.sh [seconds]                              # libFuzzer targets (LLVM Clang), seconds per target, default 60
 python3 tools/sdd_check.py issue <n>                   # issue body parts, size, markers
+python3 -m unittest discover -s scripts/tests          # coverage report script tests
+cmake --preset coverage && cmake --build --preset coverage && cmake -E rm -rf build/coverage/profiles && ctest --preset coverage   # clang only
+scripts/coverage.sh [build-dir]                        # coverage and CRAP report in <build-dir>/report (LLVM_COV, LLVM_PROFDATA, LIZARD=<path>)
 ```
 
 The hooks arrive with #2 and the tools with #34. Git hooks (`README.md` Setup) check each commit. CI runs the workflows in `.github/workflows/` on every PR, and each one must pass before the owner merges.
