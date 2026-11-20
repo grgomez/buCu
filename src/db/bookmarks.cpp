@@ -145,6 +145,10 @@ std::expected<void, Error> check_targets_exist(sqlite3* connection,
     return {};
 }
 
+// Deletes the tags that no bookmark links (docs/database-schema.md section 3).
+constexpr const char* kPurgeUnusedTags =
+    "DELETE FROM tag WHERE NOT EXISTS (SELECT 1 FROM bookmark_tag WHERE tag_id = tag.id)";
+
 // The statements that write one changed bookmark, prepared once per command.
 class RowWriter {
 public:
@@ -172,9 +176,7 @@ public:
         if (!link) {
             return std::unexpected(std::move(link.error()));
         }
-        auto purge = Statement::prepare(connection,
-                                        "DELETE FROM tag WHERE NOT EXISTS "
-                                        "(SELECT 1 FROM bookmark_tag WHERE tag_id = tag.id)");
+        auto purge = Statement::prepare(connection, kPurgeUnusedTags);
         if (!purge) {
             return std::unexpected(std::move(purge.error()));
         }
@@ -356,6 +358,52 @@ std::expected<void, Error> for_each_bookmark(Database& database, const core::IdS
         std::ignore = select->reset();
     }
     return {};
+}
+
+std::expected<void, Error> check_bookmarks_exist(Database& database,
+                                                 const core::IdSelection& selection) {
+    sqlite3* const connection = detail::handle(database);
+    auto transaction = Transaction::begin(connection);
+    if (!transaction) {
+        return std::unexpected(std::move(transaction.error()));
+    }
+    return check_targets_exist(connection, selection);
+}
+
+std::expected<std::int64_t, Error> delete_bookmarks(Database& database,
+                                                    const core::IdSelection& selection) {
+    sqlite3* const connection = detail::handle(database);
+    auto transaction = Transaction::begin(connection, /*immediate=*/true);
+    if (!transaction) {
+        return std::unexpected(std::move(transaction.error()));
+    }
+    if (auto found = check_targets_exist(connection, selection); !found) {
+        return std::unexpected(std::move(found.error()));
+    }
+    // One DELETE per range, so a range such as 1-9999999999 is never expanded. The cascade from
+    // bookmark_tag removes the links.
+    auto remove = Statement::prepare(connection, "DELETE FROM bookmark WHERE id >= ? AND id <= ?");
+    if (!remove) {
+        return std::unexpected(std::move(remove.error()));
+    }
+    std::int64_t deleted = 0;
+    for (const core::IdRange& range : core::covered_ranges(selection)) {
+        if (auto done = run(*remove, range.first.value(), range.last.value()); !done) {
+            return std::unexpected(std::move(done.error()));
+        }
+        deleted += sqlite3_changes64(connection);
+    }
+    auto purge = Statement::prepare(connection, kPurgeUnusedTags);
+    if (!purge) {
+        return std::unexpected(std::move(purge.error()));
+    }
+    if (auto done = run(*purge); !done) {
+        return std::unexpected(std::move(done.error()));
+    }
+    if (auto committed = transaction->commit(); !committed) {
+        return std::unexpected(std::move(committed.error()));
+    }
+    return deleted;
 }
 
 std::expected<void, Error> update_bookmarks(Database& database, const core::IdSelection& selection,

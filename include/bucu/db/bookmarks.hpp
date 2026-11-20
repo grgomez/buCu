@@ -47,4 +47,16 @@ using BookmarkVisitor = std::function<bool(core::BookmarkId, const core::Bookmar
                                                           const core::BookmarkChanges& changes,
                                                           std::chrono::sys_seconds now);
 
+// Checks that `selection` matches stored bookmarks, in one read transaction: fails with the
+// `kNotFound` error that `delete_bookmarks` gives, and changes nothing.
+[[nodiscard]] std::expected<void, Error> check_bookmarks_exist(Database& database,
+                                                               const core::IdSelection& selection);
+
+// Deletes each bookmark that `selection` covers, with its tag links, in one transaction (all or
+// nothing), and returns how many bookmarks it deleted. No other bookmark changes its ID. Fails with
+// `kNotFound`, as `update_bookmarks` does, before it deletes anything. Tags that no bookmark links
+// any more are deleted before the commit (docs/database-schema.md section 3).
+[[nodiscard]] std::expected<std::int64_t, Error> delete_bookmarks(
+    Database& database, const core::IdSelection& selection);
+
 }  // namespace bucu::db

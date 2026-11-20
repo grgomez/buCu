@@ -629,3 +629,117 @@ TEST_CASE("update_bookmarks walks a huge range by the stored bookmarks only", "[
 
     CHECK(cells(fixture, "SELECT count(*) FROM bookmark WHERE title = 'New'") == "5");
 }
+
+TEST_CASE("delete_bookmarks removes the named bookmarks and keeps every other ID", "[db]") {
+    Fixture fixture;
+    insert_with_gaps(fixture);
+    const std::string kept =
+        cells(fixture, "SELECT id || url || title FROM bookmark WHERE id <> 9");
+
+    const auto deleted = bucu::db::delete_bookmarks(fixture.database, select({"9"}));
+
+    REQUIRE(deleted.has_value());
+    CHECK(*deleted == 1);
+    CHECK(cells(fixture, "SELECT id FROM bookmark ORDER BY id") == "3;5;8;11");
+    CHECK(cells(fixture, "SELECT id || url || title FROM bookmark ORDER BY id") == kept);
+}
+
+TEST_CASE("delete_bookmarks removes the links and the tags no bookmark keeps", "[db]") {
+    Fixture fixture;
+    insert_with_gaps(fixture);
+
+    REQUIRE(bucu::db::delete_bookmarks(fixture.database, select({"3"})).has_value());
+
+    CHECK(cells(fixture, kAllTags) == "all;t11;t5;t8;t9");
+    CHECK(cells(fixture, "SELECT count(*) FROM bookmark_tag WHERE bookmark_id = 3") == "0");
+}
+
+TEST_CASE("delete_bookmarks counts only the stored bookmarks a range covers", "[db]") {
+    Fixture fixture;
+    insert_with_gaps(fixture);
+
+    const auto deleted = bucu::db::delete_bookmarks(fixture.database, select({"4-9", "11"}));
+
+    REQUIRE(deleted.has_value());
+    CHECK(*deleted == 4);
+    CHECK(cells(fixture, "SELECT id FROM bookmark ORDER BY id") == "3");
+}
+
+TEST_CASE("delete_bookmarks of every bookmark leaves no bookmark and no tag", "[db]") {
+    Fixture fixture;
+    insert_with_gaps(fixture);
+
+    const auto deleted = bucu::db::delete_bookmarks(fixture.database, select({}));
+
+    REQUIRE(deleted.has_value());
+    CHECK(*deleted == 5);
+    CHECK(fixture.count("bookmark") == 0);
+    CHECK(fixture.count("bookmark_tag") == 0);
+    CHECK(fixture.count("tag") == 0);
+}
+
+TEST_CASE("delete_bookmarks names the first item that matches nothing and deletes nothing",
+          "[db]") {
+    Fixture fixture;
+    insert_with_gaps(fixture);
+    const std::string rows = cells(fixture, kAllRows);
+    const std::string tags = cells(fixture, kAllTags);
+
+    const auto single = bucu::db::delete_bookmarks(fixture.database, select({"3,4,9"}));
+
+    REQUIRE_FALSE(single.has_value());
+    CHECK(single.error().code == ErrorCode::kNotFound);
+    CHECK(single.error().bookmark_id == bucu::core::BookmarkId(4));
+
+    const auto range = bucu::db::delete_bookmarks(fixture.database, select({"3", "20-30"}));
+
+    REQUIRE_FALSE(range.has_value());
+    CHECK(range.error().code == ErrorCode::kNotFound);
+    REQUIRE(range.error().range.has_value());
+    CHECK(range.error().range->first == bucu::core::BookmarkId(20));
+    CHECK(cells(fixture, kAllRows) == rows);
+    CHECK(cells(fixture, kAllTags) == tags);
+
+    fixture.exec("DELETE FROM bookmark");
+    const auto none = bucu::db::delete_bookmarks(fixture.database, select({}));
+    REQUIRE_FALSE(none.has_value());
+    CHECK(none.error().code == ErrorCode::kNotFound);
+    CHECK_FALSE(none.error().bookmark_id.has_value());
+}
+
+TEST_CASE("check_bookmarks_exist reports what delete_bookmarks would, and changes nothing",
+          "[db]") {
+    Fixture fixture;
+    insert_with_gaps(fixture);
+
+    CHECK(bucu::db::check_bookmarks_exist(fixture.database, select({"3", "5-9"})).has_value());
+    CHECK(bucu::db::check_bookmarks_exist(fixture.database, select({})).has_value());
+    const auto missing = bucu::db::check_bookmarks_exist(fixture.database, select({"3,4"}));
+
+    REQUIRE_FALSE(missing.has_value());
+    CHECK(missing.error().code == ErrorCode::kNotFound);
+    CHECK(missing.error().bookmark_id == bucu::core::BookmarkId(4));
+    CHECK(fixture.count("bookmark") == 5);
+}
+
+TEST_CASE("a new bookmark takes the ID above the highest stored one", "[db]") {
+    Fixture fixture;
+    insert_with_gaps(fixture);
+
+    REQUIRE(bucu::db::delete_bookmarks(fixture.database, select({"11"})).has_value());
+    const auto reused =
+        bucu::db::insert_bookmark(fixture.database, make("https://a.example/"), kNow);
+    REQUIRE(reused.has_value());
+    CHECK(reused->value() == 10);
+
+    REQUIRE(bucu::db::delete_bookmarks(fixture.database, select({"3"})).has_value());
+    const auto next = bucu::db::insert_bookmark(fixture.database, make("https://b.example/"), kNow);
+    REQUIRE(next.has_value());
+    CHECK(next->value() == 11);
+
+    REQUIRE(bucu::db::delete_bookmarks(fixture.database, select({})).has_value());
+    const auto first =
+        bucu::db::insert_bookmark(fixture.database, make("https://c.example/"), kNow);
+    REQUIRE(first.has_value());
+    CHECK(first->value() == 1);
+}
