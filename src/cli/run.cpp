@@ -183,6 +183,11 @@ std::optional<int> parse_and_run(const std::vector<std::string>& args,
     delete_command->add_option("ids", delete_args.ids);
     delete_command->add_flag("--yes", delete_args.yes);
 
+    SwapArgs swap_args;
+    CLI::App* swap = app.add_subcommand("swap");
+    swap->subcommand_fallthrough(false);
+    swap->add_option("ids", swap_args.ids);
+
     CLI::App* db = app.add_subcommand("db");
     db->subcommand_fallthrough(false);
     db->require_subcommand(1);
@@ -250,6 +255,9 @@ std::optional<int> parse_and_run(const std::vector<std::string>& args,
     }
     if (delete_command->parsed()) {
         return finish(run_delete(delete_args, globals, context), context);
+    }
+    if (swap->parsed()) {
+        return finish(run_swap(swap_args, globals, context), context);
     }
     if (db_path->parsed()) {
         return finish(run_db_path(globals, context), context);
