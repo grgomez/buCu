@@ -14,8 +14,10 @@
 namespace bucu::cli {
 
 // The labelled block that `add` prints for a stored bookmark (docs/product.md section 5). Every
-// line ends in LF.
-std::string format_record(core::BookmarkId id, const core::Bookmark& bookmark);
+// line ends in LF. With `colour`, each part has its colour and a reset before its LF; without it,
+// the block holds no escape sequence. Control characters in the title and description are written
+// as escapes.
+std::string format_record(core::BookmarkId id, const core::Bookmark& bookmark, bool colour);
 
 // Prints the stored record of each selected bookmark, with one empty line between records, one at
 // a time as they are read. Stops early, with the stream bad, when writing fails. Fails as

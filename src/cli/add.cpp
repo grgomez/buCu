@@ -61,7 +61,7 @@ int run_add(const AddArgs& args, const Globals& globals, const Context& context)
         err << sql_error_message("store the bookmark", id.error()) << '\n';
         return kExitFailure;
     }
-    out << format_record(*id, *bookmark);
+    out << format_record(*id, *bookmark, false);
     return kExitOk;
 }
 
