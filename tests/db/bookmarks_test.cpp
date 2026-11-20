@@ -310,6 +310,8 @@ TEST_CASE("for_each_bookmark walks single IDs and ranges with gaps in ascending 
     CHECK(visited(fixture, {"11", "3"}) == std::vector<std::int64_t>{3, 11});
 }
 
+namespace {
+
 // The error that for_each_bookmark returns for `arguments`, with the IDs the visitor saw.
 bucu::db::Error not_found_for(Fixture& fixture, const std::vector<std::string>& arguments,
                               std::vector<std::int64_t>& seen) {
@@ -322,6 +324,8 @@ bucu::db::Error not_found_for(Fixture& fixture, const std::vector<std::string>& 
     REQUIRE_FALSE(done.has_value());
     return done.error();
 }
+
+}  // namespace
 
 TEST_CASE("for_each_bookmark fails with kNotFound before any visit when a named ID is not stored",
           "[db]") {
