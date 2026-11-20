@@ -292,3 +292,79 @@ TEST_CASE("delete with --yes never asks, even in an interactive run", "[cli][del
     CHECK(result.out.find("[y/N]") == std::string::npos);
     CHECK(ids(fixture) == "3,8");
 }
+
+TEST_CASE("delete with no ID asks with the count, prints no record, and deletes everything",
+          "[cli][delete]") {
+    Fixture fixture;
+    add_three(fixture);
+    fixture.terminals = bucu::test::cli::kTerminal;
+    fixture.input = "y\n";
+
+    const Result result = fixture.bucu({"delete"});
+
+    CHECK(result.code == 0);
+    CHECK(result.err.empty());
+    CHECK(result.out == "Delete all 3 bookmarks? [y/N] Deleted 3 bookmarks.\n");
+    CHECK(ids(fixture).empty());
+    CHECK(fixture.rows("SELECT 1 FROM bookmark_tag").empty());
+    CHECK(fixture.tags().empty());
+}
+
+TEST_CASE("delete with no ID says bookmark in the singular for one", "[cli][delete]") {
+    Fixture fixture;
+    add_three(fixture);
+    REQUIRE(fixture.bucu({"delete", "3,8", "--yes"}).code == 0);
+    fixture.terminals = bucu::test::cli::kTerminal;
+    fixture.input = "y\n";
+
+    const Result result = fixture.bucu({"delete"});
+
+    CHECK(result.out == "Delete all 1 bookmark? [y/N] Deleted 1 bookmark.\n");
+}
+
+TEST_CASE("delete with no ID cancels on any other answer", "[cli][delete]") {
+    Fixture fixture;
+    add_three(fixture);
+    fixture.terminals = bucu::test::cli::kTerminal;
+    fixture.input = "n\n";
+
+    const Result result = fixture.bucu({"delete"});
+
+    CHECK(result.code == 0);
+    CHECK(result.out == "Delete all 3 bookmarks? [y/N] Cancelled.\n");
+    CHECK(ids(fixture) == "3,5,8");
+}
+
+TEST_CASE("delete --yes with no ID deletes all without asking", "[cli][delete]") {
+    const Fixture fixture;
+    add_three(fixture);
+
+    const Result result = fixture.bucu({"delete", "--yes"});
+
+    CHECK(result.code == 0);
+    CHECK(result.out == "Deleted 3 bookmarks.\n");
+    CHECK(ids(fixture).empty());
+    CHECK(fixture.tags().empty());
+}
+
+TEST_CASE("delete with no ID and no bookmark is exit 5 before any prompt", "[cli][delete]") {
+    Fixture fixture;
+    fixture.terminals = bucu::test::cli::kTerminal;
+
+    for (const Result& result : {fixture.bucu({"delete", "--yes"}), fixture.bucu({"delete"})}) {
+        CHECK(result.code == 5);
+        CHECK(result.out.empty());
+        CHECK(result.err == "bucu: there are no bookmarks.\n");
+    }
+}
+
+TEST_CASE("delete with no ID in a run that is not interactive needs --yes", "[cli][delete]") {
+    const Fixture fixture;
+    add_three(fixture);
+
+    const Result result = fixture.bucu({"delete"});
+
+    CHECK(result.code == 2);
+    CHECK(result.out.empty());
+    CHECK(ids(fixture) == "3,5,8");
+}

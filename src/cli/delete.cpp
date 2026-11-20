@@ -65,19 +65,22 @@ int run_delete(const DeleteArgs& args, const Globals& globals, const Context& co
     if (const auto code = check_can_confirm(context, args.yes, "deleting bookmarks")) {
         return *code;
     }
-    const auto printed = print_records(*database, *selection, out);
-    if (!printed) {
-        err << sql_error_message("read the bookmarks", printed.error()) << '\n';
+    // With no ID, the records are not shown: only the count is.
+    const auto count =
+        selection->all ? db::count_bookmarks(*database) : print_records(*database, *selection, out);
+    if (!count) {
+        err << sql_error_message("read the bookmarks", count.error()) << '\n';
         return kExitFailure;
     }
     if (!out) {
         return kExitFailure;  // nothing is deleted that could not be shown
     }
-    if (*printed > 0) {
+    if (!selection->all && *count > 0) {
         out << '\n';
     }
-    const std::string prompt = "Delete " + std::to_string(*printed) +
-                               (*printed == 1 ? " bookmark" : " bookmarks") + "? [y/N] ";
+    const std::string prompt = std::string("Delete ") + (selection->all ? "all " : "") +
+                               std::to_string(*count) + (*count == 1 ? " bookmark" : " bookmarks") +
+                               "? [y/N] ";
     if (ask(context, args.yes, prompt) == Answer::kCancelled) {
         return kExitOk;
     }
