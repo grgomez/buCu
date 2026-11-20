@@ -195,7 +195,7 @@ completion <shell>         print a shell completion script (#19)
 - An argument that is not a valid ID item is the invalid ID error (§6), exit `2`. A wrong number of arguments, or a list or a range (`3,3` and `3-3` included), is the "swap takes two IDs" usage error; two equal IDs (`3 003` included) are the "swap needs two different IDs" usage error (both in §6). Both exit `2`, and nothing changes.
 - An ID that is not stored is the not-found error (§6) for the lower such ID, exit `5`, and nothing changes.
 - On success `swap` prints the records with IDs `a` and `b` after the change, in the `add` format, in ascending ID order, with one empty line between them, and exits `0`.
-- `reorder` is one all-or-nothing change. It takes no argument other than `--yes`; an ID is a usage error, `bucu: reorder takes no ID.` with the usual tail (§6), exit `2`. With no bookmark stored it fails with `bucu: there are no bookmarks.` and exit `5`.
+- `reorder` is one all-or-nothing change. It takes no argument other than `--yes`; an ID is the "reorder takes no ID" usage error (§6), exit `2`. With no bookmark stored it fails with `bucu: there are no bookmarks.` and exit `5`.
 - When every ID is already in place, `reorder` prints `IDs are already 1-<n>.` and exits `0` without asking. Otherwise it asks as `delete` does, with the prompt `Renumber <m> bookmarks? [y/N] ` (`Renumber 1 bookmark? [y/N] `), where m is the number of bookmarks whose ID changes; in a run that is not interactive without `--yes` it fails with the usage error that names `--yes` (§6), exit `2`. On success it prints `Renumbered <m> bookmarks.` (`Renumbered 1 bookmark.`) and exits `0`.
 
 ### db (added by #10)
@@ -231,6 +231,7 @@ completion <shell>         print a shell completion script (#19)
 - A change to every bookmark in a run that is not interactive, without `--yes`, prints `bucu: changing all bookmarks needs confirmation; add --yes to confirm. Run 'bucu --help' for usage.` and exits `2`.
 - A `delete` in a run that is not interactive, without `--yes`, prints `bucu: deleting bookmarks needs confirmation; add --yes to confirm. Run 'bucu --help' for usage.` and exits `2`. A `reorder` that needs to ask prints `bucu: renumbering bookmarks needs confirmation; add --yes to confirm. Run 'bucu --help' for usage.` and exits `2`.
 - `swap` with other than two single IDs prints `bucu: swap takes two IDs. Run 'bucu --help' for usage.`; with two equal IDs, `bucu: swap needs two different IDs. Run 'bucu --help' for usage.`; both exit `2`.
+- `reorder` with an ID prints `bucu: reorder takes no ID. Run 'bucu --help' for usage.` and exits `2`.
 - The confirmation prompts (`Update all <n> bookmarks? [y/N] `, `Delete <n> bookmarks? [y/N] `, `Delete all <n> bookmarks? [y/N] `, `Renumber <m> bookmarks? [y/N] `) and `Cancelled.` go to standard output, not standard error. So do `Deleted <n> bookmarks.`, `Renumbered <m> bookmarks.`, and `IDs are already 1-<n>.`.
 - When writing standard output fails, `bucu` prints `bucu: cannot write to standard output` to standard error and exits `1`.
 
