@@ -4,6 +4,8 @@
 #include <string>
 #include <string_view>
 
+#include "bucu/db/bookmarks.hpp"
+
 namespace bucu::cli {
 
 namespace {
@@ -63,6 +65,21 @@ std::string format_record(core::BookmarkId id, const core::Bookmark& bookmark) {
         append_field(out, "flags:", "immutable-title");
     }
     return out;
+}
+
+std::expected<void, db::Error> print_records(db::Database& database,
+                                             const core::IdSelection& selection,
+                                             std::ostream& out) {
+    bool first = true;
+    return db::for_each_bookmark(database, selection,
+                                 [&](core::BookmarkId id, const core::Bookmark& bookmark) {
+                                     if (!first) {
+                                         out << '\n';
+                                     }
+                                     first = false;
+                                     out << format_record(id, bookmark);
+                                     return static_cast<bool>(out);
+                                 });
 }
 
 }  // namespace bucu::cli

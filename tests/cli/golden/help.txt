@@ -37,6 +37,9 @@ Commands:
         --immutable           Keep a later title fetch from replacing the title.
         --no-immutable        Allow a later title fetch to replace the title.
         --yes                 Confirm changing every bookmark.
+  list [ids...]
+      Print bookmarks. IDs are numbers, ranges such as 3-7, or comma lists;
+      with no ID, every bookmark prints.
   db path               Print the database location.
   db version            Print the schema version.
   db check              Check the database for damage.

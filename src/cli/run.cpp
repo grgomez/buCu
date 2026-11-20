@@ -58,6 +58,9 @@ Commands:
         --immutable           Keep a later title fetch from replacing the title.
         --no-immutable        Allow a later title fetch to replace the title.
         --yes                 Confirm changing every bookmark.
+  list [ids...]
+      Print bookmarks. IDs are numbers, ranges such as 3-7, or comma lists;
+      with no ID, every bookmark prints.
   db path               Print the database location.
   db version            Print the schema version.
   db check              Check the database for damage.
@@ -142,8 +145,8 @@ std::optional<int> parse_and_run(const std::vector<std::string>& args,
     app.add_flag("--offline", offline);
 
     AddArgs add_args;
-    // No subcommand has fallthrough: the command words (add, db, tag, update) stay plain words
-    // inside every command, so `add <url> db` stores the tag db instead of starting `db`.
+    // No subcommand has fallthrough: the command words (add, db, list, tag, update) stay plain
+    // words inside every command, so `add <url> db` stores the tag db instead of starting `db`.
     CLI::App* add = app.add_subcommand("add");
     add->subcommand_fallthrough(false);
     add->add_option("url", add_args.url)->required();
@@ -169,6 +172,11 @@ std::optional<int> parse_and_run(const std::vector<std::string>& args,
     update->add_flag("--immutable", update_args.immutable);
     update->add_flag("--no-immutable", update_args.no_immutable);
     update->add_flag("--yes", update_args.yes);
+
+    ListArgs list_args;
+    CLI::App* list = app.add_subcommand("list");
+    list->subcommand_fallthrough(false);
+    list->add_option("ids", list_args.ids);
 
     TagArgs tag_args;
     CLI::App* tag = app.add_subcommand("tag");
@@ -241,6 +249,9 @@ std::optional<int> parse_and_run(const std::vector<std::string>& args,
             update_args.tags = update_tags;
         }
         return finish(run_update(update_args, globals, context), context);
+    }
+    if (list->parsed()) {
+        return finish(run_list(list_args, globals, context), context);
     }
     if (db_path->parsed()) {
         return finish(run_db_path(globals, context), context);

@@ -38,6 +38,11 @@ struct UpdateArgs {
     bool yes = false;
 };
 
+// The arguments of `list`: the positional ID arguments; none means every bookmark.
+struct ListArgs {
+    std::vector<std::string> ids;
+};
+
 // The arguments of `tag`: the IDs, the operation word, and the tags, in the order given.
 struct TagArgs {
     std::vector<std::string> words;
@@ -54,6 +59,9 @@ int run_add(const AddArgs& args, const Globals& globals, const Context& context)
 
 // Runs `update` and returns the exit code.
 int run_update(const UpdateArgs& args, const Globals& globals, const Context& context);
+
+// Runs `list` and returns the exit code.
+int run_list(const ListArgs& args, const Globals& globals, const Context& context);
 
 // Runs `tag` and returns the exit code.
 int run_tag(const TagArgs& args, const Globals& globals, const Context& context);
