@@ -66,4 +66,13 @@ using BookmarkVisitor = std::function<bool(core::BookmarkId, const core::Bookmar
 [[nodiscard]] std::expected<void, Error> swap_bookmark_ids(Database& database, core::BookmarkId a,
                                                            core::BookmarkId b);
 
+// How many stored bookmarks have an ID other than their place (1, 2, ...) in ascending ID order,
+// in one read transaction. 0 means the IDs are already 1 to n.
+[[nodiscard]] std::expected<std::int64_t, Error> count_misplaced_ids(Database& database);
+
+// Gives the stored bookmarks the IDs 1 to n in their current ascending ID order, in one
+// transaction (all or nothing), and returns how many bookmarks got a new ID. Each bookmark keeps
+// every field, tag, flag, and timestamp; `bookmark_tag` follows the new IDs.
+[[nodiscard]] std::expected<std::int64_t, Error> renumber_bookmarks(Database& database);
+
 }  // namespace bucu::db

@@ -816,3 +816,76 @@ TEST_CASE("foreign keys are enforced again after a swap", "[db]") {
                        "INSERT INTO bookmark_tag (bookmark_id, tag_id) VALUES (999, 1)", nullptr,
                        nullptr, nullptr) != SQLITE_OK);
 }
+
+TEST_CASE("renumber_bookmarks gives IDs 1 to n in the current order and keeps everything else",
+          "[db]") {
+    Fixture fixture;
+    insert_with_gaps(fixture);  // 3, 5, 8, 9, 11
+    fixture.exec("UPDATE bookmark SET flags = 1, updated_at = 1700000099 WHERE id = 8");
+    std::string before;
+    for (const int id : {3, 5, 8, 9, 11}) {
+        before += content_of(fixture, id) + "\n";
+    }
+
+    const auto misplaced = bucu::db::count_misplaced_ids(fixture.database);
+    const auto moved = bucu::db::renumber_bookmarks(fixture.database);
+
+    REQUIRE(misplaced.has_value());
+    CHECK(*misplaced == 5);
+    REQUIRE(moved.has_value());
+    CHECK(*moved == 5);
+    CHECK(cells(fixture, "SELECT id FROM bookmark ORDER BY id") == "1;2;3;4;5");
+    std::string after;
+    for (const int id : {1, 2, 3, 4, 5}) {
+        after += content_of(fixture, id) + "\n";
+    }
+    CHECK(after == before);
+    CHECK(fixture.count("bookmark_tag") == 10);
+    CHECK(bucu::db::count_misplaced_ids(fixture.database).value() == 0);
+}
+
+TEST_CASE("renumber_bookmarks counts only the bookmarks whose ID changes", "[db]") {
+    Fixture fixture;
+    insert_numbered(fixture, 5);
+    fixture.exec("DELETE FROM bookmark WHERE id IN (3, 4)");
+
+    CHECK(bucu::db::count_misplaced_ids(fixture.database).value() == 1);
+    const auto moved = bucu::db::renumber_bookmarks(fixture.database);
+
+    REQUIRE(moved.has_value());
+    CHECK(*moved == 1);
+    CHECK(cells(fixture, "SELECT id FROM bookmark ORDER BY id") == "1;2;3");
+    CHECK(cells(fixture, "SELECT url FROM bookmark WHERE id = 3") == "https://5.example/");
+}
+
+TEST_CASE("renumber_bookmarks of IDs already 1 to n or of no bookmark changes nothing", "[db]") {
+    Fixture fixture;
+
+    CHECK(bucu::db::count_misplaced_ids(fixture.database).value() == 0);
+    CHECK(bucu::db::renumber_bookmarks(fixture.database).value() == 0);
+
+    insert_numbered(fixture, 3);
+    const std::string rows = cells(fixture, kAllRows);
+    const std::string links = cells(fixture, kAllLinks);
+
+    CHECK(bucu::db::count_misplaced_ids(fixture.database).value() == 0);
+    CHECK(bucu::db::renumber_bookmarks(fixture.database).value() == 0);
+    CHECK(cells(fixture, kAllRows) == rows);
+    CHECK(cells(fixture, kAllLinks) == links);
+}
+
+TEST_CASE("after renumber_bookmarks the next bookmark follows and foreign keys are enforced",
+          "[db]") {
+    Fixture fixture;
+    insert_with_gaps(fixture);
+
+    REQUIRE(bucu::db::renumber_bookmarks(fixture.database).has_value());
+
+    const auto id = bucu::db::insert_bookmark(fixture.database, make("https://z.example/"), kNow);
+    REQUIRE(id.has_value());
+    CHECK(id->value() == 6);
+    CHECK(cells(fixture, "SELECT name FROM sqlite_temp_master WHERE name = 'id_map'").empty());
+    CHECK(sqlite3_exec(bucu::db::detail::handle(fixture.database),
+                       "INSERT INTO bookmark_tag (bookmark_id, tag_id) VALUES (999, 1)", nullptr,
+                       nullptr, nullptr) != SQLITE_OK);
+}
