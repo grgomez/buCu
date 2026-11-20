@@ -165,6 +165,15 @@ std::string deleted_message(std::int64_t count) {
     return "Deleted " + std::to_string(count) + (count == 1 ? " bookmark." : " bookmarks.");
 }
 
+std::string renumber_prompt(std::int64_t count) {
+    return "Renumber " + std::to_string(count) + (count == 1 ? " bookmark" : " bookmarks") +
+           "? [y/N] ";
+}
+
+std::string renumbered_message(std::int64_t count) {
+    return "Renumbered " + std::to_string(count) + (count == 1 ? " bookmark." : " bookmarks.");
+}
+
 std::string sql_error_message(std::string_view action, const db::Error& error) {
     return "bucu: cannot " + std::string(action) + ": " + sentence(error.message);
 }

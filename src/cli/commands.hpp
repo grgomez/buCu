@@ -55,6 +55,13 @@ struct SwapArgs {
     std::vector<std::string> ids;
 };
 
+// The arguments of `reorder`, as CLI11 read them. `ids` is whatever positional words were given;
+// `run_reorder` refuses any.
+struct ReorderArgs {
+    std::vector<std::string> ids;
+    bool yes = false;
+};
+
 // Opens the database this run uses (product section 3), creating it when missing. On failure
 // prints one error line to `err` and returns no value.
 std::optional<db::Database> open_database(const Globals& globals, const Context& context,
@@ -74,6 +81,9 @@ int run_delete(const DeleteArgs& args, const Globals& globals, const Context& co
 
 // Runs `swap` and returns the exit code.
 int run_swap(const SwapArgs& args, const Globals& globals, const Context& context);
+
+// Runs `reorder` and returns the exit code.
+int run_reorder(const ReorderArgs& args, const Globals& globals, const Context& context);
 
 // The `db` subcommands. Each returns the exit code.
 int run_db_path(const Globals& globals, const Context& context);

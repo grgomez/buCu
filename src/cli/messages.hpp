@@ -48,6 +48,13 @@ std::string backup_error_message(std::string_view file, const db::Error& error);
 // `Deleted <count> bookmarks.`, or `Deleted 1 bookmark.` for one (product section 5, delete).
 std::string deleted_message(std::int64_t count);
 
+// `Renumber <count> bookmarks? [y/N] ` (`Renumber 1 bookmark? [y/N] ` for one), with the trailing
+// space and no LF (product section 5, swap and reorder).
+std::string renumber_prompt(std::int64_t count);
+
+// `Renumbered <count> bookmarks.`, or `Renumbered 1 bookmark.` for one.
+std::string renumbered_message(std::int64_t count);
+
 // A statement that failed while `action` ("store the bookmark") ran.
 std::string sql_error_message(std::string_view action, const db::Error& error);
 

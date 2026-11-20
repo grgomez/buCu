@@ -183,6 +183,12 @@ std::optional<int> parse_and_run(const std::vector<std::string>& args,
     delete_command->add_option("ids", delete_args.ids);
     delete_command->add_flag("--yes", delete_args.yes);
 
+    ReorderArgs reorder_args;
+    CLI::App* reorder = app.add_subcommand("reorder");
+    reorder->subcommand_fallthrough(false);
+    reorder->add_option("ids", reorder_args.ids);
+    reorder->add_flag("--yes", reorder_args.yes);
+
     SwapArgs swap_args;
     CLI::App* swap = app.add_subcommand("swap");
     swap->subcommand_fallthrough(false);
@@ -255,6 +261,9 @@ std::optional<int> parse_and_run(const std::vector<std::string>& args,
     }
     if (delete_command->parsed()) {
         return finish(run_delete(delete_args, globals, context), context);
+    }
+    if (reorder->parsed()) {
+        return finish(run_reorder(reorder_args, globals, context), context);
     }
     if (swap->parsed()) {
         return finish(run_swap(swap_args, globals, context), context);
