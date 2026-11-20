@@ -5,6 +5,10 @@
 # Only src/ and include/ are reported; third_party/ and tests/ are not.
 #
 # usage: scripts/coverage.sh [build-dir]   (default build/coverage; run the coverage tests first)
+# The build dir must be the binary dir of the `coverage` preset: its test preset writes the
+# profiles to build/coverage/profiles. Clear stale profiles before each test run, because
+# profiles of an older build carry other function hashes and are merged in silently:
+#   cmake -E rm -rf build/coverage/profiles && ctest --preset coverage
 # Output goes to <build-dir>/report. LLVM_COV, LLVM_PROFDATA, and LIZARD name the tools
 # (LLVM 19 or newer; lizard 1.26.1, `uv tool install lizard==1.26.1`).
 set -u
@@ -38,22 +42,35 @@ report=$build/report
 rm -rf "$report"
 mkdir -p "$report"
 
-# shellcheck disable=SC2086
-"$llvm_profdata" merge -sparse $profiles -o "$report/all.profdata" || exit 1
+# Each list is read line by line into the positional parameters, so a path with spaces is safe.
+set --
+while IFS= read -r profile; do
+    set -- "$@" "$profile"
+done <<EOF
+$profiles
+EOF
+"$llvm_profdata" merge -sparse "$@" -o "$report/all.profdata" || exit 1
 
 # The bucu binary is the primary object; every test executable adds its own counters.
 primary=$build/bucu
-objects=""
-for exe in $(find "$build/tests" -type f -perm -u+x -name 'bucu_*' | sort); do
-    objects="$objects -object $exe"
-done
+objects=$(find "$build/tests" -type f -perm -u+x -name 'bucu_*' | sort)
 sources=$(find "$root/src" "$root/include" -type f)
 
 cov() {
     command=$1
     shift
-    # shellcheck disable=SC2086
-    "$llvm_cov" "$command" "$primary" $objects -instr-profile="$report/all.profdata" "$@" $sources
+    set -- "$command" "$primary" -instr-profile="$report/all.profdata" "$@"
+    while IFS= read -r exe; do
+        set -- "$@" -object "$exe"
+    done <<EOF
+$objects
+EOF
+    while IFS= read -r source; do
+        set -- "$@" "$source"
+    done <<EOF
+$sources
+EOF
+    "$llvm_cov" "$@"
 }
 
 cov report >"$report/coverage.txt" || exit 1

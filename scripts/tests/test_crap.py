@@ -118,7 +118,7 @@ class JoinTest(unittest.TestCase):
         self.assertEqual([f.name for f in no_cov], ["f"])
         self.assertEqual(no_lizard, [("src/b.cpp", 10)])
 
-    def test_unmatched_function_is_listed_and_scores_as_uncovered(self):
+    def test_unmatched_function_is_listed_apart_and_not_scored(self):
         rows, no_cov, _ = self.join([lizard_row("src/a.cpp", "f", 4, 10, 20)])
         self.assertEqual([f.name for f in no_cov], ["f"])
         self.assertEqual(rows, [])

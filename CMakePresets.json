@@ -92,6 +92,8 @@
       },
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++",
         "CMAKE_C_FLAGS": "-fprofile-instr-generate -fcoverage-mapping",
         "CMAKE_CXX_FLAGS": "-fprofile-instr-generate -fcoverage-mapping",
         "CMAKE_EXE_LINKER_FLAGS": "-fprofile-instr-generate",
@@ -219,7 +221,7 @@
         "outputOnFailure": true
       },
       "environment": {
-        "LLVM_PROFILE_FILE": "${sourceDir}/build/coverage/profiles/%p-%m.profraw"
+        "LLVM_PROFILE_FILE": "${sourceDir}/build/${presetName}/profiles/%p-%m.profraw"
       }
     }
   ]
