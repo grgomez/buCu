@@ -1,0 +1,201 @@
+#include <sqlite3.h>
+
+#include <sstream>
+#include <string>
+#include <vector>
+
+#include "catch_amalgamated.hpp"
+#include "cli/fixture.hpp"
+#include "cli/run.hpp"
+
+namespace {
+
+using bucu::test::cli::Fixture;
+using bucu::test::cli::kNow;
+using bucu::test::cli::kPiped;
+using bucu::test::cli::Result;
+using bucu::test::cli::Rows;
+
+// Runs SQL on the fixture's database file, as a tool other than BuCu would.
+void exec(const Fixture& fixture, const char* sql) {
+    sqlite3* connection = nullptr;
+    REQUIRE(sqlite3_open(fixture.db_text().c_str(), &connection) == SQLITE_OK);
+    REQUIRE(sqlite3_exec(connection, sql, nullptr, nullptr, nullptr) == SQLITE_OK);
+    REQUIRE(sqlite3_close(connection) == SQLITE_OK);
+}
+
+// Stores bookmarks 3, 5, and 8: bookmark n has URL https://n.example/, title "Title n", and the
+// tags "all" and "t<n>", and bookmark 5 alone has the tag "a".
+void add_three(const Fixture& fixture) {
+    for (int n = 1; n <= 8; ++n) {
+        const std::string number = std::to_string(n);
+        const std::string tags = n == 5 ? "all,t5,a" : "all,t" + number;
+        REQUIRE(fixture
+                    .bucu({"add", "https://" + number + ".example", "--title", "Title " + number,
+                           "--tag", tags})
+                    .code == 0);
+    }
+    exec(fixture,
+         "PRAGMA foreign_keys = ON; DELETE FROM bookmark WHERE id NOT IN (3, 5, 8); "
+         "DELETE FROM tag WHERE id NOT IN (SELECT tag_id FROM bookmark_tag)");
+}
+
+const std::string kUsageTail = " Run 'bucu --help' for usage.\n";
+
+std::string ids(const Fixture& fixture) {
+    std::string joined;
+    for (const auto& row : fixture.rows("SELECT id FROM bookmark ORDER BY id")) {
+        joined += (joined.empty() ? "" : ",") + row[0];
+    }
+    return joined;
+}
+
+}  // namespace
+
+TEST_CASE("delete with --yes prints the records, deletes them, and keeps the other IDs",
+          "[cli][delete]") {
+    const Fixture fixture;
+    add_three(fixture);
+    const Rows kept = fixture.rows(
+        "SELECT id, url, title, flags, created_at FROM bookmark "
+        "WHERE id = 5");
+
+    const Result result = fixture.bucu({"delete", "3,8", "--yes"});
+
+    CHECK(result.code == 0);
+    CHECK(result.err.empty());
+    CHECK(result.out ==
+          "3  Title 3\n"
+          "   url:   https://3.example/\n"
+          "   tags:  all, t3\n"
+          "\n"
+          "8  Title 8\n"
+          "   url:   https://8.example/\n"
+          "   tags:  all, t8\n"
+          "\n"
+          "Deleted 2 bookmarks.\n");
+    CHECK(ids(fixture) == "5");
+    CHECK(fixture.rows("SELECT id, url, title, flags, created_at FROM bookmark") == kept);
+    CHECK(fixture.tags() == "a,all,t5");
+}
+
+TEST_CASE("delete of one bookmark says bookmark in the singular", "[cli][delete]") {
+    const Fixture fixture;
+    add_three(fixture);
+
+    const Result result = fixture.bucu({"delete", "5", "--yes"});
+
+    CHECK(result.code == 0);
+    CHECK(result.out ==
+          "5  Title 5\n"
+          "   url:   https://5.example/\n"
+          "   tags:  a, all, t5\n"
+          "\n"
+          "Deleted 1 bookmark.\n");
+    CHECK(ids(fixture) == "3,8");
+    CHECK(fixture.tags() == "all,t3,t8");
+}
+
+TEST_CASE("delete of a range counts only the stored bookmarks", "[cli][delete]") {
+    const Fixture fixture;
+    add_three(fixture);
+
+    const Result result = fixture.bucu({"delete", "4-9", "--yes"});
+
+    CHECK(result.code == 0);
+    CHECK(result.out.ends_with("\nDeleted 2 bookmarks.\n"));
+    CHECK(ids(fixture) == "3");
+}
+
+TEST_CASE("delete of an ID that is not stored is exit 5 with no output and no change",
+          "[cli][delete]") {
+    const Fixture fixture;
+    add_three(fixture);
+    const Rows before = fixture.bookmarks();
+
+    const Result single = fixture.bucu({"delete", "3,4", "--yes"});
+
+    CHECK(single.code == 5);
+    CHECK(single.out.empty());
+    CHECK(single.err == "bucu: no bookmark has ID 4. Run 'bucu list' to see IDs.\n");
+
+    const Result range = fixture.bucu({"delete", "20-30", "--yes"});
+
+    CHECK(range.code == 5);
+    CHECK(range.out.empty());
+    CHECK(range.err == "bucu: no bookmark has an ID in 20-30. Run 'bucu list' to see IDs.\n");
+    CHECK(fixture.bookmarks() == before);
+}
+
+TEST_CASE("delete with an invalid ID is a usage error and changes nothing", "[cli][delete]") {
+    const Fixture fixture;
+    add_three(fixture);
+    const Rows before = fixture.bookmarks();
+
+    for (const char* argument : {"abc", "0", "3,x"}) {
+        CAPTURE(argument);
+        const Result result = fixture.bucu({"delete", argument, "--yes"});
+
+        CHECK(result.code == 2);
+        CHECK(result.out.empty());
+        CHECK(result.err == std::string("bucu: invalid ID '") + argument +
+                                "': it is not a positive whole number." + kUsageTail);
+    }
+    CHECK(fixture.bookmarks() == before);
+}
+
+TEST_CASE("a new bookmark after delete gets one above the highest remaining ID", "[cli][delete]") {
+    const Fixture highest;
+    add_three(highest);
+    REQUIRE(highest.bucu({"delete", "8", "--yes"}).code == 0);
+
+    REQUIRE(highest.bucu({"add", "https://new.example"}).code == 0);
+
+    CHECK(ids(highest) == "3,5,6");
+
+    const Fixture lower;
+    add_three(lower);
+    REQUIRE(lower.bucu({"delete", "3", "--yes"}).code == 0);
+    REQUIRE(lower.bucu({"add", "https://new.example"}).code == 0);
+
+    CHECK(ids(lower) == "5,8,9");
+}
+
+TEST_CASE("delete accepts no option but --yes", "[cli][delete]") {
+    const Fixture fixture;
+    add_three(fixture);
+    const Rows before = fixture.bookmarks();
+
+    for (const std::vector<std::string>& args :
+         {std::vector<std::string>{"delete", "3", "--title", "x", "--yes"},
+          std::vector<std::string>{"delete", "3", "--yes", "--db", "x"}}) {
+        const Result result = fixture.bucu(args);
+
+        CHECK(result.code == 2);
+        CHECK(result.out.empty());
+    }
+    CHECK(fixture.bookmarks() == before);
+}
+
+TEST_CASE("delete deletes nothing when writing a record fails, and exits 1", "[cli][delete]") {
+    const Fixture fixture;
+    add_three(fixture);
+    const Rows before = fixture.bookmarks();
+    std::istringstream in;
+    std::ostringstream out;
+    out.setstate(std::ios::badbit);
+    std::ostringstream err;
+    const bucu::cli::Context context{.os = bucu::platform::Os::kLinuxOrBsd,
+                                     .environment = fixture.environment,
+                                     .now = kNow,
+                                     .input = in,
+                                     .out = out,
+                                     .err = err,
+                                     .terminals = kPiped};
+
+    const int code = bucu::cli::run({"--db", fixture.db_text(), "delete", "3", "--yes"}, context);
+
+    CHECK(code == 1);
+    CHECK(err.str() == "bucu: cannot write to standard output\n");
+    CHECK(fixture.bookmarks() == before);
+}

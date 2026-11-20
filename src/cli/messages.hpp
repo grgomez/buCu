@@ -45,6 +45,9 @@ std::string location_error_message(const platform::Error& error);
 // A backup that cannot be written to `file`: names the file and the reason.
 std::string backup_error_message(std::string_view file, const db::Error& error);
 
+// `Deleted <count> bookmarks.`, or `Deleted 1 bookmark.` for one (product section 5, delete).
+std::string deleted_message(std::int64_t count);
+
 // A statement that failed while `action` ("store the bookmark") ran.
 std::string sql_error_message(std::string_view action, const db::Error& error);
 

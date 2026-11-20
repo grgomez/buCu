@@ -161,6 +161,10 @@ std::string backup_error_message(std::string_view file, const db::Error& error) 
     return "bucu: cannot back up to " + std::string(file) + ": " + sentence(error.message);
 }
 
+std::string deleted_message(std::int64_t count) {
+    return "Deleted " + std::to_string(count) + (count == 1 ? " bookmark." : " bookmarks.");
+}
+
 std::string sql_error_message(std::string_view action, const db::Error& error) {
     return "bucu: cannot " + std::string(action) + ": " + sentence(error.message);
 }

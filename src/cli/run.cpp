@@ -177,6 +177,12 @@ std::optional<int> parse_and_run(const std::vector<std::string>& args,
     tag->add_option("words", tag_args.words);
     tag->add_flag("--yes", tag_args.yes);
 
+    DeleteArgs delete_args;
+    CLI::App* delete_command = app.add_subcommand("delete");
+    delete_command->subcommand_fallthrough(false);
+    delete_command->add_option("ids", delete_args.ids);
+    delete_command->add_flag("--yes", delete_args.yes);
+
     CLI::App* db = app.add_subcommand("db");
     db->subcommand_fallthrough(false);
     db->require_subcommand(1);
@@ -241,6 +247,9 @@ std::optional<int> parse_and_run(const std::vector<std::string>& args,
             update_args.tags = update_tags;
         }
         return finish(run_update(update_args, globals, context), context);
+    }
+    if (delete_command->parsed()) {
+        return finish(run_delete(delete_args, globals, context), context);
     }
     if (db_path->parsed()) {
         return finish(run_db_path(globals, context), context);

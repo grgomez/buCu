@@ -44,6 +44,12 @@ struct TagArgs {
     bool yes = false;
 };
 
+// The arguments of `delete`, as CLI11 read them.
+struct DeleteArgs {
+    std::vector<std::string> ids;  // the positional ID arguments; none means every bookmark
+    bool yes = false;
+};
+
 // Opens the database this run uses (product section 3), creating it when missing. On failure
 // prints one error line to `err` and returns no value.
 std::optional<db::Database> open_database(const Globals& globals, const Context& context,
@@ -57,6 +63,9 @@ int run_update(const UpdateArgs& args, const Globals& globals, const Context& co
 
 // Runs `tag` and returns the exit code.
 int run_tag(const TagArgs& args, const Globals& globals, const Context& context);
+
+// Runs `delete` and returns the exit code.
+int run_delete(const DeleteArgs& args, const Globals& globals, const Context& context);
 
 // The `db` subcommands. Each returns the exit code.
 int run_db_path(const Globals& globals, const Context& context);
