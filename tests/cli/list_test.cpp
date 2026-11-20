@@ -1,3 +1,4 @@
+#include <fstream>
 #include <sstream>
 #include <string>
 
@@ -27,6 +28,14 @@ void add_numbered(const Fixture& fixture, int count) {
 std::string record(int n) {
     const std::string number = std::to_string(n);
     return number + "  Title " + number + "\n   url:   https://" + number + ".example/\n";
+}
+
+std::string read_golden(const std::string& name) {
+    std::ifstream file(std::string(BUCU_GOLDEN_DIR) + "/" + name, std::ios::binary);
+    REQUIRE(file.is_open());
+    std::ostringstream content;
+    content << file.rdbuf();
+    return content.str();
 }
 
 }  // namespace
@@ -133,6 +142,24 @@ TEST_CASE("list exits 1 when writing standard output fails", "[cli][list]") {
 
     CHECK(code == 1);
     CHECK(err.str() == "bucu: cannot write to standard output\n");
+}
+
+TEST_CASE("list prints every field kind as the plain golden file", "[cli][list]") {
+    const Fixture fixture;
+    REQUIRE(fixture.bucu({"add", "https://a.example"}).code == 0);
+    REQUIRE(fixture
+                .bucu({"add", "https://b.example", "web,dev", "--title", "Second", "--description",
+                       "one\ntwo\nthree"})
+                .code == 0);
+    REQUIRE(
+        fixture.bucu({"add", "https://c.example", "docs", "--title", "Third\nline", "--immutable"})
+            .code == 0);
+
+    const Result result = fixture.bucu({"list"});
+
+    CHECK(result.code == 0);
+    CHECK(result.out == read_golden("list_plain.txt"));
+    CHECK(result.out.find('\r') == std::string::npos);
 }
 
 TEST_CASE("--help lists list", "[cli][list]") {
