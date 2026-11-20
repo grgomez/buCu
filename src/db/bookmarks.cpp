@@ -2,6 +2,8 @@
 
 #include <sqlite3.h>
 
+#include <cstdint>
+#include <limits>
 #include <optional>
 #include <string>
 #include <tuple>
@@ -144,6 +146,68 @@ std::expected<void, Error> check_targets_exist(sqlite3* connection,
     }
     return {};
 }
+
+// The statements that read bookmarks with their tags, prepared once per command.
+class RowReader {
+public:
+    static std::expected<RowReader, Error> prepare(sqlite3* connection) {
+        auto select = Statement::prepare(connection,
+                                         "SELECT id, url, title, description, flags FROM bookmark "
+                                         "WHERE id >= ? AND id <= ? ORDER BY id");
+        if (!select) {
+            return std::unexpected(std::move(select.error()));
+        }
+        auto select_tags = Statement::prepare(connection, kSelectTags);
+        if (!select_tags) {
+            return std::unexpected(std::move(select_tags.error()));
+        }
+        return RowReader(std::move(*select), std::move(*select_tags));
+    }
+
+    // Calls `visit` for each stored bookmark with an ID from `first` to `last`, in ascending
+    // order, one row at a time. Returns `false` when `visit` stopped the walk.
+    // NOLINTNEXTLINE(bugprone-easily-swappable-parameters): the bounds are always first, then last
+    std::expected<bool, Error> visit_range(std::int64_t first, std::int64_t last,
+                                           const BookmarkVisitor& visit) {
+        if (auto bound = select_.bind(1, first); !bound) {
+            return std::unexpected(std::move(bound.error()));
+        }
+        if (auto bound = select_.bind(2, last); !bound) {
+            return std::unexpected(std::move(bound.error()));
+        }
+        for (;;) {
+            auto row = select_.step();
+            if (!row) {
+                return std::unexpected(std::move(row.error()));
+            }
+            if (!*row) {
+                break;
+            }
+            const core::BookmarkId id(select_.column_int(0));
+            auto tags = read_tags(select_tags_, id);
+            if (!tags) {
+                return std::unexpected(std::move(tags.error()));
+            }
+            const core::Bookmark bookmark{.url = select_.column_text(1),
+                                          .title = select_.column_text(2),
+                                          .description = select_.column_text(3),
+                                          .tags = std::move(*tags),
+                                          .flags = core::FlagSet(select_.column_int(4))};
+            if (!visit(id, bookmark)) {
+                return false;
+            }
+        }
+        std::ignore = select_.reset();
+        return true;
+    }
+
+private:
+    RowReader(Statement select, Statement select_tags)
+        : select_(std::move(select)), select_tags_(std::move(select_tags)) {}
+
+    Statement select_;
+    Statement select_tags_;
+};
 
 // The statements that write one changed bookmark, prepared once per command.
 class RowWriter {
@@ -320,46 +384,54 @@ std::expected<void, Error> for_each_bookmark(Database& database, const core::IdS
             return std::unexpected(std::move(found.error()));
         }
     }
-    auto select = Statement::prepare(connection,
-                                     "SELECT id, url, title, description, flags FROM bookmark "
-                                     "WHERE id >= ? AND id <= ? ORDER BY id");
-    if (!select) {
-        return std::unexpected(std::move(select.error()));
-    }
-    auto select_tags = Statement::prepare(connection, kSelectTags);
-    if (!select_tags) {
-        return std::unexpected(std::move(select_tags.error()));
+    auto reader = RowReader::prepare(connection);
+    if (!reader) {
+        return std::unexpected(std::move(reader.error()));
     }
     for (const core::IdRange& range : core::covered_ranges(selection)) {
-        if (auto bound = select->bind(1, range.first.value()); !bound) {
-            return std::unexpected(std::move(bound.error()));
+        auto more = reader->visit_range(range.first.value(), range.last.value(), visit);
+        if (!more) {
+            return std::unexpected(std::move(more.error()));
         }
-        if (auto bound = select->bind(2, range.last.value()); !bound) {
-            return std::unexpected(std::move(bound.error()));
+        if (!*more) {
+            break;
         }
-        for (;;) {
-            auto row = select->step();
-            if (!row) {
-                return std::unexpected(std::move(row.error()));
-            }
-            if (!*row) {
-                break;
-            }
-            const core::BookmarkId id(select->column_int(0));
-            auto tags = read_tags(*select_tags, id);
-            if (!tags) {
-                return std::unexpected(std::move(tags.error()));
-            }
-            const core::Bookmark bookmark{.url = select->column_text(1),
-                                          .title = select->column_text(2),
-                                          .description = select->column_text(3),
-                                          .tags = std::move(*tags),
-                                          .flags = core::FlagSet(select->column_int(4))};
-            if (!visit(id, bookmark)) {
-                return {};
-            }
-        }
-        std::ignore = select->reset();
+    }
+    return {};
+}
+
+std::expected<void, Error> for_each_last_bookmark(Database& database, std::int64_t count,
+                                                  const BookmarkVisitor& visit) {
+    if (count < 1) {
+        return {};
+    }
+    sqlite3* const connection = detail::handle(database);
+    // One read transaction for both statements, so the lowest ID and the walk share a snapshot.
+    auto transaction = Transaction::begin(connection);
+    if (!transaction) {
+        return std::unexpected(std::move(transaction.error()));
+    }
+    auto lowest =
+        Statement::prepare(connection, "SELECT id FROM bookmark ORDER BY id DESC LIMIT 1 OFFSET ?");
+    if (!lowest) {
+        return std::unexpected(std::move(lowest.error()));
+    }
+    if (auto bound = lowest->bind(1, count - 1); !bound) {
+        return std::unexpected(std::move(bound.error()));
+    }
+    auto row = lowest->step();
+    if (!row) {
+        return std::unexpected(std::move(row.error()));
+    }
+    // No row at the offset: fewer than `count` bookmarks are stored, so every one is wanted.
+    const std::int64_t low = *row ? lowest->column_int(0) : 0;
+    auto reader = RowReader::prepare(connection);
+    if (!reader) {
+        return std::unexpected(std::move(reader.error()));
+    }
+    auto done = reader->visit_range(low, std::numeric_limits<std::int64_t>::max(), visit);
+    if (!done) {
+        return std::unexpected(std::move(done.error()));
     }
     return {};
 }

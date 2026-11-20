@@ -37,6 +37,14 @@ using BookmarkVisitor = std::function<bool(core::BookmarkId, const core::Bookmar
                                                            const core::IdSelection& selection,
                                                            const BookmarkVisitor& visit);
 
+// Calls `visit` for each of the `count` stored bookmarks with the highest IDs, with its tags, in
+// ascending ID order, in one read transaction. When fewer than `count` are stored, it visits all of
+// them; `count` below 1 or no bookmark stored visits none. It counts stored bookmarks, not ID
+// values. Nothing is buffered.
+[[nodiscard]] std::expected<void, Error> for_each_last_bookmark(Database& database,
+                                                                std::int64_t count,
+                                                                const BookmarkVisitor& visit);
+
 // Applies `changes` to each bookmark that `selection` covers, in one transaction (all or nothing).
 // Fails with `kNotFound` when a single ID is not stored, a range holds no stored ID, or, for every
 // bookmark, none is stored; the first such item in ascending order of its low end is named. That
