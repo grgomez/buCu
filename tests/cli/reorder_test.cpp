@@ -31,7 +31,9 @@ void add_kept(const Fixture& fixture, const std::string& keep) {
                     .code == 0);
     }
     exec(fixture, ("PRAGMA foreign_keys = ON; DELETE FROM bookmark WHERE id NOT IN (" + keep +
-                   "); DELETE FROM tag WHERE id NOT IN (SELECT tag_id FROM bookmark_tag)")
+                   "); DELETE FROM tag WHERE id NOT IN (SELECT tag_id FROM bookmark_tag); "
+                   "UPDATE bookmark SET description = 'd' || id, flags = id % 2, "
+                   "created_at = 1600000000 + id, updated_at = 1600001000 + id")
                       .c_str());
 }
 
@@ -45,6 +47,12 @@ Rows stored(const Fixture& fixture) {
         "GROUP BY bookmark.id ORDER BY bookmark.id");
 }
 
+// The bookmarks without their IDs, in ID order.
+Rows without_ids(const Fixture& fixture) {
+    return fixture.rows(
+        "SELECT url, title, description, flags, created_at, updated_at FROM bookmark ORDER BY id");
+}
+
 }  // namespace
 
 TEST_CASE("reorder asks, then renumbers to 1 to n in order and keeps every value",
@@ -53,11 +61,13 @@ TEST_CASE("reorder asks, then renumbers to 1 to n in order and keeps every value
     add_kept(fixture, "2, 5, 9");
     fixture.terminals = bucu::test::cli::kTerminal;
     fixture.input = "y\n";
+    const Rows values = without_ids(fixture);
 
     const Result result = fixture.bucu({"reorder"});
 
     CHECK(result.code == 0);
     CHECK(result.err.empty());
+    CHECK(without_ids(fixture) == values);
     CHECK(result.out == "Renumber 3 bookmarks? [y/N] Renumbered 3 bookmarks.\n");
     CHECK(stored(fixture) == Rows{{"1", "https://2.example/", "t2"},
                                   {"2", "https://5.example/", "t5"},

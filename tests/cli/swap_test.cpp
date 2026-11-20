@@ -21,7 +21,8 @@ void exec(const Fixture& fixture, const char* sql) {
 }
 
 // Stores bookmarks 3 and 7: bookmark 3 has the title "Three", the description "d", and the tags
-// a and b; bookmark 7 has the title "Seven", the flag immutable-title, and the tag c.
+// a and b; bookmark 7 has the title "Seven", the flag immutable-title, the tag c, and other
+// timestamps.
 void add_two(const Fixture& fixture) {
     for (int n = 1; n <= 7; ++n) {
         const std::string number = std::to_string(n);
@@ -35,6 +36,7 @@ void add_two(const Fixture& fixture) {
     }
     exec(fixture,
          "PRAGMA foreign_keys = ON; DELETE FROM bookmark WHERE id NOT IN (3, 7); "
+         "UPDATE bookmark SET created_at = 1600000007, updated_at = 1600000099 WHERE id = 7; "
          "DELETE FROM tag WHERE id NOT IN (SELECT tag_id FROM bookmark_tag)");
 }
 

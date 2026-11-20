@@ -1,6 +1,7 @@
 #include <sqlite3.h>
 
 #include <sstream>
+#include <streambuf>
 #include <string>
 #include <vector>
 
@@ -227,6 +228,9 @@ TEST_CASE("delete asks in an interactive run and deletes on y or yes", "[cli][de
         add_three(fixture);
         fixture.terminals = bucu::test::cli::kTerminal;
         fixture.input = answer;
+        const Rows kept = fixture.rows(
+            "SELECT id, url, title, description, flags, created_at, updated_at FROM bookmark "
+            "WHERE id IN (3, 8) ORDER BY id");
 
         const Result result = fixture.bucu({"delete", "5"});
 
@@ -239,6 +243,9 @@ TEST_CASE("delete asks in an interactive run and deletes on y or yes", "[cli][de
               "\n"
               "Delete 1 bookmark? [y/N] Deleted 1 bookmark.\n");
         CHECK(ids(fixture) == "3,8");
+        CHECK(fixture.rows("SELECT id, url, title, description, flags, created_at, updated_at "
+                           "FROM bookmark ORDER BY id") == kept);
+        CHECK(fixture.tags() == "all,t3,t8");
     }
 }
 
@@ -367,4 +374,43 @@ TEST_CASE("delete with no ID in a run that is not interactive needs --yes", "[cl
     CHECK(result.code == 2);
     CHECK(result.out.empty());
     CHECK(ids(fixture) == "3,5,8");
+}
+
+namespace {
+
+// An output buffer that refuses any write that holds "Deleted", the summary line.
+class RefuseSummary : public std::stringbuf {
+protected:
+    std::streamsize xsputn(const char* text, std::streamsize count) override {
+        if (std::string(text, static_cast<std::size_t>(count)).find("Deleted") !=
+            std::string::npos) {
+            return 0;
+        }
+        return std::stringbuf::xsputn(text, count);
+    }
+};
+
+}  // namespace
+
+TEST_CASE("delete keeps the deletion when writing the summary fails, and exits 1",
+          "[cli][delete]") {
+    const Fixture fixture;
+    add_three(fixture);
+    std::istringstream in;
+    RefuseSummary buffer;
+    std::ostream out(&buffer);
+    std::ostringstream err;
+    const bucu::cli::Context context{.os = bucu::platform::Os::kLinuxOrBsd,
+                                     .environment = fixture.environment,
+                                     .now = kNow,
+                                     .input = in,
+                                     .out = out,
+                                     .err = err,
+                                     .terminals = kPiped};
+
+    const int code = bucu::cli::run({"--db", fixture.db_text(), "delete", "3", "--yes"}, context);
+
+    CHECK(code == 1);
+    CHECK(err.str() == "bucu: cannot write to standard output\n");
+    CHECK(ids(fixture) == "5,8");
 }
