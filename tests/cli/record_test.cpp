@@ -37,8 +37,10 @@ constexpr const char* kEsc = "\x1b[";
 
 }  // namespace
 
-TEST_CASE("a coloured record equals the colour golden file: Buku's colours, a reset before each LF",
-          "[cli]") {
+TEST_CASE(
+    "a coloured record equals the colour golden file with Buku's colours and a reset before each "
+    "LF",
+    "[cli]") {
     auto bookmark = make("First\nsecond", "d1\nd2", "web, dev");
     bookmark.flags = bucu::core::kFlagImmutableTitle;
 
