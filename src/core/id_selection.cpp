@@ -90,6 +90,17 @@ std::expected<IdSelection, IdError> parse_id_selection(const std::vector<std::st
     return selection;
 }
 
+std::expected<BookmarkId, SingleIdError> parse_single_id(std::string_view text) {
+    const auto selection = parse_id_selection({std::string(text)});
+    if (!selection) {
+        return std::unexpected(SingleIdError::kNotAnIdItem);
+    }
+    if (text.find_first_of(",-") != std::string_view::npos) {
+        return std::unexpected(SingleIdError::kListOrRange);
+    }
+    return selection->items.front().range.first;
+}
+
 std::vector<IdRange> covered_ranges(const IdSelection& selection) {
     if (selection.all) {
         return {IdRange{.first = BookmarkId(1), .last = BookmarkId(kLargestId)}};

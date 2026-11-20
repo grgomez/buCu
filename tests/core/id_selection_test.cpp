@@ -150,3 +150,31 @@ TEST_CASE("the first bad argument is the one returned", "[core][id]") {
     REQUIRE_FALSE(result.has_value());
     CHECK(result.error().argument == "x");
 }
+
+TEST_CASE("parse_single_id reads one ID, with leading zeros", "[core][id]") {
+    for (const char* text : {"7", "007"}) {
+        CAPTURE(text);
+        const auto result = bucu::core::parse_single_id(text);
+
+        REQUIRE(result.has_value());
+        CHECK(result->value() == 7);
+    }
+}
+
+TEST_CASE("parse_single_id tells a list or a range from a bad item", "[core][id]") {
+    using bucu::core::SingleIdError;
+    for (const char* text : {"3,5", "3,3", "3-4", "3-3", "4-3"}) {
+        CAPTURE(text);
+        const auto result = bucu::core::parse_single_id(text);
+
+        REQUIRE_FALSE(result.has_value());
+        CHECK(result.error() == SingleIdError::kListOrRange);
+    }
+    for (const char* text : {"abc", "0", "-3", "", "99999999999999999999", "3,abc", " 3"}) {
+        CAPTURE(text);
+        const auto result = bucu::core::parse_single_id(text);
+
+        REQUIRE_FALSE(result.has_value());
+        CHECK(result.error() == SingleIdError::kNotAnIdItem);
+    }
+}
