@@ -58,6 +58,25 @@ TEST_CASE("the flag line names the immutable title and nothing else", "[cli]") {
           read_golden("record_flag.txt"));
 }
 
+TEST_CASE("control characters in the title and description are written as escapes, LF excepted",
+          "[cli]") {
+    const auto bookmark = make("a\x1b[31mb\tc", "one\rtwo\nthree\x7f\xc2\x85", "");
+
+    CHECK(bucu::cli::format_record(bucu::core::BookmarkId(7), bookmark) ==
+          "7  a\\x1b[31mb\\tc\n"
+          "   url:   https://example.org/\n"
+          "   desc:  one\\rtwo\n"
+          "          three\\x7f\\u0085\n");
+}
+
+TEST_CASE("a line break in a title keeps the continuation-line rule while a control is escaped",
+          "[cli]") {
+    CHECK(bucu::cli::format_record(bucu::core::BookmarkId(7), make("A\x1b\nB", "", "")) ==
+          "7  A\\x1b\n"
+          "          B\n"
+          "   url:   https://example.org/\n");
+}
+
 TEST_CASE("every line of a record ends in LF and never CR LF", "[cli]") {
     const std::string record =
         bucu::cli::format_record(bucu::core::BookmarkId(7), make("T", "d\ne", "a"));

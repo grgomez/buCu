@@ -7,6 +7,7 @@
 #include <string_view>
 
 #include "bucu/db/bookmarks.hpp"
+#include "cli/escape.hpp"
 
 namespace bucu::cli {
 
@@ -46,14 +47,14 @@ std::string format_record(core::BookmarkId id, const core::Bookmark& bookmark) {
     std::string out = std::to_string(id.value());
     if (!bookmark.title.empty()) {
         out.append("  ");
-        append_value(out, bookmark.title);
+        append_value(out, escape_controls(bookmark.title, LineFeed::kKeep));
     } else {
         out.push_back('\n');
     }
 
     append_field(out, "url:", bookmark.url);
     if (!bookmark.description.empty()) {
-        append_field(out, "desc:", bookmark.description);
+        append_field(out, "desc:", escape_controls(bookmark.description, LineFeed::kKeep));
     }
     if (!bookmark.tags.empty()) {
         std::string joined;

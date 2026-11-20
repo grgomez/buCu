@@ -290,6 +290,19 @@ TEST_CASE("a missing URL or an unknown option exits 2 with the usage error line"
     }
 }
 
+TEST_CASE("add writes a control character in the title as an escape in the printed record",
+          "[cli][add]") {
+    const Fixture fixture;
+
+    const Result result = fixture.bucu({"add", "https://a.example", "--title", "a\x1b[31mb\tc"});
+
+    CHECK(result.code == 0);
+    CHECK(result.out ==
+          "1  a\\x1b[31mb\\tc\n"
+          "   url:   https://a.example/\n");
+    CHECK(fixture.bookmarks()[0][2] == "a\x1b[31mb\tc");  // stored as typed
+}
+
 TEST_CASE("a control character in the echoed value is escaped, so the error is one line",
           "[cli][add]") {
     const Fixture fixture;

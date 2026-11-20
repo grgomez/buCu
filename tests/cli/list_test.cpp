@@ -264,6 +264,24 @@ TEST_CASE("list reports --last with IDs before a bad --last value, and that befo
     CHECK(fixture.bucu({"list", "abc"}).err.starts_with("bucu: invalid ID 'abc'"));
 }
 
+TEST_CASE("list writes a stored escape sequence as escapes, never as raw bytes", "[cli][list]") {
+    const Fixture fixture;
+    REQUIRE(fixture
+                .bucu({"add", "https://a.example", "--title", "a\x1b[31mb\tc", "--description",
+                       "x\ry\nz"})
+                .code == 0);
+
+    const Result result = fixture.bucu({"list", "1"});
+
+    CHECK(result.code == 0);
+    CHECK(result.out ==
+          "1  a\\x1b[31mb\\tc\n"
+          "   url:   https://a.example/\n"
+          "   desc:  x\\ry\n"
+          "          z\n");
+    CHECK(result.out.find('\x1b') == std::string::npos);
+}
+
 TEST_CASE("--help lists list", "[cli][list]") {
     const Fixture fixture;
 
