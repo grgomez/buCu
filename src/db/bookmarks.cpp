@@ -2,6 +2,8 @@
 
 #include <sqlite3.h>
 
+#include <algorithm>
+#include <initializer_list>
 #include <optional>
 #include <string>
 #include <tuple>
@@ -145,6 +147,36 @@ std::expected<void, Error> check_targets_exist(sqlite3* connection,
     return {};
 }
 
+// Makes the foreign key checks wait for the commit of the open transaction, so `bookmark.id` and
+// the `bookmark_tag` rows that reference it (no ON UPDATE CASCADE) can change one after the other.
+// SQLite resets the pragma when the transaction ends.
+std::expected<void, Error> defer_foreign_keys(sqlite3* connection) {
+    auto defer = Statement::prepare(connection, "PRAGMA defer_foreign_keys = ON");
+    if (!defer) {
+        return std::unexpected(std::move(defer.error()));
+    }
+    return run(*defer);
+}
+
+// Runs each statement of `statements` once, with no parameter, in order.
+std::expected<void, Error> run_each(sqlite3* connection,
+                                    std::initializer_list<const char*> statements) {
+    for (const char* sql : statements) {
+        auto statement = Statement::prepare(connection, sql);
+        if (!statement) {
+            return std::unexpected(std::move(statement.error()));
+        }
+        if (auto done = run(*statement); !done) {
+            return done;
+        }
+    }
+    return {};
+}
+
+// Deletes the tags that no bookmark links (docs/database-schema.md section 3).
+constexpr const char* kPurgeUnusedTags =
+    "DELETE FROM tag WHERE NOT EXISTS (SELECT 1 FROM bookmark_tag WHERE tag_id = tag.id)";
+
 // The statements that write one changed bookmark, prepared once per command.
 class RowWriter {
 public:
@@ -172,9 +204,7 @@ public:
         if (!link) {
             return std::unexpected(std::move(link.error()));
         }
-        auto purge = Statement::prepare(connection,
-                                        "DELETE FROM tag WHERE NOT EXISTS "
-                                        "(SELECT 1 FROM bookmark_tag WHERE tag_id = tag.id)");
+        auto purge = Statement::prepare(connection, kPurgeUnusedTags);
         if (!purge) {
             return std::unexpected(std::move(purge.error()));
         }
@@ -356,6 +386,157 @@ std::expected<void, Error> for_each_bookmark(Database& database, const core::IdS
         std::ignore = select->reset();
     }
     return {};
+}
+
+std::expected<void, Error> check_bookmarks_exist(Database& database,
+                                                 const core::IdSelection& selection) {
+    sqlite3* const connection = detail::handle(database);
+    auto transaction = Transaction::begin(connection);
+    if (!transaction) {
+        return std::unexpected(std::move(transaction.error()));
+    }
+    return check_targets_exist(connection, selection);
+}
+
+std::expected<std::int64_t, Error> delete_bookmarks(Database& database,
+                                                    const core::IdSelection& selection) {
+    sqlite3* const connection = detail::handle(database);
+    auto transaction = Transaction::begin(connection, /*immediate=*/true);
+    if (!transaction) {
+        return std::unexpected(std::move(transaction.error()));
+    }
+    if (auto found = check_targets_exist(connection, selection); !found) {
+        return std::unexpected(std::move(found.error()));
+    }
+    // One DELETE per range, so a range such as 1-9999999999 is never expanded. The cascade from
+    // bookmark_tag removes the links.
+    auto remove = Statement::prepare(connection, "DELETE FROM bookmark WHERE id >= ? AND id <= ?");
+    if (!remove) {
+        return std::unexpected(std::move(remove.error()));
+    }
+    std::int64_t deleted = 0;
+    for (const core::IdRange& range : core::covered_ranges(selection)) {
+        if (auto done = run(*remove, range.first.value(), range.last.value()); !done) {
+            return std::unexpected(std::move(done.error()));
+        }
+        deleted += sqlite3_changes64(connection);
+    }
+    auto purge = Statement::prepare(connection, kPurgeUnusedTags);
+    if (!purge) {
+        return std::unexpected(std::move(purge.error()));
+    }
+    if (auto done = run(*purge); !done) {
+        return std::unexpected(std::move(done.error()));
+    }
+    if (auto committed = transaction->commit(); !committed) {
+        return std::unexpected(std::move(committed.error()));
+    }
+    return deleted;
+}
+
+std::expected<void, Error> swap_bookmark_ids(Database& database, core::BookmarkId a,
+                                             core::BookmarkId b) {
+    sqlite3* const connection = detail::handle(database);
+    auto transaction = Transaction::begin(connection, /*immediate=*/true);
+    if (!transaction) {
+        return std::unexpected(std::move(transaction.error()));
+    }
+    // The items are in ascending order, so the first failure is the lower ID.
+    if (auto found = check_targets_exist(connection, core::select_two_ids(a, b)); !found) {
+        return std::unexpected(std::move(found.error()));
+    }
+
+    if (auto deferred = defer_foreign_keys(connection); !deferred) {
+        return std::unexpected(std::move(deferred.error()));
+    }
+    // Through negative IDs, so the two never share an ID: a -> -a, b -> -b, then -a -> b, -b -> a.
+    for (const char* sql : {"UPDATE bookmark SET id = -id WHERE id IN (?1, ?2)",
+                            "UPDATE bookmark_tag SET bookmark_id = -bookmark_id "
+                            "WHERE bookmark_id IN (?1, ?2)",
+                            "UPDATE bookmark SET id = CASE WHEN id = -?1 THEN ?2 ELSE ?1 END "
+                            "WHERE id IN (-?1, -?2)",
+                            "UPDATE bookmark_tag SET bookmark_id = "
+                            "CASE WHEN bookmark_id = -?1 THEN ?2 ELSE ?1 END "
+                            "WHERE bookmark_id IN (-?1, -?2)"}) {
+        auto statement = Statement::prepare(connection, sql);
+        if (!statement) {
+            return std::unexpected(std::move(statement.error()));
+        }
+        if (auto done = run(*statement, a.value(), b.value()); !done) {
+            return std::unexpected(std::move(done.error()));
+        }
+    }
+    return transaction->commit();
+}
+
+std::expected<std::int64_t, Error> count_misplaced_ids(Database& database) {
+    sqlite3* const connection = detail::handle(database);
+    auto transaction = Transaction::begin(connection);
+    if (!transaction) {
+        return std::unexpected(std::move(transaction.error()));
+    }
+    auto statement = Statement::prepare(
+        connection,
+        "SELECT count(*) FROM (SELECT id, row_number() OVER (ORDER BY id) AS place FROM bookmark) "
+        "WHERE id <> place");
+    if (!statement) {
+        return std::unexpected(std::move(statement.error()));
+    }
+    auto row = statement->step();
+    if (!row) {
+        return std::unexpected(std::move(row.error()));
+    }
+    return statement->column_int(0);
+}
+
+std::expected<std::int64_t, Error> renumber_bookmarks(Database& database) {
+    sqlite3* const connection = detail::handle(database);
+    auto transaction = Transaction::begin(connection, /*immediate=*/true);
+    if (!transaction) {
+        return std::unexpected(std::move(transaction.error()));
+    }
+    if (auto deferred = defer_foreign_keys(connection); !deferred) {
+        return std::unexpected(std::move(deferred.error()));
+    }
+    // The map from old to new ID lives in SQLite, so no result set is held here. Only the
+    // bookmarks that move are in it.
+    if (auto done = run_each(
+            connection,
+            {"CREATE TEMP TABLE id_map AS SELECT id AS old_id, row_number() OVER (ORDER BY id) AS "
+             "new_id FROM bookmark",
+             "DELETE FROM id_map WHERE old_id = new_id"});
+        !done) {
+        return std::unexpected(std::move(done.error()));
+    }
+    auto count = Statement::prepare(connection, "SELECT count(*) FROM id_map");
+    if (!count) {
+        return std::unexpected(std::move(count.error()));
+    }
+    auto row = count->step();
+    if (!row) {
+        return std::unexpected(std::move(row.error()));
+    }
+    const std::int64_t moved = count->column_int(0);
+    std::ignore = count->reset();
+    // Through negative IDs, so a new ID never meets an old one that has not moved yet.
+    if (auto done = run_each(
+            connection,
+            {"UPDATE bookmark SET id = -id WHERE id IN (SELECT old_id FROM id_map)",
+             "UPDATE bookmark_tag SET bookmark_id = -bookmark_id "
+             "WHERE bookmark_id IN (SELECT old_id FROM id_map)",
+             "UPDATE bookmark SET id = (SELECT new_id FROM id_map WHERE old_id = -bookmark.id) "
+             "WHERE id < 0",
+             "UPDATE bookmark_tag SET bookmark_id = "
+             "(SELECT new_id FROM id_map WHERE old_id = -bookmark_tag.bookmark_id) "
+             "WHERE bookmark_id < 0",
+             "DROP TABLE temp.id_map"});
+        !done) {
+        return std::unexpected(std::move(done.error()));
+    }
+    if (auto committed = transaction->commit(); !committed) {
+        return std::unexpected(std::move(committed.error()));
+    }
+    return moved;
 }
 
 std::expected<void, Error> update_bookmarks(Database& database, const core::IdSelection& selection,
