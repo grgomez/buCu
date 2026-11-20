@@ -2,6 +2,7 @@
 
 #include <sqlite3.h>
 
+#include <algorithm>
 #include <optional>
 #include <string>
 #include <tuple>
@@ -404,6 +405,53 @@ std::expected<std::int64_t, Error> delete_bookmarks(Database& database,
         return std::unexpected(std::move(committed.error()));
     }
     return deleted;
+}
+
+std::expected<void, Error> swap_bookmark_ids(Database& database, core::BookmarkId a,
+                                             core::BookmarkId b) {
+    sqlite3* const connection = detail::handle(database);
+    auto transaction = Transaction::begin(connection, /*immediate=*/true);
+    if (!transaction) {
+        return std::unexpected(std::move(transaction.error()));
+    }
+    // Both IDs as single items in ascending order, so the first failure is the lower ID.
+    const auto single = [](core::BookmarkId id) {
+        return core::IdItem{.kind = core::IdItemKind::kSingle,
+                            .range = core::IdRange{.first = id, .last = id}};
+    };
+    const core::IdSelection selection{.all = false,
+                                      .items = {single(std::min(a, b)), single(std::max(a, b))}};
+    if (auto found = check_targets_exist(connection, selection); !found) {
+        return std::unexpected(std::move(found.error()));
+    }
+
+    // bookmark_tag references bookmark.id with no ON UPDATE CASCADE, so both tables change in this
+    // transaction, and the check waits for the commit. The pragma resets when the transaction ends.
+    auto defer = Statement::prepare(connection, "PRAGMA defer_foreign_keys = ON");
+    if (!defer) {
+        return std::unexpected(std::move(defer.error()));
+    }
+    if (auto done = run(*defer); !done) {
+        return std::unexpected(std::move(done.error()));
+    }
+    // Through negative IDs, so the two never share an ID: a -> -a, b -> -b, then -a -> b, -b -> a.
+    for (const char* sql : {"UPDATE bookmark SET id = -id WHERE id IN (?1, ?2)",
+                            "UPDATE bookmark_tag SET bookmark_id = -bookmark_id "
+                            "WHERE bookmark_id IN (?1, ?2)",
+                            "UPDATE bookmark SET id = CASE WHEN id = -?1 THEN ?2 ELSE ?1 END "
+                            "WHERE id IN (-?1, -?2)",
+                            "UPDATE bookmark_tag SET bookmark_id = "
+                            "CASE WHEN bookmark_id = -?1 THEN ?2 ELSE ?1 END "
+                            "WHERE bookmark_id IN (-?1, -?2)"}) {
+        auto statement = Statement::prepare(connection, sql);
+        if (!statement) {
+            return std::unexpected(std::move(statement.error()));
+        }
+        if (auto done = run(*statement, a.value(), b.value()); !done) {
+            return std::unexpected(std::move(done.error()));
+        }
+    }
+    return transaction->commit();
 }
 
 std::expected<void, Error> update_bookmarks(Database& database, const core::IdSelection& selection,

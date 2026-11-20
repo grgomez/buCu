@@ -59,4 +59,11 @@ using BookmarkVisitor = std::function<bool(core::BookmarkId, const core::Bookmar
 [[nodiscard]] std::expected<std::int64_t, Error> delete_bookmarks(
     Database& database, const core::IdSelection& selection);
 
+// Exchanges the IDs of bookmarks `a` and `b` in one transaction (all or nothing): each bookmark
+// keeps every field, tag, flag, and timestamp, and `bookmark_tag` follows the new IDs. Fails with
+// `kNotFound` naming the lower of `a` and `b` that is not stored, and changes nothing. `a` and `b`
+// differ.
+[[nodiscard]] std::expected<void, Error> swap_bookmark_ids(Database& database, core::BookmarkId a,
+                                                           core::BookmarkId b);
+
 }  // namespace bucu::db

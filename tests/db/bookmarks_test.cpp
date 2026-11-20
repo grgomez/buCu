@@ -5,6 +5,7 @@
 #include <chrono>
 #include <cstdint>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -742,4 +743,76 @@ TEST_CASE("a new bookmark takes the ID above the highest stored one", "[db]") {
         bucu::db::insert_bookmark(fixture.database, make("https://c.example/"), kNow);
     REQUIRE(first.has_value());
     CHECK(first->value() == 1);
+}
+
+namespace {
+
+// Everything a bookmark stores except its ID, with its tags, as one text.
+std::string content_of(Fixture& fixture, int id) {
+    const std::string number = std::to_string(id);
+    return cells(fixture,
+                 ("SELECT url || '|' || title || '|' || description || '|' || flags || '|' "
+                  "|| created_at || '|' || updated_at FROM bookmark WHERE id = " +
+                  number)
+                     .c_str()) +
+           "|" +
+           cells(fixture, ("SELECT tag.name FROM bookmark_tag JOIN tag ON tag.id = tag_id "
+                           "WHERE bookmark_id = " +
+                           number + " ORDER BY tag.name")
+                              .c_str());
+}
+
+}  // namespace
+
+TEST_CASE("swap_bookmark_ids exchanges two IDs and keeps everything else", "[db]") {
+    Fixture fixture;
+    insert_with_gaps(fixture);
+    fixture.exec("UPDATE bookmark SET flags = 1, updated_at = 1700000099 WHERE id = 3");
+    const std::string first = content_of(fixture, 3);
+    const std::string second = content_of(fixture, 9);
+    const std::string others = content_of(fixture, 5) + content_of(fixture, 8);
+
+    const auto done = bucu::db::swap_bookmark_ids(fixture.database, bucu::core::BookmarkId(9),
+                                                  bucu::core::BookmarkId(3));
+
+    REQUIRE(done.has_value());
+    CHECK(cells(fixture, "SELECT id FROM bookmark ORDER BY id") == "3;5;8;9;11");
+    CHECK(content_of(fixture, 9) == first);
+    CHECK(content_of(fixture, 3) == second);
+    CHECK(content_of(fixture, 5) + content_of(fixture, 8) == others);
+    CHECK(fixture.count("bookmark_tag") == 10);
+    CHECK(fixture.tags_of(bucu::core::BookmarkId(9)) == std::vector<std::string>{"all", "t3"});
+}
+
+TEST_CASE("swap_bookmark_ids names the lower ID that is not stored and changes nothing", "[db]") {
+    Fixture fixture;
+    insert_with_gaps(fixture);
+    const std::string rows = cells(fixture, kAllRows);
+    const std::string links = cells(fixture, kAllLinks);
+
+    for (const auto& [a, b, missing] :
+         {std::tuple{3, 4, 4}, std::tuple{6, 4, 4}, std::tuple{9, 6, 6}, std::tuple{2, 1, 1}}) {
+        CAPTURE(a, b);
+        const auto done = bucu::db::swap_bookmark_ids(fixture.database, bucu::core::BookmarkId(a),
+                                                      bucu::core::BookmarkId(b));
+
+        REQUIRE_FALSE(done.has_value());
+        CHECK(done.error().code == ErrorCode::kNotFound);
+        CHECK(done.error().bookmark_id == bucu::core::BookmarkId(missing));
+    }
+    CHECK(cells(fixture, kAllRows) == rows);
+    CHECK(cells(fixture, kAllLinks) == links);
+}
+
+TEST_CASE("foreign keys are enforced again after a swap", "[db]") {
+    Fixture fixture;
+    insert_with_gaps(fixture);
+
+    REQUIRE(bucu::db::swap_bookmark_ids(fixture.database, bucu::core::BookmarkId(3),
+                                        bucu::core::BookmarkId(9))
+                .has_value());
+
+    CHECK(sqlite3_exec(bucu::db::detail::handle(fixture.database),
+                       "INSERT INTO bookmark_tag (bookmark_id, tag_id) VALUES (999, 1)", nullptr,
+                       nullptr, nullptr) != SQLITE_OK);
 }
