@@ -23,13 +23,16 @@ void exec(const Fixture& fixture, const char* sql) {
 // Stores bookmarks 3 and 7: bookmark 3 has the title "Three", the description "d", and the tags
 // a and b; bookmark 7 has the title "Seven", the flag immutable-title, the tag c, and other
 // timestamps.
+constexpr int kThree = 3;
+constexpr int kSeven = 7;
+
 void add_two(const Fixture& fixture) {
-    for (int n = 1; n <= 7; ++n) {
+    for (int n = 1; n <= kSeven; ++n) {
         const std::string number = std::to_string(n);
         std::vector<std::string> args = {"add", "https://" + number + ".example"};
-        if (n == 3) {
+        if (n == kThree) {
             args.insert(args.end(), {"--title", "Three", "--description", "d", "--tag", "a,b"});
-        } else if (n == 7) {
+        } else if (n == kSeven) {
             args.insert(args.end(), {"--title", "Seven", "--tag", "c", "--immutable"});
         }
         REQUIRE(fixture.bucu(args).code == 0);

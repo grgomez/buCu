@@ -696,8 +696,8 @@ TEST_CASE("delete_bookmarks names the first item that matches nothing and delete
 
     REQUIRE_FALSE(range.has_value());
     CHECK(range.error().code == ErrorCode::kNotFound);
-    REQUIRE(range.error().range.has_value());
-    CHECK(range.error().range->first == bucu::core::BookmarkId(20));
+    CHECK(range.error().range == bucu::core::IdRange{.first = bucu::core::BookmarkId(20),
+                                                     .last = bucu::core::BookmarkId(30)});
     CHECK(cells(fixture, kAllRows) == rows);
     CHECK(cells(fixture, kAllTags) == tags);
 
@@ -846,8 +846,8 @@ TEST_CASE("renumber_bookmarks gives IDs 1 to n in the current order and keeps ev
 
 TEST_CASE("renumber_bookmarks counts only the bookmarks whose ID changes", "[db]") {
     Fixture fixture;
-    insert_numbered(fixture, 5);
-    fixture.exec("DELETE FROM bookmark WHERE id IN (3, 4)");
+    insert_numbered(fixture, kGapCount);
+    fixture.exec("DELETE FROM bookmark WHERE id NOT IN (1, 2, 5)");
 
     CHECK(bucu::db::count_misplaced_ids(fixture.database).value() == 1);
     const auto moved = bucu::db::renumber_bookmarks(fixture.database);

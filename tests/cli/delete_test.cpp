@@ -27,8 +27,10 @@ void exec(const Fixture& fixture, const char* sql) {
 
 // Stores bookmarks 3, 5, and 8: bookmark n has URL https://n.example/, title "Title n", and the
 // tags "all" and "t<n>", and bookmark 5 alone has the tag "a".
+constexpr int kLastAdded = 8;
+
 void add_three(const Fixture& fixture) {
-    for (int n = 1; n <= 8; ++n) {
+    for (int n = 1; n <= kLastAdded; ++n) {
         const std::string number = std::to_string(n);
         const std::string tags = n == 5 ? "all,t5,a" : "all,t" + number;
         REQUIRE(fixture

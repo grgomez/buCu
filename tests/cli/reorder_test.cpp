@@ -22,8 +22,10 @@ void exec(const Fixture& fixture, const char* sql) {
 
 // Stores bookmarks 1 to 9, each with the URL https://n.example/ and the tag t<n>, and keeps only
 // those in `keep` (an SQL list such as "2, 5, 9").
+constexpr int kLastAdded = 9;
+
 void add_kept(const Fixture& fixture, const std::string& keep) {
-    for (int n = 1; n <= 9; ++n) {
+    for (int n = 1; n <= kLastAdded; ++n) {
         const std::string number = std::to_string(n);
         REQUIRE(fixture
                     .bucu({"add", "https://" + number + ".example", "--title", "Title " + number,
