@@ -199,3 +199,96 @@ TEST_CASE("delete deletes nothing when writing a record fails, and exits 1", "[c
     CHECK(err.str() == "bucu: cannot write to standard output\n");
     CHECK(fixture.bookmarks() == before);
 }
+
+TEST_CASE("delete in a run that is not interactive needs --yes before it prints anything",
+          "[cli][delete]") {
+    const Fixture fixture;
+    add_three(fixture);
+    const Rows before = fixture.bookmarks();
+
+    const Result result = fixture.bucu({"delete", "3"});
+
+    CHECK(result.code == 2);
+    CHECK(result.out.empty());
+    CHECK(result.err ==
+          "bucu: deleting bookmarks needs confirmation; add --yes to confirm." + kUsageTail);
+    CHECK(fixture.bookmarks() == before);
+
+    const Result missing = fixture.bucu({"delete", "4"});
+
+    CHECK(missing.code == 5);
+    CHECK(missing.out.empty());
+}
+
+TEST_CASE("delete asks in an interactive run and deletes on y or yes", "[cli][delete]") {
+    for (const char* answer : {"y\n", "yes\n", " YES \n", "Y"}) {
+        CAPTURE(answer);
+        Fixture fixture;
+        add_three(fixture);
+        fixture.terminals = bucu::test::cli::kTerminal;
+        fixture.input = answer;
+
+        const Result result = fixture.bucu({"delete", "5"});
+
+        CHECK(result.code == 0);
+        CHECK(result.err.empty());
+        CHECK(result.out ==
+              "5  Title 5\n"
+              "   url:   https://5.example/\n"
+              "   tags:  a, all, t5\n"
+              "\n"
+              "Delete 1 bookmark? [y/N] Deleted 1 bookmark.\n");
+        CHECK(ids(fixture) == "3,8");
+    }
+}
+
+TEST_CASE("delete counts the bookmarks in its prompt", "[cli][delete]") {
+    Fixture fixture;
+    add_three(fixture);
+    fixture.terminals = bucu::test::cli::kTerminal;
+    fixture.input = "n\n";
+
+    const Result result = fixture.bucu({"delete", "3,8"});
+
+    CHECK(result.out.ends_with("\nDelete 2 bookmarks? [y/N] Cancelled.\n"));
+}
+
+TEST_CASE("delete cancels on any other answer and at the end of input", "[cli][delete]") {
+    for (const char* answer : {"\n", "n\n", "yep\n", "no\n"}) {
+        CAPTURE(answer);
+        Fixture fixture;
+        add_three(fixture);
+        fixture.terminals = bucu::test::cli::kTerminal;
+        fixture.input = answer;
+        const Rows before = fixture.bookmarks();
+
+        const Result result = fixture.bucu({"delete", "5"});
+
+        CHECK(result.code == 0);
+        CHECK(result.out.ends_with("\n\nDelete 1 bookmark? [y/N] Cancelled.\n"));
+        CHECK(fixture.bookmarks() == before);
+    }
+
+    Fixture ended;
+    add_three(ended);
+    ended.terminals = bucu::test::cli::kTerminal;
+    const Rows before = ended.bookmarks();
+
+    const Result result = ended.bucu({"delete", "5"});
+
+    CHECK(result.code == 0);
+    CHECK(result.out.ends_with("\n\nDelete 1 bookmark? [y/N] \nCancelled.\n"));
+    CHECK(ended.bookmarks() == before);
+}
+
+TEST_CASE("delete with --yes never asks, even in an interactive run", "[cli][delete]") {
+    Fixture fixture;
+    add_three(fixture);
+    fixture.terminals = bucu::test::cli::kTerminal;
+
+    const Result result = fixture.bucu({"delete", "5", "--yes"});
+
+    CHECK(result.code == 0);
+    CHECK(result.out.find("[y/N]") == std::string::npos);
+    CHECK(ids(fixture) == "3,8");
+}

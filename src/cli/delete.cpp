@@ -1,6 +1,7 @@
 #include <cstdint>
 #include <expected>
 #include <ostream>
+#include <string>
 #include <utility>
 
 #include "bucu/core/bookmark.hpp"
@@ -8,6 +9,7 @@
 #include "bucu/core/id_selection.hpp"
 #include "bucu/db/bookmarks.hpp"
 #include "cli/commands.hpp"
+#include "cli/confirm.hpp"
 #include "cli/exit_codes.hpp"
 #include "cli/messages.hpp"
 #include "cli/record.hpp"
@@ -60,6 +62,9 @@ int run_delete(const DeleteArgs& args, const Globals& globals, const Context& co
         err << sql_error_message("read the bookmarks", error) << '\n';
         return kExitFailure;
     }
+    if (const auto code = check_can_confirm(context, args.yes, "deleting bookmarks")) {
+        return *code;
+    }
     const auto printed = print_records(*database, *selection, out);
     if (!printed) {
         err << sql_error_message("read the bookmarks", printed.error()) << '\n';
@@ -70,6 +75,11 @@ int run_delete(const DeleteArgs& args, const Globals& globals, const Context& co
     }
     if (*printed > 0) {
         out << '\n';
+    }
+    const std::string prompt = "Delete " + std::to_string(*printed) +
+                               (*printed == 1 ? " bookmark" : " bookmarks") + "? [y/N] ";
+    if (ask(context, args.yes, prompt) == Answer::kCancelled) {
+        return kExitOk;
     }
     const auto deleted = db::delete_bookmarks(*database, *selection);
     if (!deleted) {
