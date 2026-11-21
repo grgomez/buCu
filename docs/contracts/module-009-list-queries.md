@@ -21,7 +21,7 @@
   - `core::parse_id(std::string_view)`: ASCII digits only (no sign, no spaces), leading zeros allowed, at least 1, fits a signed 64-bit integer.
   - `db::for_each_bookmark(Database&, const core::IdSelection&, const BookmarkVisitor&)`: unchanged.
   - `db::for_each_last_bookmark(Database&, std::int64_t count, const BookmarkVisitor&)`: `count` below 1 visits nothing.
-  - `platform::ConsoleSetup`: unchanged; it gains a private member that holds the console mode it replaced.
+  - `platform::ConsoleSetup`: unchanged; it gains two private members: the console mode it replaced and whether it changed it.
 - **Outputs:**
   - `core::parse_id` returns `std::optional<std::int64_t>` (no value for anything else), `[[nodiscard]]`. It was internal to `id_selection.cpp` and is now declared in the header; `parse_id_selection` uses it as before.
   - `db::for_each_last_bookmark` returns `std::expected<void, Error>`, `[[nodiscard]]`: visits the `count` stored bookmarks with the highest IDs, with their tags, in ascending ID order, one row at a time, in one read transaction for both statements (the lowest ID, then the walk); it visits all of them when fewer than `count` are stored, and stops without error when the visitor returns `false`. It counts stored bookmarks, not ID values.
