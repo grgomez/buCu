@@ -14,18 +14,19 @@ namespace bucu::platform {
 #ifdef _WIN32
 namespace {
 
-// The code page and the console output mode to put back on Ctrl+C or Ctrl+Break; 0 for either means
-// nothing was changed. Written before the handler is registered; the handler runs on another
+// The code page (0 means unchanged) and the console output mode (with its changed flag) to put back
+// on Ctrl+C or Ctrl+Break. Written before the handler is registered; the handler runs on another
 // thread and only reads them.
 std::atomic<UINT> g_code_page_to_restore{0};
 std::atomic<DWORD> g_output_mode_to_restore{0};
+std::atomic<bool> g_output_mode_changed{false};  // a previous mode of 0 is valid, so 0 says nothing
 
 BOOL WINAPI restore_on_interrupt(DWORD event) {
     if (event == CTRL_C_EVENT || event == CTRL_BREAK_EVENT) {
         if (g_code_page_to_restore.load() != 0) {
             SetConsoleOutputCP(g_code_page_to_restore.load());
         }
-        if (g_output_mode_to_restore.load() != 0) {
+        if (g_output_mode_changed.load()) {
             SetConsoleMode(GetStdHandle(STD_OUTPUT_HANDLE), g_output_mode_to_restore.load());
         }
     }
@@ -55,6 +56,7 @@ ConsoleSetup::ConsoleSetup() {
         previous_output_console_mode_ = mode;
         output_console_mode_changed_ = true;
         g_output_mode_to_restore.store(mode);
+        g_output_mode_changed.store(true);
     }
     if (previous_code_page_ != 0 || output_console_mode_changed_) {
         SetConsoleCtrlHandler(restore_on_interrupt, TRUE);
