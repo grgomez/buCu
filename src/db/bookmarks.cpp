@@ -7,7 +7,9 @@
 #include <initializer_list>
 #include <limits>
 #include <optional>
+#include <span>
 #include <string>
+#include <string_view>
 #include <tuple>
 #include <utility>
 #include <vector>
@@ -153,9 +155,14 @@ std::expected<void, Error> check_targets_exist(sqlite3* connection,
 class RowReader {
 public:
     static std::expected<RowReader, Error> prepare(sqlite3* connection) {
-        auto select = Statement::prepare(connection,
-                                         "SELECT id, url, title, description, flags FROM bookmark "
-                                         "WHERE id >= ? AND id <= ? ORDER BY id");
+        return prepare_with(connection,
+                            "SELECT id, url, title, description, flags FROM bookmark "
+                            "WHERE id >= ? AND id <= ? ORDER BY id");
+    }
+
+    // A reader over `sql`, which selects id, url, title, description, and flags, in this order.
+    static std::expected<RowReader, Error> prepare_with(sqlite3* connection, std::string_view sql) {
+        auto select = Statement::prepare(connection, sql);
         if (!select) {
             return std::unexpected(std::move(select.error()));
         }
@@ -177,6 +184,21 @@ public:
         if (auto bound = select_.bind(2, last); !bound) {
             return std::unexpected(std::move(bound.error()));
         }
+        return visit_rows(visit);
+    }
+
+    // Binds `value` to the parameter of the statement, which has one, and visits its rows as
+    // `visit_range` does.
+    std::expected<bool, Error> visit_with_parameter(std::int64_t value,
+                                                    const BookmarkVisitor& visit) {
+        if (auto bound = select_.bind(1, value); !bound) {
+            return std::unexpected(std::move(bound.error()));
+        }
+        return visit_rows(visit);
+    }
+
+private:
+    std::expected<bool, Error> visit_rows(const BookmarkVisitor& visit) {
         for (;;) {
             auto row = select_.step();
             if (!row) {
@@ -203,7 +225,6 @@ public:
         return true;
     }
 
-private:
     // The two statements differ by their SQL only; a type for each would add nothing.
     // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
     RowReader(Statement select, Statement select_tags)
@@ -211,6 +232,107 @@ private:
 
     Statement select_;
     Statement select_tags_;
+};
+
+// The separator of the tags in the text that `bucu_keyword_score` receives. No tag holds a control
+// character (docs/product.md section 4, Tags), so it cannot appear inside a tag.
+constexpr char kTagSeparator = '\x1F';
+
+constexpr const char* kKeywordScoreFunction = "bucu_keyword_score";
+constexpr int kKeywordScoreArguments = 4;  // url, title, description, tags
+
+// The SELECT of the search passes: the bookmarks whose score is the one parameter, in ID order.
+// SQLite walks the table in ID order, so no sorter holds the rows.
+constexpr const char* kSelectByScore =
+    "SELECT id, url, title, description, flags FROM bookmark "
+    "WHERE bucu_keyword_score(url, title, description, "
+    "(SELECT group_concat(tag.name, char(31)) FROM bookmark_tag "
+    "JOIN tag ON tag.id = bookmark_tag.tag_id WHERE bookmark_tag.bookmark_id = bookmark.id)) = ? "
+    "ORDER BY id";
+
+// The text of SQL value `value` as a view, valid until the next call on the same value. A NULL is
+// empty.
+std::string_view value_text(sqlite3_value* value) {
+    const unsigned char* const text = sqlite3_value_text(value);
+    if (text == nullptr) {
+        return {};
+    }
+    // SQLite gives text as unsigned char; std::string_view takes char.
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+    return {reinterpret_cast<const char*>(text),
+            static_cast<std::size_t>(sqlite3_value_bytes(value))};
+}
+
+// The SQL function bucu_keyword_score(url, title, description, tags): how many keywords of the
+// SearchQuery in the user data match the bookmark (core::count_matching_keywords). `tags` holds
+// each tag, separated by kTagSeparator.
+void keyword_score(sqlite3_context* context, int argument_count, sqlite3_value** arguments) {
+    if (argument_count != kKeywordScoreArguments) {
+        sqlite3_result_error_code(context, SQLITE_MISUSE);
+        return;
+    }
+    try {
+        const auto* const query = static_cast<const core::SearchQuery*>(sqlite3_user_data(context));
+        std::vector<std::string_view> fields;
+        // arguments[0] to [2] are the URL, title, and description.
+        // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+        fields.push_back(value_text(arguments[0]));
+        fields.push_back(value_text(arguments[1]));
+        fields.push_back(value_text(arguments[2]));
+        std::string_view tags = value_text(arguments[3]);
+        // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+        while (!tags.empty()) {
+            const std::size_t end = tags.find(kTagSeparator);
+            fields.push_back(tags.substr(0, end));
+            tags = end == std::string_view::npos ? std::string_view{} : tags.substr(end + 1);
+        }
+        sqlite3_result_int64(
+            context, static_cast<sqlite3_int64>(core::count_matching_keywords(*query, fields)));
+    } catch (...) {
+        // Nothing here throws but an allocation; SQLite reports it as an out-of-memory error.
+        sqlite3_result_error_nomem(context);
+    }
+}
+
+// Registers bucu_keyword_score for `query` on a connection, and removes it when destroyed, so the
+// connection never keeps a pointer to a query that is gone.
+class KeywordScoreFunction {
+public:
+    static std::expected<KeywordScoreFunction, Error> add(sqlite3* connection,
+                                                          const core::SearchQuery& query) {
+        // The function reads `query` through the user data, which SQLite takes as a non-const
+        // pointer; keyword_score only reads it.
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)
+        void* const data = const_cast<core::SearchQuery*>(&query);
+        const int code =
+            sqlite3_create_function_v2(connection, kKeywordScoreFunction, kKeywordScoreArguments,
+                                       SQLITE_UTF8, data, keyword_score, nullptr, nullptr, nullptr);
+        if (code != SQLITE_OK) {
+            return std::unexpected(Error{.code = ErrorCode::kSql,
+                                         .message = sqlite3_errmsg(connection),
+                                         .bookmark_id = std::nullopt,
+                                         .range = std::nullopt});
+        }
+        return KeywordScoreFunction(connection);
+    }
+
+    KeywordScoreFunction(KeywordScoreFunction&& other) noexcept
+        : connection_(std::exchange(other.connection_, nullptr)) {}
+    KeywordScoreFunction& operator=(KeywordScoreFunction&&) = delete;
+    KeywordScoreFunction(const KeywordScoreFunction&) = delete;
+    KeywordScoreFunction& operator=(const KeywordScoreFunction&) = delete;
+
+    ~KeywordScoreFunction() {
+        if (connection_ != nullptr) {
+            sqlite3_create_function_v2(connection_, kKeywordScoreFunction, kKeywordScoreArguments,
+                                       SQLITE_UTF8, nullptr, nullptr, nullptr, nullptr, nullptr);
+        }
+    }
+
+private:
+    explicit KeywordScoreFunction(sqlite3* connection) : connection_(connection) {}
+
+    sqlite3* connection_;
 };
 
 // Makes the foreign key checks wait for the commit of the open transaction, so `bookmark.id` and
@@ -422,6 +544,38 @@ std::expected<void, Error> for_each_bookmark(Database& database, const core::IdS
     }
     for (const core::IdRange& range : core::covered_ranges(selection)) {
         auto more = reader->visit_range(range.first.value(), range.last.value(), visit);
+        if (!more) {
+            return std::unexpected(std::move(more.error()));
+        }
+        if (!*more) {
+            break;
+        }
+    }
+    return {};
+}
+
+std::expected<void, Error> for_each_search_result(Database& database,
+                                                  const core::SearchQuery& query,
+                                                  const BookmarkVisitor& visit) {
+    sqlite3* const connection = detail::handle(database);
+    // One read transaction, so every pass reads the same snapshot.
+    auto transaction = Transaction::begin(connection);
+    if (!transaction) {
+        return std::unexpected(std::move(transaction.error()));
+    }
+    // Declared before the reader, so the statements are finalized before the function goes.
+    auto function = KeywordScoreFunction::add(connection, query);
+    if (!function) {
+        return std::unexpected(std::move(function.error()));
+    }
+    auto reader = RowReader::prepare_with(connection, kSelectByScore);
+    if (!reader) {
+        return std::unexpected(std::move(reader.error()));
+    }
+    const auto keyword_count = static_cast<std::int64_t>(query.keywords.size());
+    const std::int64_t lowest_score = query.all ? keyword_count : 1;
+    for (std::int64_t score = keyword_count; score >= lowest_score; --score) {
+        auto more = reader->visit_with_parameter(score, visit);
         if (!more) {
             return std::unexpected(std::move(more.error()));
         }
