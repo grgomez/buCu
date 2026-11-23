@@ -2,7 +2,7 @@
 
 - Kind: Module
 - Version: 11 (from 10)
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-11-23
 - Issue: #112
 - Previous record: [`module-010`](module-010-list-queries.md)
