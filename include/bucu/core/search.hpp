@@ -1,7 +1,10 @@
 #pragma once
 
+#include <cstddef>
 #include <expected>
+#include <span>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "bucu/core/error.hpp"
@@ -22,5 +25,13 @@ struct SearchQuery {
 // `Reason::kInvalidUtf8`; no keyword left is `Field::kKeyword` with `Reason::kEmpty`.
 [[nodiscard]] std::expected<SearchQuery, ValidationError> parse_search_query(
     const std::vector<std::string>& arguments, bool all, bool deep);
+
+// How many distinct keywords of `query` match at least one of `fields`: a bookmark's URL, title,
+// description, and each tag, one entry each (product section 5, search). A keyword matches one
+// field at a time, never across two. Both sides are lowercased, no other folding; a keyword
+// matches inside the field when `query.deep`, and otherwise only as a whole word. A field that is
+// not valid UTF-8 matches nothing. The keywords must come from `parse_search_query`.
+[[nodiscard]] std::size_t count_matching_keywords(const SearchQuery& query,
+                                                  std::span<const std::string_view> fields);
 
 }  // namespace bucu::core
