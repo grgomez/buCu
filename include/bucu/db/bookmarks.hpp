@@ -47,4 +47,32 @@ using BookmarkVisitor = std::function<bool(core::BookmarkId, const core::Bookmar
                                                           const core::BookmarkChanges& changes,
                                                           std::chrono::sys_seconds now);
 
+// Checks that `selection` matches stored bookmarks, in one read transaction: fails with the
+// `kNotFound` error that `delete_bookmarks` gives, and changes nothing.
+[[nodiscard]] std::expected<void, Error> check_bookmarks_exist(Database& database,
+                                                               const core::IdSelection& selection);
+
+// Deletes each bookmark that `selection` covers, with its tag links, in one transaction (all or
+// nothing), and returns how many bookmarks it deleted. No other bookmark changes its ID. Fails with
+// `kNotFound`, as `update_bookmarks` does, before it deletes anything. Tags that no bookmark links
+// any more are deleted before the commit (docs/database-schema.md section 3).
+[[nodiscard]] std::expected<std::int64_t, Error> delete_bookmarks(
+    Database& database, const core::IdSelection& selection);
+
+// Exchanges the IDs of bookmarks `a` and `b` in one transaction (all or nothing): each bookmark
+// keeps every field, tag, flag, and timestamp, and `bookmark_tag` follows the new IDs. Fails with
+// `kNotFound` naming the lower of `a` and `b` that is not stored, and changes nothing. `a` and `b`
+// differ.
+[[nodiscard]] std::expected<void, Error> swap_bookmark_ids(Database& database, core::BookmarkId a,
+                                                           core::BookmarkId b);
+
+// How many stored bookmarks have an ID other than their place (1, 2, ...) in ascending ID order,
+// in one read transaction. 0 means the IDs are already 1 to n.
+[[nodiscard]] std::expected<std::int64_t, Error> count_misplaced_ids(Database& database);
+
+// Gives the stored bookmarks the IDs 1 to n in their current ascending ID order, in one
+// transaction (all or nothing), and returns how many bookmarks got a new ID. Each bookmark keeps
+// every field, tag, flag, and timestamp; `bookmark_tag` follows the new IDs.
+[[nodiscard]] std::expected<std::int64_t, Error> renumber_bookmarks(Database& database);
+
 }  // namespace bucu::db

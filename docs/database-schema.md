@@ -24,7 +24,7 @@ Normative words (MUST, SHOULD, MAY): [constitution §6](constitution.md#6-normat
 
 ```text
 bookmark
-  id           INTEGER PRIMARY KEY       -- no AUTOINCREMENT; the reuse rule is #13
+  id           INTEGER PRIMARY KEY       -- no AUTOINCREMENT; ID rules: product §5 ID stability
   url          TEXT NOT NULL UNIQUE      -- normalized (product §4)
   title        TEXT NOT NULL DEFAULT ''
   description  TEXT NOT NULL DEFAULT ''
@@ -45,11 +45,13 @@ bookmark_tag                              -- WITHOUT ROWID
 
 A `tag` row exists only while a bookmark links it: a command that unlinks tags deletes the tags that no bookmark links any more, in its own transaction. `updated_at` changes only when a stored value of the bookmark changes; a command that stores the same values leaves it as it was.
 
+Changing a bookmark's ID rewrites its `bookmark_tag` rows in the same transaction, with deferred foreign key checks (`PRAGMA defer_foreign_keys = ON`), because `bookmark_tag` references `bookmark(id)` with no `ON UPDATE CASCADE`.
+
 Bookmarks carry no UUID; #31 adds one with a migration.
 
 ## 4. Differences from Buku
 
-Buku keeps one `bookmarks` table with tags in one comma-delimited text column, and compacts IDs when a bookmark is deleted. BuCu normalizes tags into their own tables, and its ID rule is settled by #13. Importing a Buku database therefore maps its schema rather than copying it (#23).
+Buku keeps one `bookmarks` table with tags in one comma-delimited text column, and compacts IDs when a bookmark is deleted. BuCu normalizes tags into their own tables, and its ID rule is in [product §5 ID stability](product.md#id-stability-added-by-88). Importing a Buku database therefore maps its schema rather than copying it (#23).
 
 - URLs: BuCu normalizes each URL before it is stored and compares normalized URLs byte for byte; Buku compares the text as given (product §4). Importing a Buku database normalizes its URLs, and two Buku rows that normalize to one URL need a rule from #23.
 - Tags: BuCu lowercases them with the same rule as Buku, Python's `str.lower()` (product §4), so a tag from a Buku database is already in BuCu's form.

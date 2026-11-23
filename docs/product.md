@@ -19,7 +19,7 @@ The first milestone is a robust core. The long-term goal is feature parity with 
 | Term | Meaning |
 | --- | --- |
 | Bookmark | One saved URL with a title, a description, tags, and flags. Identified by its ID |
-| ID | The positive integer that identifies a bookmark in commands. Stability across deletes: §5 (added by #13) |
+| ID | The positive integer that identifies a bookmark in commands. Stability across deletes: [§5 ID stability](#id-stability-added-by-88) |
 | Tag | A short label attached to bookmarks. A bookmark has zero or more distinct tags. Case and character rules: §4 (added by #9) |
 | Flag | A per-bookmark on/off property. The MVP has one: immutable title (§4) |
 | Database | The single SQLite file that holds every bookmark. Location: §3 |
@@ -90,7 +90,9 @@ search <query>             search by keyword, substring, or tag (#12)
 search --regex <pattern>   search by regular expression (#12)
 tag [ids...] <operation> [tags...]   add, remove, or replace tags (#87)
 update [ids...]            change bookmarks' fields (#87, #14)
-delete <id>                delete bookmarks, with confirmation (#13)
+delete [ids...]            delete bookmarks, with confirmation (#88)
+swap <id> <id>             exchange the IDs of two bookmarks (#88)
+reorder                    renumber the IDs to 1..n, keeping their order (#88)
 open <id-or-query>         open bookmarks in the system browser (#15)
 export <format> <file>     export to html or md (#17, #18)
 import <format> <file>     import from html or md (#17, #18)
@@ -101,7 +103,7 @@ completion <shell>         print a shell completion script (#19)
 - Output to a non-terminal MUST be plain text with no pager, and with no colour unless `--color always` is given, so it works in pipes and scripts.
 - `--color auto` (the default) uses colour only when standard output is a terminal and `NO_COLOR` is unset or empty. `--color always` uses colour even when output is not a terminal or `NO_COLOR` is set. `--color never` uses no colour. Standard error does not change the choice.
 - A command that would prompt in an interactive run MUST NOT wait for input in a non-interactive run; it fails with a message that names the option to use instead (for example `--yes`).
-- Every line `bucu` writes to standard output or standard error MUST end in LF (U+000A) only, on every platform, whether the output goes to a terminal, a file, or a pipe. The one exception is the confirmation prompt of `update` and `tag` (below), which ends without LF because the user's Enter ends it; at end of input, `bucu` writes an LF before `Cancelled.`.
+- Every line `bucu` writes to standard output or standard error MUST end in LF (U+000A) only, on every platform, whether the output goes to a terminal, a file, or a pipe. The one exception is the confirmation prompt of `update`, `tag`, `delete`, and `reorder` (below), which ends without LF because the user's Enter ends it; at end of input, `bucu` writes an LF before `Cancelled.`.
 - The global options (`--db`, `--color`, `--offline`) MUST come before the command; after it they are a usage error. `--color` and `--offline` are accepted and checked from #10: `--color` takes its effect with #11 and `--offline` with #16.
 
 ### add (added by #10)
@@ -131,7 +133,7 @@ completion <shell>         print a shell completion script (#19)
 
 ### IDs and ranges (added by #87)
 
-`update`, `tag`, and later `delete` (#88) name the bookmarks they act on with the same ID arguments.
+`update`, `tag`, and `delete` (#88) name the bookmarks they act on with the same ID arguments.
 
 - The IDs are one or more arguments, each a positive whole number, a range `<a>-<b>`, or a comma-separated list of these (`3`, `3,5`, `3-7`, `3,5-7`, `3 5-7`). A range with `a > b` is read as `<b>-<a>`. An ID that appears twice counts once.
 - An ID is ASCII digits only: no sign and no spaces; leading zeros are allowed (`007` is 7); an empty list item (`3,`, `3,,5`) is not an ID. It MUST fit in a signed 64-bit integer.
@@ -140,9 +142,9 @@ completion <shell>         print a shell completion script (#19)
 - Every single ID named MUST be stored. A range covers only the stored IDs in it, and a range that covers none is not found; so is a single ID that is not stored, unlike Buku, which prints `No matching index` and exits `0`. Nothing changes, and the command exits `5` (§6) naming the first item that failed, taking the items in ascending order of their low end (a single ID `n` has low end `n`). A range is named as `<low>-<high>`, after the swap.
 - Each run MUST be all or nothing: when any target fails (not found, validation, conflict, a write error), no bookmark changes.
 - A huge range such as `1-9999999999` is not expanded: only the stored IDs in it are visited, and records are written one at a time.
-- With no ID, the command first prints `Update all <n> bookmarks? [y/N] ` to standard output (the prompt is flushed before BuCu reads) in an interactive run without `--yes`, and proceeds only when the answer is `y` or `yes`, in any case, ignoring spaces around it. Any other answer prints `Cancelled.`, changes nothing, and exits `0`; at end of input BuCu first writes an LF, because no Enter ended the prompt line. In a non-interactive run without `--yes` it does not wait: it fails with the usage error that names `--yes` (§6). With `--yes` it never asks. A list or a range never asks.
+- For `update` and `tag` with no ID, the command first prints `Update all <n> bookmarks? [y/N] ` to standard output (the prompt is flushed before BuCu reads) in an interactive run without `--yes`, and proceeds only when the answer is `y` or `yes`, in any case, ignoring spaces around it. Any other answer prints `Cancelled.`, changes nothing, and exits `0`; at end of input BuCu first writes an LF, because no Enter ended the prompt line. In a non-interactive run without `--yes` it does not wait: it fails with the usage error that names `--yes` (§6). With `--yes` it never asks. A list or a range never asks `update` or `tag`. `delete` always asks, by the rules of "delete".
 - With no ID and no bookmark stored, the command fails with `bucu: there are no bookmarks.` and exit `5`, before any prompt, even in a non-interactive run without `--yes`.
-- On success the command prints the stored record of each target bookmark in the `add` format (§5 add), in ascending ID order, with one empty line between records, and exits `0`, whether or not a stored value changed. If writing standard output fails after the change is stored, the change stays and the exit code is `1` (§6).
+- On success `update` and `tag` print the stored record of each target bookmark in the `add` format (§5 add), in ascending ID order, with one empty line between records, and exit `0`, whether or not a stored value changed. If writing standard output fails after the change is stored, the change stays and the exit code is `1` (§6).
 - Errors are checked in this order: usage (exit `2`), validation (exit `3`), not found (exit `5`), confirmation, conflict (exit `4`).
 
 ### update (added by #87)
@@ -165,6 +167,36 @@ completion <shell>         print a shell completion script (#19)
 - With no operation word, the usage error names the first word that is not an ID item (`'rename' is not a tag operation; use add, remove, or replace`), or says that no operation was given.
 - `tag` accepts `--yes`, with the meaning given in "IDs and ranges".
 - The other rules (not found, all or nothing, output, order of errors) are those of "IDs and ranges".
+
+### ID stability (added by #88)
+
+- Deleting bookmarks MUST NOT change the ID of any other bookmark.
+- A new bookmark MUST get the ID one above the highest stored ID, or 1 when none is stored; so a deleted ID is reused only when no higher ID is stored. This differs from Buku, which moves the last bookmark into the gap, and has no `--retain-order`.
+- Only `swap` and `reorder` MUST change a stored bookmark's ID, on request. A bookmark whose ID changes keeps every field, tag, flag, and timestamp; its `updated_at` does not change.
+
+### delete (added by #88)
+
+`bucu delete [ids...]` deletes the bookmarks that the ID arguments name (IDs and ranges, above), or every bookmark when no ID is given, after confirmation.
+
+- It takes the ID arguments of "IDs and ranges", with its rules for parsing, not found (exit `5`, nothing deleted), order of errors, and all or nothing. With no bookmark stored, it fails with `bucu: there are no bookmarks.` and exit `5` before any prompt. `--yes` is the only option.
+- With IDs, it prints the record of each bookmark it will delete, in the `add` format, in ascending ID order, with one empty line between records, before it asks. With no ID, it prints no records.
+- Every `delete` is confirmed. In an interactive run without `--yes`, after the records and an empty line, it prints `Delete <n> bookmarks? [y/N] ` (`Delete 1 bookmark? [y/N] ` for one; with no ID, `Delete all <n> bookmarks? [y/N] `, and `Delete all 1 bookmark? [y/N] ` for one) and reads the answer as "IDs and ranges" describes. Any answer other than `y` or `yes` prints `Cancelled.`, deletes nothing, and exits `0`. In a run that is not interactive without `--yes`, it fails with the usage error that names `--yes` (§6), exit `2`, before it prints any record. With `--yes` it never asks.
+- The deletion is one all-or-nothing change. Tags that no bookmark links any more are deleted with it (`docs/database-schema.md` §3).
+- On success it prints `Deleted <n> bookmarks.` (`Deleted 1 bookmark.` for one), after the records and an empty line when records were printed, and exits `0`. The count in the prompt and in the summary is the number of stored bookmarks the arguments cover.
+- Output, byte for byte: each record (one empty line between), one empty line, then the prompt (interactive without `--yes`; the user's Enter ends its line), then the summary, with no empty line after the prompt. With `--yes`: records, one empty line, the summary. With no ID: the prompt, then the summary.
+- When writing a record fails, nothing is deleted, `bucu: cannot write to standard output` is printed, and the exit code is `1`. When writing later output fails, the deletion stays and the exit code is `1` (§6).
+- When another process changes the bookmarks between the prompt and the deletion, `delete` deletes what its arguments cover when it runs; when a named single ID is gone by then, it fails with exit `5` and deletes nothing.
+
+### swap and reorder (added by #88)
+
+`bucu swap <a> <b>` exchanges the IDs of two bookmarks. `bucu reorder` gives the stored bookmarks the IDs 1 to n in their current ascending ID order.
+
+- `swap` exchanges the IDs of the bookmarks `a` and `b` in one all-or-nothing change, without asking. It checks, in this order: exactly two arguments; each argument left to right is one ID by the digit rules of "IDs and ranges" (no list and no range); the two IDs differ; both are stored.
+- An argument that is not a valid ID item is the invalid ID error (§6), exit `2`. A wrong number of arguments, or a list or a range (`3,3` and `3-3` included), is the "swap takes two IDs" usage error; two equal IDs (`3 003` included) are the "swap needs two different IDs" usage error (both in §6). Both exit `2`, and nothing changes.
+- An ID that is not stored is the not-found error (§6) for the lower such ID, exit `5`, and nothing changes.
+- On success `swap` prints the records with IDs `a` and `b` after the change, in the `add` format, in ascending ID order, with one empty line between them, and exits `0`.
+- `reorder` is one all-or-nothing change. It takes no argument other than `--yes`; an ID is the "reorder takes no ID" usage error (§6), exit `2`. With no bookmark stored it fails with `bucu: there are no bookmarks.` and exit `5`.
+- When every ID is already in place, `reorder` prints `IDs are already 1-<n>.` and exits `0` without asking. Otherwise it asks as `delete` does, with the prompt `Renumber <m> bookmarks? [y/N] ` (`Renumber 1 bookmark? [y/N] `), where m is the number of bookmarks whose ID changes; in a run that is not interactive without `--yes` it fails with the usage error that names `--yes` (§6), exit `2`. On success it prints `Renumbered <m> bookmarks.` (`Renumbered 1 bookmark.`) and exits `0`.
 
 ### db (added by #10)
 
@@ -197,7 +229,10 @@ completion <shell>         print a shell completion script (#19)
 - An ID argument that is not a positive whole number prints `bucu: invalid ID '<argument>': it is not a positive whole number. Run 'bucu --help' for usage.` and exits `2`. The argument is shown as given, with each control character written as an escape, as for a validation error.
 - A single ID that is not stored prints `bucu: no bookmark has ID <n>. Run 'bucu list' to see IDs.` A range with no stored ID prints `bucu: no bookmark has an ID in <a>-<b>. Run 'bucu list' to see IDs.` With no ID and no bookmark stored, `bucu` prints `bucu: there are no bookmarks.` Each goes to standard error, changes nothing, and exits `5`.
 - A change to every bookmark in a run that is not interactive, without `--yes`, prints `bucu: changing all bookmarks needs confirmation; add --yes to confirm. Run 'bucu --help' for usage.` and exits `2`.
-- The confirmation prompt `Update all <n> bookmarks? [y/N] ` and `Cancelled.` go to standard output, not standard error.
+- A `delete` in a run that is not interactive, without `--yes`, prints `bucu: deleting bookmarks needs confirmation; add --yes to confirm. Run 'bucu --help' for usage.` and exits `2`. A `reorder` that needs to ask prints `bucu: renumbering bookmarks needs confirmation; add --yes to confirm. Run 'bucu --help' for usage.` and exits `2`.
+- `swap` with other than two single IDs prints `bucu: swap takes two IDs. Run 'bucu --help' for usage.`; with two equal IDs, `bucu: swap needs two different IDs. Run 'bucu --help' for usage.`; both exit `2`.
+- `reorder` with an ID prints `bucu: reorder takes no ID. Run 'bucu --help' for usage.` and exits `2`.
+- The confirmation prompts (`Update all <n> bookmarks? [y/N] `, `Delete <n> bookmarks? [y/N] `, `Delete all <n> bookmarks? [y/N] `, `Renumber <m> bookmarks? [y/N] `) and `Cancelled.` go to standard output, not standard error. So do `Deleted <n> bookmarks.`, `Renumbered <m> bookmarks.`, and `IDs are already 1-<n>.`.
 - When writing standard output fails, `bucu` prints `bucu: cannot write to standard output` to standard error and exits `1`.
 
 ## 7. Import and export formats (added by #17, #18)
