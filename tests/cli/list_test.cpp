@@ -225,8 +225,8 @@ TEST_CASE("list --last fails with exit 2 for a value that is not a positive whol
     const Fixture fixture;
     add_numbered(fixture, 3);
 
-    for (const char* value :
-         {"0", "-2", "x", "2x", "1.5", "+2", "", "99999999999999999999", "9223372036854775808"}) {
+    for (const char* value : {"0", "-2", "x", "2x", "1.5", "+2", "", "99999999999999999999",
+                              "9223372036854775808", "3,3", "3-3", "3,5", "3-4", " 3", "3 "}) {
         CAPTURE(value);
         const Result result = fixture.bucu({"list", "--last", value});
         CHECK(result.code == 2);

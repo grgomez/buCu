@@ -21,11 +21,13 @@ int run_list(const ListArgs& args, const Globals& globals, const Context& contex
     }
     std::optional<std::int64_t> last_count;
     if (args.last.has_value()) {
-        last_count = core::parse_id(*args.last);
-        if (!last_count) {
+        // The digit rule of an ID: a list or a range, even one that names a single ID, is refused.
+        const auto count = core::parse_single_id(*args.last);
+        if (!count) {
             err << invalid_last_message(*args.last) << '\n';
             return kExitUsage;
         }
+        last_count = count->value();
     }
     const auto selection = core::parse_id_selection(args.ids);
     if (!selection) {

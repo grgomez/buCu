@@ -2,7 +2,6 @@
 
 #include <cstdint>
 #include <expected>
-#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -44,11 +43,6 @@ struct IdSelection {
 struct IdError {
     std::string argument;
 };
-
-// Reads one ID: ASCII digits only (no sign, no spaces), leading zeros allowed, at least 1, and
-// small enough for a signed 64-bit integer. Gives no value for anything else. Also the rule for the
-// count of `list --last` (docs/product.md section 5).
-[[nodiscard]] std::optional<std::int64_t> parse_id(std::string_view text);
 
 // Reads the ID arguments: each is a positive whole number, a range `<a>-<b>`, or a comma-separated
 // list of these. A range with `a > b` is read as `<b>-<a>`. No argument selects every bookmark.

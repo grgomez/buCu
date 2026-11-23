@@ -18,6 +18,21 @@ namespace {
 
 constexpr std::int64_t kLargestId = std::numeric_limits<std::int64_t>::max();
 
+// A positive whole number of ASCII digits (leading zeros allowed) that fits in 64 bits.
+std::optional<std::int64_t> parse_id(std::string_view text) {
+    const bool all_digits =
+        !text.empty() && std::ranges::all_of(text, [](char c) { return c >= '0' && c <= '9'; });
+    if (!all_digits) {
+        return std::nullopt;
+    }
+    std::int64_t value = 0;
+    const auto [end, error] = std::from_chars(text.data(), text.data() + text.size(), value);
+    if (error != std::errc{} || end != text.data() + text.size() || value < 1) {
+        return std::nullopt;
+    }
+    return value;
+}
+
 // One list item: `<n>` or `<a>-<b>`.
 std::optional<IdItem> parse_item(std::string_view text) {
     const std::size_t dash = text.find('-');
@@ -51,20 +66,6 @@ bool item_before(const IdItem& left, const IdItem& right) {
 }
 
 }  // namespace
-
-std::optional<std::int64_t> parse_id(std::string_view text) {
-    const bool all_digits =
-        !text.empty() && std::ranges::all_of(text, [](char c) { return c >= '0' && c <= '9'; });
-    if (!all_digits) {
-        return std::nullopt;
-    }
-    std::int64_t value = 0;
-    const auto [end, error] = std::from_chars(text.data(), text.data() + text.size(), value);
-    if (error != std::errc{} || end != text.data() + text.size() || value < 1) {
-        return std::nullopt;
-    }
-    return value;
-}
 
 std::expected<IdSelection, IdError> parse_id_selection(const std::vector<std::string>& arguments) {
     IdSelection selection{.all = arguments.empty(), .items = {}};
