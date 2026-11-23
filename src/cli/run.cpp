@@ -72,6 +72,10 @@ Commands:
       Print bookmarks. IDs are numbers, ranges such as 3-7, or comma lists;
       with no ID, every bookmark prints.
         --last <n>            Print only the n newest bookmarks (no IDs).
+  search <keywords...>
+      Print the bookmarks that match any keyword in the URL, title,
+      description, or a tag, best matches first. A keyword matches a whole
+      word. A keyword that starts with - goes after --.
   db path               Print the database location.
   db version            Print the schema version.
   db check              Check the database for damage.
@@ -143,8 +147,8 @@ platform::ColorMode color_mode(const std::string& value) {
     return platform::ColorMode::kAuto;
 }
 
-// Parses and runs `args`; `extra_tags` are more positional tags for `add` and `tag`. A probe is
-// silent: when its parse fails or the command is neither `add` nor `tag`, it returns no value and
+// Parses and runs `args`; `extra_tags` are more positional words for `add`, `tag`, and `search`. A
+// probe is silent: when its parse fails or the command is none of these, it returns no value and
 // nothing has run.
 // NOLINTNEXTLINE(bugprone-easily-swappable-parameters): args and extra_tags are two word lists
 std::optional<int> parse_and_run(const std::vector<std::string>& args,
@@ -201,6 +205,11 @@ std::optional<int> parse_and_run(const std::vector<std::string>& args,
     list->add_option("ids", list_args.ids);
     std::string last_value;
     CLI::Option* list_last = list->add_option("--last", last_value)->expected(1);
+
+    SearchArgs search_args;
+    CLI::App* search = app.add_subcommand("search");
+    search->subcommand_fallthrough(false);
+    search->add_option("keywords", search_args.keywords);
 
     TagArgs tag_args;
     CLI::App* tag = app.add_subcommand("tag");
@@ -265,16 +274,20 @@ std::optional<int> parse_and_run(const std::vector<std::string>& args,
         return kExitUsage;
     }
     globals.color = color_mode(color);
-    if (probe && !add->parsed() && !tag->parsed()) {
+    if (probe && !add->parsed() && !tag->parsed() && !search->parsed()) {
         return std::nullopt;
     }
     add_args.tags.insert(add_args.tags.end(), extra_tags.begin(), extra_tags.end());
     tag_args.words.insert(tag_args.words.end(), extra_tags.begin(), extra_tags.end());
+    search_args.keywords.insert(search_args.keywords.end(), extra_tags.begin(), extra_tags.end());
     if (add->parsed()) {
         return finish(run_add(add_args, globals, context), context);
     }
     if (tag->parsed()) {
         return finish(run_tag(tag_args, globals, context), context);
+    }
+    if (search->parsed()) {
+        return finish(run_search(search_args, globals, context), context);
     }
     if (update->parsed()) {
         // An option that was not given is no value, even though CLI11 holds an empty string.
@@ -334,10 +347,10 @@ int run(const std::vector<std::string>& args, const Context& context) {
         return kExitUsage;
     }
 
-    // CLI11 ends `add` and `tag` at "--" once a positional word was read, which would lose a tag
-    // such as -x in `add <url> web -- -x` (product section 5). So when one of them parses without
-    // the words after "--", those words are appended to its tags. Any other command, and any
-    // failure, is parsed whole.
+    // CLI11 ends `add`, `tag`, and `search` at "--" once a positional word was read, which would
+    // lose a word such as -x in `add <url> web -- -x` (product section 5). So when one of them
+    // parses without the words after "--", those words are appended to its tags or keywords. Any
+    // other command, and any failure, is parsed whole.
     const auto marker = std::ranges::find(args, "--");
     if (marker != args.end()) {
         const std::vector<std::string> head(args.begin(), marker);

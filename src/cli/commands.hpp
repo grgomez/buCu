@@ -47,6 +47,11 @@ struct ListArgs {
     std::optional<std::string> last;
 };
 
+// The arguments of `search`: the keyword arguments, in the order given, and the words after `--`.
+struct SearchArgs {
+    std::vector<std::string> keywords;
+};
+
 // The arguments of `tag`: the IDs, the operation word, and the tags, in the order given.
 struct TagArgs {
     std::vector<std::string> words;
@@ -84,6 +89,9 @@ int run_update(const UpdateArgs& args, const Globals& globals, const Context& co
 
 // Runs `list` and returns the exit code.
 int run_list(const ListArgs& args, const Globals& globals, const Context& context);
+
+// Runs `search` and returns the exit code.
+int run_search(const SearchArgs& args, const Globals& globals, const Context& context);
 
 // Runs `tag` and returns the exit code.
 int run_tag(const TagArgs& args, const Globals& globals, const Context& context);

@@ -1,0 +1,8 @@
+3  web docs
+   url:   https://c.example/
+
+1  web
+   url:   https://a.example/
+
+2  docs
+   url:   https://b.example/

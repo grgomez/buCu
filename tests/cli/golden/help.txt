@@ -51,6 +51,10 @@ Commands:
       Print bookmarks. IDs are numbers, ranges such as 3-7, or comma lists;
       with no ID, every bookmark prints.
         --last <n>            Print only the n newest bookmarks (no IDs).
+  search <keywords...>
+      Print the bookmarks that match any keyword in the URL, title,
+      description, or a tag, best matches first. A keyword matches a whole
+      word. A keyword that starts with - goes after --.
   db path               Print the database location.
   db version            Print the schema version.
   db check              Check the database for damage.
