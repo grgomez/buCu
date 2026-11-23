@@ -4,6 +4,7 @@
 #include "bucu/core/bookmark_id.hpp"
 #include "bucu/core/id_selection.hpp"
 #include "bucu/db/bookmarks.hpp"
+#include "bucu/platform/terminal.hpp"
 #include "cli/commands.hpp"
 #include "cli/exit_codes.hpp"
 #include "cli/messages.hpp"
@@ -58,8 +59,10 @@ int run_swap(const SwapArgs& args, const Globals& globals, const Context& contex
         err << sql_error_message("swap the IDs", error) << '\n';
         return kExitFailure;
     }
+    const bool colour =
+        platform::use_color(globals.color, context.terminals.output, context.environment.get());
     const auto printed =
-        print_records(*database, core::select_two_ids(*first, *second), out, false);
+        print_records(*database, core::select_two_ids(*first, *second), out, colour);
     if (!printed) {
         err << sql_error_message("read the bookmarks", printed.error()) << '\n';
         return kExitFailure;
