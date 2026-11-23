@@ -68,6 +68,10 @@ Commands:
   reorder
       Renumber the IDs to 1, 2, 3, and so on, keeping their order.
         --yes                 Confirm without asking.
+  list [ids...]
+      Print bookmarks. IDs are numbers, ranges such as 3-7, or comma lists;
+      with no ID, every bookmark prints.
+        --last <n>            Print only the n newest bookmarks (no IDs).
   db path               Print the database location.
   db version            Print the schema version.
   db check              Check the database for damage.
@@ -128,6 +132,17 @@ std::optional<db::Database> open_database(const Globals& globals, const Context&
 
 namespace {
 
+// The mode that the checked --color value names; an option that was not given is auto.
+platform::ColorMode color_mode(const std::string& value) {
+    if (value == "always") {
+        return platform::ColorMode::kAlways;
+    }
+    if (value == "never") {
+        return platform::ColorMode::kNever;
+    }
+    return platform::ColorMode::kAuto;
+}
+
 // Parses and runs `args`; `extra_tags` are more positional tags for `add` and `tag`. A probe is
 // silent: when its parse fails or the command is neither `add` nor `tag`, it returns no value and
 // nothing has run.
@@ -143,7 +158,7 @@ std::optional<int> parse_and_run(const std::vector<std::string>& args,
     app.set_version_flag("--version", "bucu " BUCU_VERSION);
 
     // The global options come before the command; CLI11 refuses them after it (product section 5).
-    // --color and --offline are checked here and take effect with later issues.
+    // --offline is checked here and takes effect with a later issue.
     Globals globals;
     std::string color;
     bool offline = false;
@@ -152,8 +167,8 @@ std::optional<int> parse_and_run(const std::vector<std::string>& args,
     app.add_flag("--offline", offline);
 
     AddArgs add_args;
-    // No subcommand has fallthrough: the command words (add, db, tag, update) stay plain words
-    // inside every command, so `add <url> db` stores the tag db instead of starting `db`.
+    // No subcommand has fallthrough: the command words (add, db, list, tag, update) stay plain
+    // words inside every command, so `add <url> db` stores the tag db instead of starting `db`.
     CLI::App* add = app.add_subcommand("add");
     add->subcommand_fallthrough(false);
     add->add_option("url", add_args.url)->required();
@@ -179,6 +194,13 @@ std::optional<int> parse_and_run(const std::vector<std::string>& args,
     update->add_flag("--immutable", update_args.immutable);
     update->add_flag("--no-immutable", update_args.no_immutable);
     update->add_flag("--yes", update_args.yes);
+
+    ListArgs list_args;
+    CLI::App* list = app.add_subcommand("list");
+    list->subcommand_fallthrough(false);
+    list->add_option("ids", list_args.ids);
+    std::string last_value;
+    CLI::Option* list_last = list->add_option("--last", last_value)->expected(1);
 
     TagArgs tag_args;
     CLI::App* tag = app.add_subcommand("tag");
@@ -242,6 +264,7 @@ std::optional<int> parse_and_run(const std::vector<std::string>& args,
         err << "bucu: " << what << ". Run 'bucu --help' for usage.\n";
         return kExitUsage;
     }
+    globals.color = color_mode(color);
     if (probe && !add->parsed() && !tag->parsed()) {
         return std::nullopt;
     }
@@ -268,6 +291,12 @@ std::optional<int> parse_and_run(const std::vector<std::string>& args,
             update_args.tags = update_tags;
         }
         return finish(run_update(update_args, globals, context), context);
+    }
+    if (list->parsed()) {
+        if (list_last->count() > 0) {
+            list_args.last = last_value;
+        }
+        return finish(run_list(list_args, globals, context), context);
     }
     if (delete_command->parsed()) {
         return finish(run_delete(delete_args, globals, context), context);

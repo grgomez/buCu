@@ -1,8 +1,12 @@
 #include "cli/record.hpp"
 
 #include <cstddef>
+#include <cstdint>
 #include <string>
 #include <string_view>
+
+#include "bucu/db/bookmarks.hpp"
+#include "cli/escape.hpp"
 
 namespace bucu::cli {
 
@@ -10,46 +14,96 @@ namespace {
 
 constexpr std::string_view kValueIndent = "          ";  // the value column: 10 spaces
 
-// Appends `value`, with each line after the first indented to the value column, and an LF.
-void append_value(std::string& out, std::string_view value) {
+// Buku's default colours as SGR codes (docs/product.md section 5, colour). An empty code means no
+// colour.
+constexpr std::string_view kIdCode = "96";       // bright cyan
+constexpr std::string_view kTitleCode = "92;1";  // bold bright green
+constexpr std::string_view kLabelCode = "91";    // bright red
+constexpr std::string_view kUrlCode = "93";      // bright yellow
+constexpr std::string_view kTagsCode = "94";     // bright blue
+constexpr std::string_view kFlagsCode = "2";     // dim
+
+// Appends `text`, inside the colour `code` and a reset when there is a code and a text, so a
+// coloured part never runs into the next line.
+void append_part(std::string& out, std::string_view code, std::string_view text) {
+    if (code.empty() || text.empty()) {
+        out.append(text);
+        return;
+    }
+    out.append("\x1b[");
+    out.append(code);
+    out.push_back('m');
+    out.append(text);
+    out.append("\x1b[0m");
+}
+
+// A text and the colour code it takes; an empty code means none.
+struct Value {
+    std::string_view code;
+    std::string_view text;
+};
+
+// Appends `value` in its colour, with each line after the first indented to the value column, the
+// colour repeated on it with its indent, and an LF after each line.
+void append_value(std::string& out, const Value& value) {
+    const std::string_view text = value.text;
     std::size_t start = 0;
+    bool first = true;
     for (;;) {
-        const std::size_t end = value.find('\n', start);
-        out.append(value.substr(start, end == std::string_view::npos ? end : end - start));
+        const std::size_t end = text.find('\n', start);
+        const std::string_view line =
+            text.substr(start, end == std::string_view::npos ? end : end - start);
+        append_part(out, value.code,
+                    first ? std::string(line) : std::string(kValueIndent).append(line));
         out.push_back('\n');
         if (end == std::string_view::npos) {
             return;
         }
-        out.append(kValueIndent);
+        first = false;
         start = end + 1;
     }
 }
 
 constexpr std::size_t kLabelWidth = 7;
 
-// A labelled line: three spaces, the label padded to kLabelWidth characters, then the value.
-// NOLINTNEXTLINE(bugprone-easily-swappable-parameters): the label is always a literal
-void append_field(std::string& out, std::string_view label, std::string_view value) {
-    out.append("   ");
-    out.append(label);
-    out.append(kLabelWidth - label.size(), ' ');
-    append_value(out, value);
+// A labelled line's text and the colour of its value.
+struct Field {
+    std::string_view label;
+    Value value;
+};
+
+// A labelled line: three spaces, the label padded to kLabelWidth characters, then the value. The
+// indent, the label, and its padding take `label_code`.
+void append_field(std::string& out, std::string_view label_code, const Field& field) {
+    std::string head = "   ";
+    head.append(field.label);
+    head.append(kLabelWidth - field.label.size(), ' ');
+    append_part(out, label_code, head);
+    append_value(out, field.value);
 }
 
 }  // namespace
 
-std::string format_record(core::BookmarkId id, const core::Bookmark& bookmark) {
-    std::string out = std::to_string(id.value());
+std::string format_record(core::BookmarkId id, const core::Bookmark& bookmark, bool colour) {
+    // The code of each part: none when the record is plain.
+    const auto code = [colour](std::string_view sgr) { return colour ? sgr : std::string_view{}; };
+    std::string out;
     if (!bookmark.title.empty()) {
-        out.append("  ");
-        append_value(out, bookmark.title);
+        append_part(out, code(kIdCode), std::to_string(id.value()) + "  ");
+        append_value(out, {.code = code(kTitleCode),
+                           .text = escape_controls(bookmark.title, LineFeed::kKeep)});
     } else {
+        append_part(out, code(kIdCode), std::to_string(id.value()));
         out.push_back('\n');
     }
 
-    append_field(out, "url:", bookmark.url);
+    append_field(out, code(kLabelCode),
+                 {.label = "url:", .value = {.code = code(kUrlCode), .text = bookmark.url}});
     if (!bookmark.description.empty()) {
-        append_field(out, "desc:", bookmark.description);
+        append_field(out, code(kLabelCode),
+                     {.label = "desc:",
+                      .value = {.code = {},
+                                .text = escape_controls(bookmark.description, LineFeed::kKeep)}});
     }
     if (!bookmark.tags.empty()) {
         std::string joined;
@@ -57,31 +111,55 @@ std::string format_record(core::BookmarkId id, const core::Bookmark& bookmark) {
             joined.append(joined.empty() ? "" : ", ");
             joined.append(tag);
         }
-        append_field(out, "tags:", joined);
+        append_field(out, code(kLabelCode),
+                     {.label = "tags:", .value = {.code = code(kTagsCode), .text = joined}});
     }
     if (core::has_flag(bookmark.flags, core::kFlagImmutableTitle)) {
-        append_field(out, "flags:", "immutable-title");
+        append_field(
+            out, code(kLabelCode),
+            {.label = "flags:", .value = {.code = code(kFlagsCode), .text = "immutable-title"}});
     }
     return out;
 }
 
+namespace {
+
+// A visitor that writes each record it is given to `out`, with one empty line between records, and
+// counts them in `printed`. It returns whether the stream is still good, so a failed write ends the
+// walk.
+db::BookmarkVisitor record_writer(std::ostream& out, bool colour, std::int64_t& printed) {
+    return [&out, colour, &printed](core::BookmarkId id, const core::Bookmark& bookmark) {
+        if (printed > 0) {
+            out << '\n';
+        }
+        ++printed;
+        out << format_record(id, bookmark, colour);
+        return static_cast<bool>(out);
+    };
+}
+
+}  // namespace
+
 std::expected<std::int64_t, db::Error> print_records(db::Database& database,
                                                      const core::IdSelection& selection,
-                                                     std::ostream& out) {
-    std::int64_t count = 0;
-    auto done = db::for_each_bookmark(database, selection,
-                                      [&](core::BookmarkId id, const core::Bookmark& bookmark) {
-                                          if (count > 0) {
-                                              out << '\n';
-                                          }
-                                          ++count;
-                                          out << format_record(id, bookmark);
-                                          return static_cast<bool>(out);
-                                      });
+                                                     std::ostream& out, bool colour) {
+    std::int64_t printed = 0;
+    auto done = db::for_each_bookmark(database, selection, record_writer(out, colour, printed));
     if (!done) {
         return std::unexpected(std::move(done.error()));
     }
-    return count;
+    return printed;
+}
+
+std::expected<std::int64_t, db::Error> print_last_records(db::Database& database,
+                                                          std::int64_t count, std::ostream& out,
+                                                          bool colour) {
+    std::int64_t printed = 0;
+    auto done = db::for_each_last_bookmark(database, count, record_writer(out, colour, printed));
+    if (!done) {
+        return std::unexpected(std::move(done.error()));
+    }
+    return printed;
 }
 
 }  // namespace bucu::cli

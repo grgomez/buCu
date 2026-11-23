@@ -82,6 +82,35 @@ TEST_CASE("delete with --yes prints the records, deletes them, and keeps the oth
     CHECK(fixture.tags() == "a,all,t5");
 }
 
+TEST_CASE("delete --color always colours the records it shows", "[cli][delete]") {
+    const Fixture fixture;
+    add_three(fixture);
+
+    const Result result = fixture.bucu({"--color", "always", "delete", "3", "--yes"});
+
+    CHECK(result.code == 0);
+    CHECK(result.out ==
+          "\x1b[96m3  \x1b[0m\x1b[92;1mTitle 3\x1b[0m\n"
+          "\x1b[91m   url:   \x1b[0m\x1b[93mhttps://3.example/\x1b[0m\n"
+          "\x1b[91m   tags:  \x1b[0m\x1b[94mall, t3\x1b[0m\n"
+          "\n"
+          "Deleted 1 bookmark.\n");
+}
+
+TEST_CASE("delete writes a control character in a shown title as an escape", "[cli][delete]") {
+    const Fixture fixture;
+    REQUIRE(fixture.bucu({"add", "https://a.example", "--title", "a\x1b[31mb\tc"}).code == 0);
+
+    const Result result = fixture.bucu({"delete", "1", "--yes"});
+
+    CHECK(result.code == 0);
+    CHECK(result.out ==
+          "1  a\\x1b[31mb\\tc\n"
+          "   url:   https://a.example/\n"
+          "\n"
+          "Deleted 1 bookmark.\n");
+}
+
 TEST_CASE("delete of one bookmark says bookmark in the singular", "[cli][delete]") {
     const Fixture fixture;
     add_three(fixture);
@@ -234,7 +263,7 @@ TEST_CASE("delete asks in an interactive run and deletes on y or yes", "[cli][de
             "SELECT id, url, title, description, flags, created_at, updated_at FROM bookmark "
             "WHERE id IN (3, 8) ORDER BY id");
 
-        const Result result = fixture.bucu({"delete", "5"});
+        const Result result = fixture.bucu({"--color", "never", "delete", "5"});
 
         CHECK(result.code == 0);
         CHECK(result.err.empty());

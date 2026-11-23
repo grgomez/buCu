@@ -2,6 +2,7 @@
 
 #include "bucu/core/id_selection.hpp"
 #include "bucu/db/bookmarks.hpp"
+#include "bucu/platform/terminal.hpp"
 #include "cli/commands.hpp"
 #include "cli/confirm.hpp"
 #include "cli/exit_codes.hpp"
@@ -35,8 +36,10 @@ int run_delete(const DeleteArgs& args, const Globals& globals, const Context& co
         return *code;
     }
     // With no ID, the records are not shown: only the count is.
-    const auto count =
-        selection->all ? db::count_bookmarks(*database) : print_records(*database, *selection, out);
+    const bool colour =
+        platform::use_color(globals.color, context.terminals.output, context.environment.get());
+    const auto count = selection->all ? db::count_bookmarks(*database)
+                                      : print_records(*database, *selection, out, colour);
     if (!count) {
         err << sql_error_message("read the bookmarks", count.error()) << '\n';
         return kExitFailure;

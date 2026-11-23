@@ -91,6 +91,37 @@ TEST_CASE("swap exchanges two IDs, keeps everything else, and prints both record
     CHECK(content_of(fixture, 7) == three);
 }
 
+TEST_CASE("swap --color always colours both records", "[cli][swap]") {
+    const Fixture fixture;
+    add_two(fixture);
+
+    const Result result = fixture.bucu({"--color", "always", "swap", "7", "3"});
+
+    CHECK(result.code == 0);
+    CHECK(result.out ==
+          "\x1b[96m3  \x1b[0m\x1b[92;1mSeven\x1b[0m\n"
+          "\x1b[91m   url:   \x1b[0m\x1b[93mhttps://7.example/\x1b[0m\n"
+          "\x1b[91m   tags:  \x1b[0m\x1b[94mc\x1b[0m\n"
+          "\x1b[91m   flags: \x1b[0m\x1b[2mimmutable-title\x1b[0m\n"
+          "\n"
+          "\x1b[96m7  \x1b[0m\x1b[92;1mThree\x1b[0m\n"
+          "\x1b[91m   url:   \x1b[0m\x1b[93mhttps://3.example/\x1b[0m\n"
+          "\x1b[91m   desc:  \x1b[0md\n"
+          "\x1b[91m   tags:  \x1b[0m\x1b[94ma, b\x1b[0m\n");
+}
+
+TEST_CASE("swap writes a control character in a title as an escape", "[cli][swap]") {
+    const Fixture fixture;
+    add_two(fixture);
+    exec(fixture, "UPDATE bookmark SET title = 'a' || char(27) || 'b' WHERE id = 3");
+
+    const Result result = fixture.bucu({"swap", "3", "7"});
+
+    CHECK(result.code == 0);
+    CHECK(result.out.find("7  a\\x1bb\n") != std::string::npos);
+    CHECK(result.out.find('\x1b') == std::string::npos);
+}
+
 TEST_CASE("swap with other than two single IDs is a usage error", "[cli][swap]") {
     const Fixture fixture;
     add_two(fixture);

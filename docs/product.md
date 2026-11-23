@@ -85,7 +85,7 @@ bucu [--db <path>] [--color auto|always|never] [--offline] <command> [args]
 bucu --version | -h | --help
 
 add <url> [tags...]        add a bookmark; prompts or opens the editor when asked (#10, #14, #16)
-list                       list bookmarks, paginated (#11)
+list [ids...] [--last <n>]   print bookmarks (#11); pagination (#97)
 search <query>             search by keyword, substring, or tag (#12)
 search --regex <pattern>   search by regular expression (#12)
 tag [ids...] <operation> [tags...]   add, remove, or replace tags (#87)
@@ -104,7 +104,7 @@ completion <shell>         print a shell completion script (#19)
 - `--color auto` (the default) uses colour only when standard output is a terminal and `NO_COLOR` is unset or empty. `--color always` uses colour even when output is not a terminal or `NO_COLOR` is set. `--color never` uses no colour. Standard error does not change the choice.
 - A command that would prompt in an interactive run MUST NOT wait for input in a non-interactive run; it fails with a message that names the option to use instead (for example `--yes`).
 - Every line `bucu` writes to standard output or standard error MUST end in LF (U+000A) only, on every platform, whether the output goes to a terminal, a file, or a pipe. The one exception is the confirmation prompt of `update`, `tag`, `delete`, and `reorder` (below), which ends without LF because the user's Enter ends it; at end of input, `bucu` writes an LF before `Cancelled.`.
-- The global options (`--db`, `--color`, `--offline`) MUST come before the command; after it they are a usage error. `--color` and `--offline` are accepted and checked from #10: `--color` takes its effect with #11 and `--offline` with #16.
+- The global options (`--db`, `--color`, `--offline`) MUST come before the command; after it they are a usage error. `--color` and `--offline` are accepted and checked from #10: `--color` takes its effect from #11 (colour rules under "add") and `--offline` with #16.
 
 ### add (added by #10)
 
@@ -121,7 +121,9 @@ completion <shell>         print a shell completion script (#19)
   - Then, each only when its value is not empty and in this order: `url:`, `desc:`, `tags:` (tags joined by `, `), and `flags:` (`immutable-title` for bit 1). The `url:` line is always present.
   - Each of these lines starts with three spaces, and its label is padded with spaces to 7 characters, so every value starts in column 11.
   - A line break inside the title or description continues on a new line indented to the value column (10 spaces).
-  - There is no colour until #11, which reuses this block.
+  - Every command that prints this block (`add`, `update`, `tag`, `list`, `delete`, and `swap`) applies the colour and control-character rules below.
+  - Colour: a record block is coloured exactly when the `--color` rule above says colour is used; otherwise it holds no escape sequence. The colours are Buku's defaults, as SGR codes: the ID bright cyan (`96`); the title bold bright green (`92;1`); the labels `url:`, `desc:`, `tags:`, and `flags:` bright red (`91`); the URL bright yellow (`93`); the tags bright blue (`94`); the flags value dim (`2`); the description uncoloured. Each colour covers these bytes: the ID colour the ID and the two spaces after it (the ID alone when the title is empty); the title colour the title; the label colour the three-space indent, the label, and its padding; a value colour the whole value, the `, ` between tags included. On a continuation line the value colour covers the ten-space indent and the text. Each coloured part ends with the reset code (`0`) before its line ends, so every line starts uncoloured, and a value that continues on another line repeats its colour on that line. On Windows, BuCu turns on escape-sequence processing for a console standard output while it runs and restores the previous mode.
+  - Control characters: every control character (§4) in the title or description except LF is written with the escapes of a validation error value (§6), for example `\x1b`, `\t`, `\r`; LF keeps the continuation-line rule. This holds with and without colour, so a stored escape sequence cannot drive the terminal.
 
 ```text
 7  Example
@@ -133,7 +135,7 @@ completion <shell>         print a shell completion script (#19)
 
 ### IDs and ranges (added by #87)
 
-`update`, `tag`, and `delete` (#88) name the bookmarks they act on with the same ID arguments.
+`update`, `tag`, `list` (#11), and `delete` (#88) name the bookmarks they act on with the same ID arguments. `list` never asks for confirmation, and with no ID and no bookmark stored it prints nothing and exits `0` (see "list" below), unlike `update` and `tag`.
 
 - The IDs are one or more arguments, each a positive whole number, a range `<a>-<b>`, or a comma-separated list of these (`3`, `3,5`, `3-7`, `3,5-7`, `3 5-7`). A range with `a > b` is read as `<b>-<a>`. An ID that appears twice counts once.
 - An ID is ASCII digits only: no sign and no spaces; leading zeros are allowed (`007` is 7); an empty list item (`3,`, `3,,5`) is not an ID. It MUST fit in a signed 64-bit integer.
@@ -198,6 +200,18 @@ completion <shell>         print a shell completion script (#19)
 - `reorder` is one all-or-nothing change. It takes no argument other than `--yes`; an ID is the "reorder takes no ID" usage error (§6), exit `2`. With no bookmark stored it fails with `bucu: there are no bookmarks.` and exit `5`.
 - When every ID is already in place, `reorder` prints `IDs are already 1-<n>.` and exits `0` without asking. Otherwise it asks as `delete` does, with the prompt `Renumber <m> bookmarks? [y/N] ` (`Renumber 1 bookmark? [y/N] `), where m is the number of bookmarks whose ID changes; in a run that is not interactive without `--yes` it fails with the usage error that names `--yes` (§6), exit `2`. On success it prints `Renumbered <m> bookmarks.` (`Renumbered 1 bookmark.`) and exits `0`.
 
+### list (added by #11)
+
+`bucu list [ids...] [--last <n>]` prints bookmarks in the `add` record format (§5 add).
+
+- With ID arguments, it prints the record of each bookmark they cover, by the rules of "IDs and ranges" for parsing, not found (exit `5`, nothing printed to standard output), and order of errors. A not-found item is detected before any record is printed.
+- Records are printed in ascending ID order with one empty line between records, and written one at a time as they are read, without holding the whole result. The output is the state at the start of the run (one read transaction), even when another process adds or deletes bookmarks meanwhile.
+- With no ID, it prints every bookmark; with no bookmark stored, it prints nothing to standard output or standard error and exits `0`.
+- `--last <n>` prints the `n` stored bookmarks with the highest IDs, in ascending ID order; when fewer than `n` are stored, it prints all of them, and with no bookmark stored it prints nothing and exits `0`. It counts stored bookmarks, not ID values: with bookmarks 1 and 100 stored, `--last 2` prints both (Buku, which counts back from the highest ID, would print only 100). `<n>` is a positive whole number by the digit rules of "IDs and ranges" (ASCII digits, leading zeros allowed, fits a signed 64-bit integer, not `0`). `--last` with ID arguments is a usage error, exit `2`, and so is a missing value or a second `--last`.
+- When a run has several usage errors, `list` reports them in this order: `--last` with IDs, a bad `--last` value, a bad ID.
+- `list` does not ask for confirmation, open a pager, or change the database, and accepts no option other than `--last`. Pagination, ordering, and a pager are #97, wrapping to the terminal width #98, JSON output and field selection #99, configurable colours #49.
+- When writing standard output fails, the rule of §6 applies: exit `1`.
+
 ### db (added by #10)
 
 - `bucu db path` prints the absolute path of the database that the run would use (§3), followed by LF. It does not open or create the database, or any directory, so it can print a path that does not exist yet.
@@ -227,6 +241,7 @@ completion <shell>         print a shell completion script (#19)
 - A validation error prints one line, `bucu: invalid <field> '<value>': <reason>.`, and exits `3`. The field is `URL`, `tag`, `title`, or `description`. The reason is one of: `it is empty`, `it is not valid UTF-8`, `it has no scheme, such as https://`, `it contains whitespace`, `it contains a control character`, `it has no host`, or `it is longer than 128 characters`. The value is left out for a title, a description, and text that is not valid UTF-8; otherwise it is shown with each control character written as an escape (`\n`, `\x1b`), so the error stays one line. Nothing is stored and nothing goes to standard output.
 - A URL that is already stored prints `bucu: <normalized URL> is already bookmarked as <ID>. Use 'bucu update <ID>' to change it.` to standard error, prints nothing to standard output, changes nothing, and exits `4`.
 - An ID argument that is not a positive whole number prints `bucu: invalid ID '<argument>': it is not a positive whole number. Run 'bucu --help' for usage.` and exits `2`. The argument is shown as given, with each control character written as an escape, as for a validation error.
+- A `list --last` value that is not a positive whole number prints `bucu: invalid value for --last '<argument>': it is not a positive whole number. Run 'bucu --help' for usage.` and exits `2`; the argument is shown as given, with each control character written as an escape. `list --last` with ID arguments prints `bucu: --last cannot be used with IDs. Run 'bucu --help' for usage.` and exits `2`.
 - A single ID that is not stored prints `bucu: no bookmark has ID <n>. Run 'bucu list' to see IDs.` A range with no stored ID prints `bucu: no bookmark has an ID in <a>-<b>. Run 'bucu list' to see IDs.` With no ID and no bookmark stored, `bucu` prints `bucu: there are no bookmarks.` Each goes to standard error, changes nothing, and exits `5`.
 - A change to every bookmark in a run that is not interactive, without `--yes`, prints `bucu: changing all bookmarks needs confirmation; add --yes to confirm. Run 'bucu --help' for usage.` and exits `2`.
 - A `delete` in a run that is not interactive, without `--yes`, prints `bucu: deleting bookmarks needs confirmation; add --yes to confirm. Run 'bucu --help' for usage.` and exits `2`. A `reorder` that needs to ask prints `bucu: renumbering bookmarks needs confirmation; add --yes to confirm. Run 'bucu --help' for usage.` and exits `2`.

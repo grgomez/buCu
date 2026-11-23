@@ -24,6 +24,10 @@ std::string duplicate_url_message(std::string_view url, core::BookmarkId id);
 // argument is shown with each control character written as an escape.
 std::string invalid_id_message(std::string_view argument);
 
+// A `list --last` value that is not a positive whole number (product section 5, list). The value is
+// shown with each control character written as an escape.
+std::string invalid_last_message(std::string_view argument);
+
 // A usage error: `bucu: <what failed>. Run 'bucu --help' for usage.` `what` has no final period.
 std::string usage_error_message(std::string_view what);
 

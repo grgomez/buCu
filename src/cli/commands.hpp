@@ -6,13 +6,15 @@
 #include <vector>
 
 #include "bucu/db/database.hpp"
+#include "bucu/platform/terminal.hpp"
 #include "cli/run.hpp"
 
 namespace bucu::cli {
 
 // The global options that a command needs.
 struct Globals {
-    std::optional<std::string> db;  // --db
+    std::optional<std::string> db;                           // --db
+    platform::ColorMode color = platform::ColorMode::kAuto;  // --color
 };
 
 // The arguments of `add`, as CLI11 read them.
@@ -36,6 +38,13 @@ struct UpdateArgs {
     bool immutable = false;
     bool no_immutable = false;
     bool yes = false;
+};
+
+// The arguments of `list`: the positional ID arguments (none means every bookmark), and the value
+// of --last when it was given.
+struct ListArgs {
+    std::vector<std::string> ids;
+    std::optional<std::string> last;
 };
 
 // The arguments of `tag`: the IDs, the operation word, and the tags, in the order given.
@@ -72,6 +81,9 @@ int run_add(const AddArgs& args, const Globals& globals, const Context& context)
 
 // Runs `update` and returns the exit code.
 int run_update(const UpdateArgs& args, const Globals& globals, const Context& context);
+
+// Runs `list` and returns the exit code.
+int run_list(const ListArgs& args, const Globals& globals, const Context& context);
 
 // Runs `tag` and returns the exit code.
 int run_tag(const TagArgs& args, const Globals& globals, const Context& context);

@@ -89,7 +89,9 @@ int run_change(const ChangeCommand& command, const Globals& globals, const Conte
         err << sql_error_message("update the bookmarks", error) << '\n';
         return kExitFailure;
     }
-    if (auto printed = print_records(*database, *selection, out); !printed) {
+    const bool colour =
+        platform::use_color(globals.color, context.terminals.output, context.environment.get());
+    if (auto printed = print_records(*database, *selection, out, colour); !printed) {
         err << sql_error_message("read the bookmarks", printed.error()) << '\n';
         return kExitFailure;
     }

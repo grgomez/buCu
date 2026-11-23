@@ -1,0 +1,7 @@
+[96m7  [0m[92;1mFirst[0m
+[92;1m          second[0m
+[91m   url:   [0m[93mhttps://example.org/[0m
+[91m   desc:  [0md1
+          d2
+[91m   tags:  [0m[94mdev, web[0m
+[91m   flags: [0m[2mimmutable-title[0m
