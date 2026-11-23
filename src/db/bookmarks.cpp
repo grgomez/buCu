@@ -265,33 +265,29 @@ std::string_view value_text(sqlite3_value* value) {
 
 // The SQL function bucu_keyword_score(url, title, description, tags): how many keywords of the
 // SearchQuery in the user data match the bookmark (core::count_matching_keywords). `tags` holds
-// each tag, separated by kTagSeparator.
+// each tag, separated by kTagSeparator. BuCu code does not catch exceptions outside `cli`, so a
+// failed allocation here ends the process, as it does anywhere else in BuCu.
 void keyword_score(sqlite3_context* context, int argument_count, sqlite3_value** arguments) {
     if (argument_count != kKeywordScoreArguments) {
         sqlite3_result_error_code(context, SQLITE_MISUSE);
         return;
     }
-    try {
-        const auto* const query = static_cast<const core::SearchQuery*>(sqlite3_user_data(context));
-        std::vector<std::string_view> fields;
-        // arguments[0] to [2] are the URL, title, and description.
-        // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-        fields.push_back(value_text(arguments[0]));
-        fields.push_back(value_text(arguments[1]));
-        fields.push_back(value_text(arguments[2]));
-        std::string_view tags = value_text(arguments[3]);
-        // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-        while (!tags.empty()) {
-            const std::size_t end = tags.find(kTagSeparator);
-            fields.push_back(tags.substr(0, end));
-            tags = end == std::string_view::npos ? std::string_view{} : tags.substr(end + 1);
-        }
-        sqlite3_result_int64(
-            context, static_cast<sqlite3_int64>(core::count_matching_keywords(*query, fields)));
-    } catch (...) {
-        // Nothing here throws but an allocation; SQLite reports it as an out-of-memory error.
-        sqlite3_result_error_nomem(context);
+    const auto* const query = static_cast<const core::SearchQuery*>(sqlite3_user_data(context));
+    std::vector<std::string_view> fields;
+    // arguments[0] to [2] are the URL, title, and description.
+    // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+    fields.push_back(value_text(arguments[0]));
+    fields.push_back(value_text(arguments[1]));
+    fields.push_back(value_text(arguments[2]));
+    std::string_view tags = value_text(arguments[3]);
+    // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+    while (!tags.empty()) {
+        const std::size_t end = tags.find(kTagSeparator);
+        fields.push_back(tags.substr(0, end));
+        tags = end == std::string_view::npos ? std::string_view{} : tags.substr(end + 1);
     }
+    sqlite3_result_int64(context,
+                         static_cast<sqlite3_int64>(core::count_matching_keywords(*query, fields)));
 }
 
 // Registers bucu_keyword_score for `query` on a connection, and removes it when destroyed, so the
