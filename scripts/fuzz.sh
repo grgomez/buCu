@@ -36,7 +36,7 @@ ctest --preset fuzz
 build=build/fuzz
 mkdir -p "$build/artifacts"
 status=0
-for target in utf8 url tags id_selection; do
+for target in utf8 url tags id_selection search; do
     corpus="$build/corpus/$target"
     mkdir -p "$corpus"
     echo "fuzz.sh: fuzzing $target for $seconds s"
