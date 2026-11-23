@@ -19,6 +19,8 @@ std::string_view field_name(core::Field field) {
             return "title";
         case core::Field::kDescription:
             return "description";
+        case core::Field::kKeyword:
+            return "keyword";
     }
     return "";  // unreachable: every Field is handled above
 }
