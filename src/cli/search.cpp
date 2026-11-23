@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <ostream>
 
+#include "bucu/core/error.hpp"
 #include "bucu/db/bookmarks.hpp"
 #include "bucu/platform/terminal.hpp"
 #include "cli/commands.hpp"
@@ -17,7 +18,14 @@ int run_search(const SearchArgs& args, const Globals& globals, const Context& co
     std::ostream& err = context.err;
     const auto query = core::parse_search_query(args.keywords, false, false);
     if (!query) {
-        return kExitUsage;
+        // No keyword left is a usage error; a keyword that is not valid UTF-8 is a validation
+        // error.
+        if (query.error().reason == core::Reason::kEmpty) {
+            err << usage_error_message("search needs at least one keyword") << '\n';
+            return kExitUsage;
+        }
+        err << validation_error_message(query.error()) << '\n';
+        return kExitInvalid;
     }
     auto database = open_database(globals, context, err);
     if (!database) {

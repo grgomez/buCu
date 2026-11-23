@@ -224,3 +224,56 @@ TEST_CASE("search --color always colours the records like list", "[cli][search]"
     CHECK(searched.out == listed.out);
     CHECK(searched.out.find('\x1b') != std::string::npos);
 }
+
+TEST_CASE("search with no keyword is a usage error: exit 2, nothing on standard output",
+          "[cli][search]") {
+    const Fixture fixture;
+    add(fixture, "https://a.example", "Pen");
+    const std::string message =
+        "bucu: search needs at least one keyword. Run 'bucu --help' for usage.\n";
+
+    for (const std::vector<std::string>& args : {std::vector<std::string>{"search"},
+                                                 {"search", ""},
+                                                 {"search", "", " ", "\t"},
+                                                 {"search", "--", ""}}) {
+        CAPTURE(args);
+        const Result result = fixture.bucu(args);
+        CHECK(result.code == 2);
+        CHECK(result.out.empty());
+        CHECK(result.err == message);
+    }
+}
+
+TEST_CASE("search with no keyword fails the same on an empty database", "[cli][search]") {
+    const Fixture fixture;
+
+    const Result result = fixture.bucu({"search"});
+
+    CHECK(result.code == 2);
+    CHECK(result.err == "bucu: search needs at least one keyword. Run 'bucu --help' for usage.\n");
+}
+
+TEST_CASE("search with a keyword that is not valid UTF-8 is a validation error: exit 3",
+          "[cli][search]") {
+    const Fixture fixture;
+    add(fixture, "https://a.example", "Pen");
+
+    for (const char* keyword : {"\xFF", "pen\xC3", "\xED\xA0\x80"}) {
+        CAPTURE(keyword);
+        const Result result = fixture.bucu({"search", "pen", keyword});
+        CHECK(result.code == 3);
+        CHECK(result.out.empty());
+        CHECK(result.err == "bucu: invalid keyword: it is not valid UTF-8.\n");
+    }
+}
+
+TEST_CASE("search reports an option error before a keyword error", "[cli][search]") {
+    const Fixture fixture;
+
+    const Result result = fixture.bucu({"search", "--bogus", "\xFF"});
+
+    CHECK(result.code == 2);
+    CHECK(result.out.empty());
+    CHECK(result.err.find("--bogus") != std::string::npos);
+    CHECK(result.err.find("invalid keyword") == std::string::npos);
+}
