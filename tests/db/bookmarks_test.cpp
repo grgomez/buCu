@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <optional>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -754,4 +755,263 @@ TEST_CASE("update_bookmarks walks a huge range by the stored bookmarks only", "[
                 .has_value());
 
     CHECK(cells(fixture, "SELECT count(*) FROM bookmark WHERE title = 'New'") == "5");
+}
+
+TEST_CASE("delete_bookmarks removes the named bookmarks and keeps every other ID", "[db]") {
+    Fixture fixture;
+    insert_with_gaps(fixture);
+    const std::string kept =
+        cells(fixture, "SELECT id || url || title FROM bookmark WHERE id <> 9");
+
+    const auto deleted = bucu::db::delete_bookmarks(fixture.database, select({"9"}));
+
+    REQUIRE(deleted.has_value());
+    CHECK(*deleted == 1);
+    CHECK(cells(fixture, "SELECT id FROM bookmark ORDER BY id") == "3;5;8;11");
+    CHECK(cells(fixture, "SELECT id || url || title FROM bookmark ORDER BY id") == kept);
+}
+
+TEST_CASE("delete_bookmarks removes the links and the tags no bookmark keeps", "[db]") {
+    Fixture fixture;
+    insert_with_gaps(fixture);
+
+    REQUIRE(bucu::db::delete_bookmarks(fixture.database, select({"3"})).has_value());
+
+    CHECK(cells(fixture, kAllTags) == "all;t11;t5;t8;t9");
+    CHECK(cells(fixture, "SELECT count(*) FROM bookmark_tag WHERE bookmark_id = 3") == "0");
+}
+
+TEST_CASE("delete_bookmarks counts only the stored bookmarks a range covers", "[db]") {
+    Fixture fixture;
+    insert_with_gaps(fixture);
+
+    const auto deleted = bucu::db::delete_bookmarks(fixture.database, select({"4-9", "11"}));
+
+    REQUIRE(deleted.has_value());
+    CHECK(*deleted == 4);
+    CHECK(cells(fixture, "SELECT id FROM bookmark ORDER BY id") == "3");
+}
+
+TEST_CASE("delete_bookmarks of every bookmark leaves no bookmark and no tag", "[db]") {
+    Fixture fixture;
+    insert_with_gaps(fixture);
+
+    const auto deleted = bucu::db::delete_bookmarks(fixture.database, select({}));
+
+    REQUIRE(deleted.has_value());
+    CHECK(*deleted == 5);
+    CHECK(fixture.count("bookmark") == 0);
+    CHECK(fixture.count("bookmark_tag") == 0);
+    CHECK(fixture.count("tag") == 0);
+}
+
+TEST_CASE("delete_bookmarks names the first item that matches nothing and deletes nothing",
+          "[db]") {
+    Fixture fixture;
+    insert_with_gaps(fixture);
+    const std::string rows = cells(fixture, kAllRows);
+    const std::string tags = cells(fixture, kAllTags);
+
+    const auto single = bucu::db::delete_bookmarks(fixture.database, select({"3,4,9"}));
+
+    REQUIRE_FALSE(single.has_value());
+    CHECK(single.error().code == ErrorCode::kNotFound);
+    CHECK(single.error().bookmark_id == bucu::core::BookmarkId(4));
+
+    const auto range = bucu::db::delete_bookmarks(fixture.database, select({"3", "20-30"}));
+
+    REQUIRE_FALSE(range.has_value());
+    CHECK(range.error().code == ErrorCode::kNotFound);
+    CHECK(range.error().range == bucu::core::IdRange{.first = bucu::core::BookmarkId(20),
+                                                     .last = bucu::core::BookmarkId(30)});
+    CHECK(cells(fixture, kAllRows) == rows);
+    CHECK(cells(fixture, kAllTags) == tags);
+
+    fixture.exec("DELETE FROM bookmark");
+    const auto none = bucu::db::delete_bookmarks(fixture.database, select({}));
+    REQUIRE_FALSE(none.has_value());
+    CHECK(none.error().code == ErrorCode::kNotFound);
+    CHECK_FALSE(none.error().bookmark_id.has_value());
+}
+
+TEST_CASE("check_bookmarks_exist reports what delete_bookmarks would, and changes nothing",
+          "[db]") {
+    Fixture fixture;
+    insert_with_gaps(fixture);
+
+    CHECK(bucu::db::check_bookmarks_exist(fixture.database, select({"3", "5-9"})).has_value());
+    CHECK(bucu::db::check_bookmarks_exist(fixture.database, select({})).has_value());
+    const auto missing = bucu::db::check_bookmarks_exist(fixture.database, select({"3,4"}));
+
+    REQUIRE_FALSE(missing.has_value());
+    CHECK(missing.error().code == ErrorCode::kNotFound);
+    CHECK(missing.error().bookmark_id == bucu::core::BookmarkId(4));
+    CHECK(fixture.count("bookmark") == 5);
+}
+
+TEST_CASE("a new bookmark takes the ID above the highest stored one", "[db]") {
+    Fixture fixture;
+    insert_with_gaps(fixture);
+
+    REQUIRE(bucu::db::delete_bookmarks(fixture.database, select({"11"})).has_value());
+    const auto reused =
+        bucu::db::insert_bookmark(fixture.database, make("https://a.example/"), kNow);
+    REQUIRE(reused.has_value());
+    CHECK(reused->value() == 10);
+
+    REQUIRE(bucu::db::delete_bookmarks(fixture.database, select({"3"})).has_value());
+    const auto next = bucu::db::insert_bookmark(fixture.database, make("https://b.example/"), kNow);
+    REQUIRE(next.has_value());
+    CHECK(next->value() == 11);
+
+    REQUIRE(bucu::db::delete_bookmarks(fixture.database, select({})).has_value());
+    const auto first =
+        bucu::db::insert_bookmark(fixture.database, make("https://c.example/"), kNow);
+    REQUIRE(first.has_value());
+    CHECK(first->value() == 1);
+}
+
+namespace {
+
+// Everything a bookmark stores except its ID, with its tags, as one text.
+std::string content_of(Fixture& fixture, int id) {
+    const std::string number = std::to_string(id);
+    return cells(fixture,
+                 ("SELECT url || '|' || title || '|' || description || '|' || flags || '|' "
+                  "|| created_at || '|' || updated_at FROM bookmark WHERE id = " +
+                  number)
+                     .c_str()) +
+           "|" +
+           cells(fixture, ("SELECT tag.name FROM bookmark_tag JOIN tag ON tag.id = tag_id "
+                           "WHERE bookmark_id = " +
+                           number + " ORDER BY tag.name")
+                              .c_str());
+}
+
+}  // namespace
+
+TEST_CASE("swap_bookmark_ids exchanges two IDs and keeps everything else", "[db]") {
+    Fixture fixture;
+    insert_with_gaps(fixture);
+    fixture.exec("UPDATE bookmark SET flags = 1, updated_at = 1700000099 WHERE id = 3");
+    const std::string first = content_of(fixture, 3);
+    const std::string second = content_of(fixture, 9);
+    const std::string others = content_of(fixture, 5) + content_of(fixture, 8);
+
+    const auto done = bucu::db::swap_bookmark_ids(fixture.database, bucu::core::BookmarkId(9),
+                                                  bucu::core::BookmarkId(3));
+
+    REQUIRE(done.has_value());
+    CHECK(cells(fixture, "SELECT id FROM bookmark ORDER BY id") == "3;5;8;9;11");
+    CHECK(content_of(fixture, 9) == first);
+    CHECK(content_of(fixture, 3) == second);
+    CHECK(content_of(fixture, 5) + content_of(fixture, 8) == others);
+    CHECK(fixture.count("bookmark_tag") == 10);
+    CHECK(fixture.tags_of(bucu::core::BookmarkId(9)) == std::vector<std::string>{"all", "t3"});
+}
+
+TEST_CASE("swap_bookmark_ids names the lower ID that is not stored and changes nothing", "[db]") {
+    Fixture fixture;
+    insert_with_gaps(fixture);
+    const std::string rows = cells(fixture, kAllRows);
+    const std::string links = cells(fixture, kAllLinks);
+
+    for (const auto& [a, b, missing] :
+         {std::tuple{3, 4, 4}, std::tuple{6, 4, 4}, std::tuple{9, 6, 6}, std::tuple{2, 1, 1}}) {
+        CAPTURE(a, b);
+        const auto done = bucu::db::swap_bookmark_ids(fixture.database, bucu::core::BookmarkId(a),
+                                                      bucu::core::BookmarkId(b));
+
+        REQUIRE_FALSE(done.has_value());
+        CHECK(done.error().code == ErrorCode::kNotFound);
+        CHECK(done.error().bookmark_id == bucu::core::BookmarkId(missing));
+    }
+    CHECK(cells(fixture, kAllRows) == rows);
+    CHECK(cells(fixture, kAllLinks) == links);
+}
+
+TEST_CASE("foreign keys are enforced again after a swap", "[db]") {
+    Fixture fixture;
+    insert_with_gaps(fixture);
+
+    REQUIRE(bucu::db::swap_bookmark_ids(fixture.database, bucu::core::BookmarkId(3),
+                                        bucu::core::BookmarkId(9))
+                .has_value());
+
+    CHECK(sqlite3_exec(bucu::db::detail::handle(fixture.database),
+                       "INSERT INTO bookmark_tag (bookmark_id, tag_id) VALUES (999, 1)", nullptr,
+                       nullptr, nullptr) != SQLITE_OK);
+}
+
+TEST_CASE("renumber_bookmarks gives IDs 1 to n in the current order and keeps everything else",
+          "[db]") {
+    Fixture fixture;
+    insert_with_gaps(fixture);  // 3, 5, 8, 9, 11
+    fixture.exec("UPDATE bookmark SET flags = 1, updated_at = 1700000099 WHERE id = 8");
+    std::string before;
+    for (const int id : {3, 5, 8, 9, 11}) {
+        before += content_of(fixture, id) + "\n";
+    }
+
+    const auto misplaced = bucu::db::count_misplaced_ids(fixture.database);
+    const auto moved = bucu::db::renumber_bookmarks(fixture.database);
+
+    REQUIRE(misplaced.has_value());
+    CHECK(*misplaced == 5);
+    REQUIRE(moved.has_value());
+    CHECK(*moved == 5);
+    CHECK(cells(fixture, "SELECT id FROM bookmark ORDER BY id") == "1;2;3;4;5");
+    std::string after;
+    for (const int id : {1, 2, 3, 4, 5}) {
+        after += content_of(fixture, id) + "\n";
+    }
+    CHECK(after == before);
+    CHECK(fixture.count("bookmark_tag") == 10);
+    CHECK(bucu::db::count_misplaced_ids(fixture.database).value() == 0);
+}
+
+TEST_CASE("renumber_bookmarks counts only the bookmarks whose ID changes", "[db]") {
+    Fixture fixture;
+    insert_numbered(fixture, kGapCount);
+    fixture.exec("DELETE FROM bookmark WHERE id NOT IN (1, 2, 5)");
+
+    CHECK(bucu::db::count_misplaced_ids(fixture.database).value() == 1);
+    const auto moved = bucu::db::renumber_bookmarks(fixture.database);
+
+    REQUIRE(moved.has_value());
+    CHECK(*moved == 1);
+    CHECK(cells(fixture, "SELECT id FROM bookmark ORDER BY id") == "1;2;3");
+    CHECK(cells(fixture, "SELECT url FROM bookmark WHERE id = 3") == "https://5.example/");
+}
+
+TEST_CASE("renumber_bookmarks of IDs already 1 to n or of no bookmark changes nothing", "[db]") {
+    Fixture fixture;
+
+    CHECK(bucu::db::count_misplaced_ids(fixture.database).value() == 0);
+    CHECK(bucu::db::renumber_bookmarks(fixture.database).value() == 0);
+
+    insert_numbered(fixture, 3);
+    const std::string rows = cells(fixture, kAllRows);
+    const std::string links = cells(fixture, kAllLinks);
+
+    CHECK(bucu::db::count_misplaced_ids(fixture.database).value() == 0);
+    CHECK(bucu::db::renumber_bookmarks(fixture.database).value() == 0);
+    CHECK(cells(fixture, kAllRows) == rows);
+    CHECK(cells(fixture, kAllLinks) == links);
+}
+
+TEST_CASE("after renumber_bookmarks the next bookmark follows and foreign keys are enforced",
+          "[db]") {
+    Fixture fixture;
+    insert_with_gaps(fixture);
+
+    REQUIRE(bucu::db::renumber_bookmarks(fixture.database).has_value());
+
+    const auto id = bucu::db::insert_bookmark(fixture.database, make("https://z.example/"), kNow);
+    REQUIRE(id.has_value());
+    CHECK(id->value() == 6);
+    CHECK(cells(fixture, "SELECT name FROM sqlite_temp_master WHERE name = 'id_map'").empty());
+    CHECK(sqlite3_exec(bucu::db::detail::handle(fixture.database),
+                       "INSERT INTO bookmark_tag (bookmark_id, tag_id) VALUES (999, 1)", nullptr,
+                       nullptr, nullptr) != SQLITE_OK);
 }

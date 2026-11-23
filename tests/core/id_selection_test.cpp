@@ -168,3 +168,41 @@ TEST_CASE("parse_id gives no value for 0, a sign, a space, an empty text, or an 
         CHECK_FALSE(bucu::core::parse_id(text).has_value());
     }
 }
+
+TEST_CASE("select_two_ids names both IDs in ascending order, whichever comes first", "[core][id]") {
+    for (const auto& [a, b] : {std::pair<std::int64_t, std::int64_t>{3, 9}, {9, 3}}) {
+        const IdSelection selection = bucu::core::select_two_ids(BookmarkId(a), BookmarkId(b));
+
+        CHECK_FALSE(selection.all);
+        CHECK(selection.items == parsed({"3,9"}).items);
+        CHECK(named_id_count(selection) == 2);
+    }
+}
+
+TEST_CASE("parse_single_id reads one ID, with leading zeros", "[core][id]") {
+    for (const char* text : {"7", "007"}) {
+        CAPTURE(text);
+        const auto result = bucu::core::parse_single_id(text);
+
+        REQUIRE(result.has_value());
+        CHECK(result->value() == 7);
+    }
+}
+
+TEST_CASE("parse_single_id tells a list or a range from a bad item", "[core][id]") {
+    using bucu::core::SingleIdError;
+    for (const char* text : {"3,5", "3,3", "3-4", "3-3", "4-3"}) {
+        CAPTURE(text);
+        const auto result = bucu::core::parse_single_id(text);
+
+        REQUIRE_FALSE(result.has_value());
+        CHECK(result.error() == SingleIdError::kListOrRange);
+    }
+    for (const char* text : {"abc", "0", "-3", "", "99999999999999999999", "3,abc", " 3"}) {
+        CAPTURE(text);
+        const auto result = bucu::core::parse_single_id(text);
+
+        REQUIRE_FALSE(result.has_value());
+        CHECK(result.error() == SingleIdError::kNotAnIdItem);
+    }
+}

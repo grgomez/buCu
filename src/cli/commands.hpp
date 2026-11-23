@@ -53,6 +53,24 @@ struct TagArgs {
     bool yes = false;
 };
 
+// The arguments of `delete`, as CLI11 read them.
+struct DeleteArgs {
+    std::vector<std::string> ids;  // the positional ID arguments; none means every bookmark
+    bool yes = false;
+};
+
+// The arguments of `swap`, as CLI11 read them: whatever IDs were given, checked by `run_swap`.
+struct SwapArgs {
+    std::vector<std::string> ids;
+};
+
+// The arguments of `reorder`, as CLI11 read them. `ids` is whatever positional words were given;
+// `run_reorder` refuses any.
+struct ReorderArgs {
+    std::vector<std::string> ids;
+    bool yes = false;
+};
+
 // Opens the database this run uses (product section 3), creating it when missing. On failure
 // prints one error line to `err` and returns no value.
 std::optional<db::Database> open_database(const Globals& globals, const Context& context,
@@ -69,6 +87,15 @@ int run_list(const ListArgs& args, const Globals& globals, const Context& contex
 
 // Runs `tag` and returns the exit code.
 int run_tag(const TagArgs& args, const Globals& globals, const Context& context);
+
+// Runs `delete` and returns the exit code.
+int run_delete(const DeleteArgs& args, const Globals& globals, const Context& context);
+
+// Runs `swap` and returns the exit code.
+int run_swap(const SwapArgs& args, const Globals& globals, const Context& context);
+
+// Runs `reorder` and returns the exit code.
+int run_reorder(const ReorderArgs& args, const Globals& globals, const Context& context);
 
 // The `db` subcommands. Each returns the exit code.
 int run_db_path(const Globals& globals, const Context& context);

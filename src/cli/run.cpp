@@ -45,7 +45,7 @@ Commands:
       tags removes them all. IDs are numbers, ranges such as 3-7, or comma
       lists; with no ID, every bookmark changes after confirmation. A tag that
       starts with - goes after --.
-        --yes                 Confirm changing every bookmark.
+        --yes                 Confirm without asking.
   update [ids...]
       Change bookmarks. IDs are numbers, ranges such as 3-7, or comma lists;
       with no ID, every bookmark changes after confirmation. Give at least
@@ -57,7 +57,17 @@ Commands:
                               '' clears them.
         --immutable           Keep a later title fetch from replacing the title.
         --no-immutable        Allow a later title fetch to replace the title.
-        --yes                 Confirm changing every bookmark.
+        --yes                 Confirm without asking.
+  delete [ids...]
+      Delete bookmarks after showing them and asking. IDs are numbers, ranges
+      such as 3-7, or comma lists; with no ID, every bookmark is deleted
+      without showing them. The other bookmarks keep their IDs.
+        --yes                 Confirm without asking.
+  swap <id> <id>
+      Exchange the IDs of two bookmarks.
+  reorder
+      Renumber the IDs to 1, 2, 3, and so on, keeping their order.
+        --yes                 Confirm without asking.
   list [ids...]
       Print bookmarks. IDs are numbers, ranges such as 3-7, or comma lists;
       with no ID, every bookmark prints.
@@ -199,6 +209,23 @@ std::optional<int> parse_and_run(const std::vector<std::string>& args,
     tag->add_option("words", tag_args.words);
     tag->add_flag("--yes", tag_args.yes);
 
+    DeleteArgs delete_args;
+    CLI::App* delete_command = app.add_subcommand("delete");
+    delete_command->subcommand_fallthrough(false);
+    delete_command->add_option("ids", delete_args.ids);
+    delete_command->add_flag("--yes", delete_args.yes);
+
+    ReorderArgs reorder_args;
+    CLI::App* reorder = app.add_subcommand("reorder");
+    reorder->subcommand_fallthrough(false);
+    reorder->add_option("ids", reorder_args.ids);
+    reorder->add_flag("--yes", reorder_args.yes);
+
+    SwapArgs swap_args;
+    CLI::App* swap = app.add_subcommand("swap");
+    swap->subcommand_fallthrough(false);
+    swap->add_option("ids", swap_args.ids);
+
     CLI::App* db = app.add_subcommand("db");
     db->subcommand_fallthrough(false);
     db->require_subcommand(1);
@@ -270,6 +297,15 @@ std::optional<int> parse_and_run(const std::vector<std::string>& args,
             list_args.last = last_value;
         }
         return finish(run_list(list_args, globals, context), context);
+    }
+    if (delete_command->parsed()) {
+        return finish(run_delete(delete_args, globals, context), context);
+    }
+    if (reorder->parsed()) {
+        return finish(run_reorder(reorder_args, globals, context), context);
+    }
+    if (swap->parsed()) {
+        return finish(run_swap(swap_args, globals, context), context);
     }
     if (db_path->parsed()) {
         return finish(run_db_path(globals, context), context);

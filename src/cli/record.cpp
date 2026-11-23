@@ -124,31 +124,42 @@ std::string format_record(core::BookmarkId id, const core::Bookmark& bookmark, b
 
 namespace {
 
-// A visitor that writes each record it is given to `out`, with one empty line between records. It
-// returns whether the stream is still good, so a failed write ends the walk.
-db::BookmarkVisitor record_writer(std::ostream& out, bool colour) {
-    return
-        [&out, colour, first = true](core::BookmarkId id, const core::Bookmark& bookmark) mutable {
-            if (!first) {
-                out << '\n';
-            }
-            first = false;
-            out << format_record(id, bookmark, colour);
-            return static_cast<bool>(out);
-        };
+// A visitor that writes each record it is given to `out`, with one empty line between records, and
+// counts them in `printed`. It returns whether the stream is still good, so a failed write ends the
+// walk.
+db::BookmarkVisitor record_writer(std::ostream& out, bool colour, std::int64_t& printed) {
+    return [&out, colour, &printed](core::BookmarkId id, const core::Bookmark& bookmark) {
+        if (printed > 0) {
+            out << '\n';
+        }
+        ++printed;
+        out << format_record(id, bookmark, colour);
+        return static_cast<bool>(out);
+    };
 }
 
 }  // namespace
 
-std::expected<void, db::Error> print_records(db::Database& database,
-                                             const core::IdSelection& selection, std::ostream& out,
-                                             bool colour) {
-    return db::for_each_bookmark(database, selection, record_writer(out, colour));
+std::expected<std::int64_t, db::Error> print_records(db::Database& database,
+                                                     const core::IdSelection& selection,
+                                                     std::ostream& out, bool colour) {
+    std::int64_t printed = 0;
+    auto done = db::for_each_bookmark(database, selection, record_writer(out, colour, printed));
+    if (!done) {
+        return std::unexpected(std::move(done.error()));
+    }
+    return printed;
 }
 
-std::expected<void, db::Error> print_last_records(db::Database& database, std::int64_t count,
-                                                  std::ostream& out, bool colour) {
-    return db::for_each_last_bookmark(database, count, record_writer(out, colour));
+std::expected<std::int64_t, db::Error> print_last_records(db::Database& database,
+                                                          std::int64_t count, std::ostream& out,
+                                                          bool colour) {
+    std::int64_t printed = 0;
+    auto done = db::for_each_last_bookmark(database, count, record_writer(out, colour, printed));
+    if (!done) {
+        return std::unexpected(std::move(done.error()));
+    }
+    return printed;
 }
 
 }  // namespace bucu::cli
