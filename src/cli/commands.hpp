@@ -47,9 +47,12 @@ struct ListArgs {
     std::optional<std::string> last;
 };
 
-// The arguments of `search`: the keyword arguments, in the order given, and the words after `--`.
+// The arguments of `search`: the keyword arguments, in the order given, and the words after `--`,
+// and the two match switches.
 struct SearchArgs {
     std::vector<std::string> keywords;
+    bool all = false;   // --all
+    bool deep = false;  // --deep
 };
 
 // The arguments of `tag`: the IDs, the operation word, and the tags, in the order given.

@@ -277,3 +277,50 @@ TEST_CASE("search reports an option error before a keyword error", "[cli][search
     CHECK(result.err.find("--bogus") != std::string::npos);
     CHECK(result.err.find("invalid keyword") == std::string::npos);
 }
+
+TEST_CASE("search --all prints only bookmarks that match every keyword", "[cli][search]") {
+    const Fixture fixture;
+    add(fixture, "https://a.example", "web docs");
+    add(fixture, "https://b.example", "web");
+
+    const Result result = fixture.bucu({"search", "--all", "web", "docs"});
+
+    CHECK(result.code == 0);
+    CHECK(result.out == record(fixture, 1));
+    CHECK(fixture.bucu({"search", "web", "docs", "--all"}).out == record(fixture, 1));
+}
+
+TEST_CASE("search --all lets each keyword match in a different field", "[cli][search]") {
+    const Fixture fixture;
+    add(fixture, "https://a.example", "web", "docs");
+    add(fixture, "https://b.example", "web");
+
+    CHECK(fixture.bucu({"search", "--all", "web", "docs"}).out == record(fixture, 1));
+    CHECK(fixture.bucu({"search", "--all", "web", "docs", "api"}).out.empty());
+}
+
+TEST_CASE("search --deep matches inside words", "[cli][search]") {
+    const Fixture fixture;
+    add(fixture, "https://a.example", "Opens soon");
+
+    CHECK(fixture.bucu({"search", "pen"}).out.empty());
+    CHECK(fixture.bucu({"search", "--deep", "pen"}).out == record(fixture, 1));
+    CHECK(fixture.bucu({"search", "--deep", "--all", "pen", "soon"}).out == record(fixture, 1));
+    CHECK(fixture.bucu({"search", "--deep", "--all", "pen", "late"}).out.empty());
+}
+
+TEST_CASE("search --deep ranks by keywords matched like the whole-word search", "[cli][search]") {
+    const Fixture fixture;
+    add(fixture, "https://a.example", "opens");
+    add(fixture, "https://b.example", "opens soon");
+
+    CHECK(fixture.bucu({"search", "--deep", "pen", "soo"}).out == records(fixture, {2, 1}));
+}
+
+TEST_CASE("search takes --all and --deep after the command only", "[cli][search]") {
+    const Fixture fixture;
+    add(fixture, "https://a.example", "web");
+
+    CHECK(fixture.bucu({"--all", "search", "web"}).code == 2);
+    CHECK(fixture.bucu({"--deep", "search", "web"}).code == 2);
+}

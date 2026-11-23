@@ -76,6 +76,8 @@ Commands:
       Print the bookmarks that match any keyword in the URL, title,
       description, or a tag, best matches first. A keyword matches a whole
       word. A keyword that starts with - goes after --.
+        --all                 Match only bookmarks that match every keyword.
+        --deep                Match a keyword inside words too.
   db path               Print the database location.
   db version            Print the schema version.
   db check              Check the database for damage.
@@ -210,6 +212,8 @@ std::optional<int> parse_and_run(const std::vector<std::string>& args,
     CLI::App* search = app.add_subcommand("search");
     search->subcommand_fallthrough(false);
     search->add_option("keywords", search_args.keywords);
+    search->add_flag("--all", search_args.all);
+    search->add_flag("--deep", search_args.deep);
 
     TagArgs tag_args;
     CLI::App* tag = app.add_subcommand("tag");

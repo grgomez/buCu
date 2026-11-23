@@ -16,7 +16,7 @@ namespace bucu::cli {
 int run_search(const SearchArgs& args, const Globals& globals, const Context& context) {
     std::ostream& out = context.out;
     std::ostream& err = context.err;
-    const auto query = core::parse_search_query(args.keywords, false, false);
+    const auto query = core::parse_search_query(args.keywords, args.all, args.deep);
     if (!query) {
         // No keyword left is a usage error; a keyword that is not valid UTF-8 is a validation
         // error.
