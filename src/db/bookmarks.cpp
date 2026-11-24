@@ -265,9 +265,13 @@ std::string_view value_text(sqlite3_value* value) {
 
 // The SQL function bucu_keyword_score(url, title, description, tags): how many keywords of the
 // SearchQuery in the user data match the bookmark (core::count_matching_keywords). `tags` holds
-// each tag, separated by kTagSeparator. BuCu code does not catch exceptions outside `cli`, so a
-// failed allocation here ends the process, as it does anywhere else in BuCu.
-void keyword_score(sqlite3_context* context, int argument_count, sqlite3_value** arguments) {
+// each tag, separated by kTagSeparator. It is noexcept: BuCu code does not catch exceptions outside
+// `cli`, and an exception must never unwind through SQLite's C frames, so a failed allocation here
+// ends the process.
+// NOLINTNEXTLINE(bugprone-exception-escape): a failed allocation must end the process here, never
+// unwind through SQLite's C frames (architecture §7)
+void keyword_score(sqlite3_context* context, int argument_count,
+                   sqlite3_value** arguments) noexcept {
     if (argument_count != kKeywordScoreArguments) {
         sqlite3_result_error_code(context, SQLITE_MISUSE);
         return;

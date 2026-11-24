@@ -120,7 +120,10 @@ TEST_CASE("search matches whole words: e is a word character and - is not", "[cl
 TEST_CASE("search with no match, or no bookmark stored, prints nothing and exits 0",
           "[cli][search]") {
     const Fixture fixture;
-    CHECK(fixture.bucu({"search", "nothing"}).out.empty());
+    const Result empty = fixture.bucu({"search", "nothing"});
+    CHECK(empty.code == 0);
+    CHECK(empty.out.empty());
+    CHECK(empty.err.empty());
     add(fixture, "https://a.example", "Pen");
 
     const Result result = fixture.bucu({"search", "nothing"});
