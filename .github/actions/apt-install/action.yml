@@ -18,7 +18,8 @@ runs:
         PACKAGES: ${{ inputs.packages }}
       run: |
         hash=$(printf '%s' "$PACKAGES" | tr -s ' ' '\n' | sort | sha256sum | cut -c1-16)
-        echo "key=apt-${ImageOS}-${ImageVersion}-${hash}" >> "$GITHUB_OUTPUT"
+        week=$(date -u +%G-W%V)
+        echo "key=apt-${ImageOS}-${week}-${hash}" >> "$GITHUB_OUTPUT"
         mkdir -p "$HOME/apt-archives/partial"
 
     - name: Restore the .deb cache
