@@ -1,0 +1,68 @@
+name: apt-install
+description: >
+  Install apt packages on an Ubuntu runner with retries, short network timeouts, no recommended
+  packages, and a cache of the downloaded .deb files. On a cache hit, apt-get update is skipped.
+
+inputs:
+  packages:
+    description: Space-separated apt package names.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Compute the cache key
+      id: key
+      shell: bash
+      env:
+        PACKAGES: ${{ inputs.packages }}
+      run: |
+        hash=$(printf '%s' "$PACKAGES" | tr -s ' ' '\n' | sort | sha256sum | cut -c1-16)
+        week=$(date -u +%G-W%V)
+        echo "key=apt-${ImageOS}-${week}-${hash}" >> "$GITHUB_OUTPUT"
+        mkdir -p "$HOME/apt-archives/partial"
+
+    - name: Restore the .deb cache
+      id: cache
+      uses: actions/cache@v4
+      with:
+        path: ~/apt-archives
+        key: ${{ steps.key.outputs.key }}
+
+    - name: Install packages
+      shell: bash
+      env:
+        PACKAGES: ${{ inputs.packages }}
+        CACHE_HIT: ${{ steps.cache.outputs.cache-hit }}
+      run: |
+        set -u
+        archives="$HOME/apt-archives"
+        net=(-o Acquire::Retries=5 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30)
+        install=(-y --no-install-recommends -o "Dir::Cache::Archives=$archives")
+        sudo mkdir -p "$archives/partial"
+        # shellcheck disable=SC2086
+        if [ "$CACHE_HIT" = "true" ]; then
+          echo "apt cache hit: installing from $archives without apt-get update"
+          start=$SECONDS
+          if sudo apt-get install "${net[@]}" "${install[@]}" $PACKAGES; then
+            echo "apt install (cache hit) took $((SECONDS - start)) s"
+            cache_ok=1
+          else
+            echo "apt install from the cache failed; falling back to apt-get update"
+            cache_ok=0
+          fi
+        else
+          echo "apt cache miss"
+          cache_ok=0
+        fi
+        if [ "$cache_ok" != 1 ]; then
+          start=$SECONDS
+          sudo apt-get update "${net[@]}"
+          echo "apt-get update took $((SECONDS - start)) s"
+          start=$SECONDS
+          sudo apt-get install "${net[@]}" "${install[@]}" $PACKAGES
+          echo "apt install took $((SECONDS - start)) s"
+        fi
+        # Let the cache post-step save the archive directory.
+        sudo rm -rf "$archives/partial" "$archives/lock"
+        sudo chown -R "$(id -u):$(id -g)" "$archives"
