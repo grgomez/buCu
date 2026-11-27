@@ -9,6 +9,7 @@
 #include "bucu/core/bookmark_id.hpp"
 #include "bucu/core/changes.hpp"
 #include "bucu/core/id_selection.hpp"
+#include "bucu/core/search.hpp"
 #include "bucu/db/database.hpp"
 #include "bucu/db/error.hpp"
 
@@ -43,6 +44,18 @@ using BookmarkVisitor = std::function<bool(core::BookmarkId, const core::Bookmar
 // values. Nothing is buffered.
 [[nodiscard]] std::expected<void, Error> for_each_last_bookmark(Database& database,
                                                                 std::int64_t count,
+                                                                const BookmarkVisitor& visit);
+
+// Calls `visit` for each stored bookmark that matches `query`, with its tags, best matches first
+// (docs/product.md section 5, search): by the number of distinct keywords matched, highest first,
+// then in ascending ID order. A bookmark matches when at least one keyword matches it, or every
+// keyword with `query.all`; `core::count_matching_keywords` decides each match. All passes run in
+// one read transaction, one scan for each score from the keyword count down to 1 (the keyword
+// count only with `query.all`), so nothing is buffered and a large result costs one record at a
+// time. While it runs, the connection has the SQL function `bucu_keyword_score`; it is removed
+// before this returns.
+[[nodiscard]] std::expected<void, Error> for_each_search_result(Database& database,
+                                                                const core::SearchQuery& query,
                                                                 const BookmarkVisitor& visit);
 
 // Applies `changes` to each bookmark that `selection` covers, in one transaction (all or nothing).

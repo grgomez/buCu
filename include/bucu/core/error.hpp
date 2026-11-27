@@ -11,6 +11,7 @@ enum class Field : std::uint8_t {
     kTag,
     kTitle,
     kDescription,
+    kKeyword,
 };
 
 // Why a value was refused. `cli` maps each code to a message (product section 6).

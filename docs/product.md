@@ -86,8 +86,9 @@ bucu --version | -h | --help
 
 add <url> [tags...]        add a bookmark; prompts or opens the editor when asked (#10, #14, #16)
 list [ids...] [--last <n>]   print bookmarks (#11); pagination (#97)
-search <query>             search by keyword, substring, or tag (#12)
-search --regex <pattern>   search by regular expression (#12)
+search <keyword>... [--all] [--deep]   search by keyword (#112)
+search --tag <tags>        search by tag (#113)
+search --regex <pattern>   search by regular expression (#114)
 tag [ids...] <operation> [tags...]   add, remove, or replace tags (#87)
 update [ids...]            change bookmarks' fields (#87, #14)
 delete [ids...]            delete bookmarks, with confirmation (#88)
@@ -212,6 +213,24 @@ completion <shell>         print a shell completion script (#19)
 - `list` does not ask for confirmation, open a pager, or change the database, and accepts no option other than `--last`. Pagination, ordering, and a pager are #97, wrapping to the terminal width #98, JSON output and field selection #99, configurable colours #49.
 - When writing standard output fails, the rule of §6 applies: exit `1`.
 
+### search (added by #112)
+
+`bucu search <keyword>... [--all] [--deep]` prints the bookmarks that match the keywords, best matches first, in the `add` record format (§5 add). Tag search (#113), regular expressions (#114), field markers, excluded keywords, and the `blank` and `immutable` keywords (#115), and random results and ordering options (#116) follow.
+
+- `search` MUST print every stored bookmark that matches, by the rules below, in the record format of §5 add, with one empty line between records, and exit `0`.
+- Each argument MUST be one keyword: trimmed of whitespace (§4), with each inner run of whitespace made one space. An empty keyword MUST be dropped, and a keyword given twice (after this step and lowercasing) MUST count once. A keyword that starts with `-` MUST be given after `--`; every word after `--` is a keyword.
+- With no keyword left, `search` MUST fail with the usage error of §6, exit `2`. A keyword that is not valid UTF-8 MUST fail with the validation error of §6, exit `3`. When a run has both an option error and a keyword error, the option error (exit `2`) is reported.
+- A keyword MUST be compared with the bookmark's URL (as stored, normalized), title, description, and each tag separately; a match never spans two fields or two tags.
+- Comparison MUST be case-insensitive: the keyword and the field text are both lowercased with the Unicode full lowercase mapping of §4 Tags. No other folding (accents, Unicode normalization) is applied.
+- By default a keyword MUST match only a whole word: the characters right before and after the match are not word characters, or are the start or end of the field. Word characters are Unicode general categories L (letters) and N (numbers: Nd, Nl, No), Unicode 18.0.0 (§4), and `_`, the rule of Python's `\w`, which Buku uses (marks, category M, are not word characters). The same rule holds at the edges of a keyword phrase that holds spaces. When the first occurrence fails the rule, later occurrences in the field are tried.
+- With `--deep`, a keyword MUST match anywhere in the field text, inside words too.
+- By default a bookmark MUST match when at least one keyword matches it. With `--all`, it MUST match only when every keyword matches it (each keyword in any field).
+- Results MUST be ordered by the number of distinct keywords that match the bookmark, highest first, then by ascending ID. A keyword that matches in several fields counts once.
+- With no match, or no bookmark stored, `search` MUST print nothing and exit `0`.
+- Output MUST follow the rules of §5 list for streaming, one read transaction, colour, control characters, and write failures (exit `1`, §6). `search` MUST NOT ask for confirmation, open a pager, or change the database.
+- `search` MUST accept only `--all` and `--deep` as options; any other option is a usage error, exit `2`.
+- A keyword phrase (`'web dev'`) matches the field text `web dev`, but not `web  dev` or `web-dev`: field text is not whitespace-normalized. A keyword made only of non-word characters (`c++`) in whole-word mode matches where the characters around it are not word characters.
+
 ### db (added by #10)
 
 - `bucu db path` prints the absolute path of the database that the run would use (§3), followed by LF. It does not open or create the database, or any directory, so it can print a path that does not exist yet.
@@ -238,10 +257,11 @@ completion <shell>         print a shell completion script (#19)
 - A bare `bucu`, or `bucu --` with nothing after it, prints the help text to standard error and exits `2`.
 - `--help` and `-h` print the help text, and `--version` prints the version, whichever other arguments are given; both exit `0`. When both are given, the help text wins, in either order.
 - A usage error prints one line, `bucu: <what failed>. Run 'bucu --help' for usage.`, to standard error, nothing to standard output, and exits `2`.
-- A validation error prints one line, `bucu: invalid <field> '<value>': <reason>.`, and exits `3`. The field is `URL`, `tag`, `title`, or `description`. The reason is one of: `it is empty`, `it is not valid UTF-8`, `it has no scheme, such as https://`, `it contains whitespace`, `it contains a control character`, `it has no host`, or `it is longer than 128 characters`. The value is left out for a title, a description, and text that is not valid UTF-8; otherwise it is shown with each control character written as an escape (`\n`, `\x1b`), so the error stays one line. Nothing is stored and nothing goes to standard output.
+- A validation error prints one line, `bucu: invalid <field> '<value>': <reason>.`, and exits `3`. The field is `URL`, `tag`, `title`, `description`, or `keyword`. The reason is one of: `it is empty`, `it is not valid UTF-8`, `it has no scheme, such as https://`, `it contains whitespace`, `it contains a control character`, `it has no host`, or `it is longer than 128 characters`. The value is left out for a title, a description, and text that is not valid UTF-8 (so always for a keyword, whose only validation error is invalid UTF-8); otherwise it is shown with each control character written as an escape (`\n`, `\x1b`), so the error stays one line. Nothing is stored and nothing goes to standard output.
 - A URL that is already stored prints `bucu: <normalized URL> is already bookmarked as <ID>. Use 'bucu update <ID>' to change it.` to standard error, prints nothing to standard output, changes nothing, and exits `4`.
 - An ID argument that is not a positive whole number prints `bucu: invalid ID '<argument>': it is not a positive whole number. Run 'bucu --help' for usage.` and exits `2`. The argument is shown as given, with each control character written as an escape, as for a validation error.
 - A `list --last` value that is not a positive whole number prints `bucu: invalid value for --last '<argument>': it is not a positive whole number. Run 'bucu --help' for usage.` and exits `2`; the argument is shown as given, with each control character written as an escape. `list --last` with ID arguments prints `bucu: --last cannot be used with IDs. Run 'bucu --help' for usage.` and exits `2`.
+- `search` with no keyword left after dropping empty ones prints `bucu: search needs at least one keyword. Run 'bucu --help' for usage.` and exits `2`. A keyword that is not valid UTF-8 prints `bucu: invalid keyword: it is not valid UTF-8.` and exits `3`.
 - A single ID that is not stored prints `bucu: no bookmark has ID <n>. Run 'bucu list' to see IDs.` A range with no stored ID prints `bucu: no bookmark has an ID in <a>-<b>. Run 'bucu list' to see IDs.` With no ID and no bookmark stored, `bucu` prints `bucu: there are no bookmarks.` Each goes to standard error, changes nothing, and exits `5`.
 - A change to every bookmark in a run that is not interactive, without `--yes`, prints `bucu: changing all bookmarks needs confirmation; add --yes to confirm. Run 'bucu --help' for usage.` and exits `2`.
 - A `delete` in a run that is not interactive, without `--yes`, prints `bucu: deleting bookmarks needs confirmation; add --yes to confirm. Run 'bucu --help' for usage.` and exits `2`. A `reorder` that needs to ask prints `bucu: renumbering bookmarks needs confirmation; add --yes to confirm. Run 'bucu --help' for usage.` and exits `2`.
