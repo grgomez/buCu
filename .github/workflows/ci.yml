@@ -16,55 +16,47 @@ concurrency:
 jobs:
   build:
     name: ${{ matrix.name }}
+    timeout-minutes: 30
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         include:
-          - name: ubuntu-gcc-13-debug
-            os: ubuntu-24.04
-            preset: debug
-            cc: gcc-13
-            cxx: g++-13
           - name: ubuntu-gcc-13-release
             os: ubuntu-24.04
             preset: release
             cc: gcc-13
             cxx: g++-13
-          - name: ubuntu-clang-19-debug
-            os: ubuntu-24.04
-            preset: debug
-            cc: clang-19
-            cxx: clang++-19
-            install: clang-19
+            extra: -DCMAKE_CXX_FLAGS=-D_GLIBCXX_ASSERTIONS
           - name: ubuntu-clang-19-release
             os: ubuntu-24.04
             preset: release
             cc: clang-19
             cxx: clang++-19
             install: clang-19
-          - name: macos-15-apple-clang-debug
+          - name: macos-15-apple-clang-release
             os: macos-15
-            preset: debug
+            preset: release
             cc: clang
             cxx: clang++
-          - name: windows-msvc-debug
+          - name: windows-msvc-release
             os: windows-latest
-            preset: debug
+            preset: release
             cc: cl
             cxx: cl
-            extra: -DCMAKE_MSVC_DEBUG_INFORMATION_FORMAT=Embedded
           - name: ubuntu-clang-19-asan-ubsan
             os: ubuntu-24.04
             preset: asan-ubsan
             cc: clang-19
             cxx: clang++-19
-            install: clang-19
+            install: clang-19 libclang-rt-19-dev
     steps:
       - uses: actions/checkout@v4
       - name: Install tools (Ubuntu)
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y ninja-build ${{ matrix.install }}
+        uses: ./.github/actions/apt-install
+        with:
+          packages: ninja-build ${{ matrix.install }}
       - name: Install tools (macOS)
         if: runner.os == 'macOS'
         run: brew install ninja
@@ -91,6 +83,7 @@ jobs:
 
   format:
     name: format
+    timeout-minutes: 30
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -99,30 +92,36 @@ jobs:
 
   tidy:
     name: tidy
+    timeout-minutes: 30
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - name: Install tools
-        run: sudo apt-get update && sudo apt-get install -y ninja-build clang-19 clang-tidy-19
+        uses: ./.github/actions/apt-install
+        with:
+          packages: ninja-build clang-19 clang-tidy-19
       - name: Configure
         run: >
-          cmake --preset debug
+          cmake --preset release
           -DCMAKE_C_COMPILER=clang-19
           -DCMAKE_CXX_COMPILER=clang++-19
       - name: Build
-        run: cmake --build --preset debug
+        run: cmake --build --preset release
       - name: Static analysis
-        run: CLANG_TIDY=clang-tidy-19 scripts/tidy.sh build/debug
+        run: CLANG_TIDY=clang-tidy-19 scripts/tidy.sh build/release
 
   coverage:
     name: coverage
+    timeout-minutes: 30
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - name: Install tools
-        run: |
-          sudo apt-get update && sudo apt-get install -y ninja-build clang-19 llvm-19
-          pipx install lizard==1.26.1
+        uses: ./.github/actions/apt-install
+        with:
+          packages: ninja-build clang-19 llvm-19 libclang-rt-19-dev
+      - name: Install lizard
+        run: pipx install lizard==1.26.1
       - name: Test the report scripts
         run: python3 -m unittest discover -s scripts/tests
       - name: Configure

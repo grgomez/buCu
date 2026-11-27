@@ -169,3 +169,19 @@ flowchart LR
 - `core` properties take their rules from product §4 and cite the rule in the test name. ctest runs them as `core-property` with a fixed seed; run `bucu_core_property_tests` with another `RC_PARAMS` (for example `seed=7 max_success=2000`) to explore more inputs.
 - Fuzz targets for the `core` text parsers live in `tests/fuzz/` with seed corpora in `tests/fuzz/corpus/<target>/` ([ADR 0010](adr/0010-libfuzzer-fuzz-targets.md)). They build only with `BUCU_FUZZ`, which the `fuzz` preset sets (LLVM Clang, Linux). ctest replays each corpus as `fuzz-<target>`; `scripts/fuzz.sh [seconds]` fuzzes each target for the time and exits non-zero on a finding.
 - The `coverage` preset (clang, Linux and macOS) and `scripts/coverage.sh` report line, region, branch, and function coverage and a CRAP score for each function of `src/` and `include/` ([ADR 0011](adr/0011-coverage-and-crap-report.md)). The CI `coverage` job runs them on every PR and is informational: it fails on a broken tool, never on a threshold.
+
+Each CI job checks something no other check does. BuCu has no CI Debug job: `src/` and `include/` have no `assert()` and no `NDEBUG`, so Release runs the same tests with more warnings. The local `debug` gate of constitution §3 is BuCu's Debug run; Release's `NDEBUG` turns off only the vendored libraries' asserts, which the local `debug` gate still runs.
+
+| Job | Workflow | What only it checks |
+| --- | --- | --- |
+| `ubuntu-gcc-13-release` | `ci.yml` | GCC's optimization-only warnings as errors, and libstdc++ bounds and precondition checks (`-D_GLIBCXX_ASSERTIONS`) |
+| `ubuntu-clang-19-release` | `ci.yml` | The tests on the Clang 19 Release build without sanitizers or extra library checks, as shipped |
+| `ubuntu-clang-19-asan-ubsan` | `ci.yml` | Memory errors and undefined behaviour at run time |
+| `macos-15-apple-clang-release` | `ci.yml` | Apple Clang and libc++ on macOS |
+| `windows-msvc-release` | `ci.yml` | MSVC and the Windows platform code |
+| `format` | `ci.yml` | clang-format conformance |
+| `tidy` | `ci.yml` | clang-tidy diagnostics on the `release` build |
+| `coverage` | `ci.yml` | Line, branch, and CRAP reports from an instrumented `-O0` build, and the report scripts' tests; informational |
+| `fuzz` | `fuzz.yml` | libFuzzer runs of the `core` parsers, and clang-tidy on the fuzz targets |
+| `gates` | `sdd-gates.yml` | The issue body and pull request rules of constitution §3 |
+| `tools-tests` | `sdd-gates.yml` | The workflow tools' unit tests |
