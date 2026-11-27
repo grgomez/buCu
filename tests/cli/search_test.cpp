@@ -15,18 +15,23 @@ using bucu::test::cli::kNow;
 using bucu::test::cli::kPiped;
 using bucu::test::cli::Result;
 
-// Stores a bookmark with `url`, and `title` and `tags` when not empty.
-void add(const Fixture& fixture, const std::string& url, const std::string& title = "",
-         const std::string& tags = "", const std::string& description = "") {
+// Stores a bookmark with `url`, and the `extra` fields that are not empty.
+struct Extra {
+    std::string title{};
+    std::string tags{};
+    std::string description{};
+};
+
+void add(const Fixture& fixture, const std::string& url, const Extra& extra = {}) {
     std::vector<std::string> args{"add", url};
-    if (!tags.empty()) {
-        args.push_back(tags);
+    if (!extra.tags.empty()) {
+        args.push_back(extra.tags);
     }
-    if (!title.empty()) {
-        args.insert(args.end(), {"--title", title});
+    if (!extra.title.empty()) {
+        args.insert(args.end(), {"--title", extra.title});
     }
-    if (!description.empty()) {
-        args.insert(args.end(), {"--description", description});
+    if (!extra.description.empty()) {
+        args.insert(args.end(), {"--description", extra.description});
     }
     REQUIRE(fixture.bucu(args).code == 0);
 }
@@ -62,8 +67,8 @@ std::string read_golden(const std::string& name) {
 
 TEST_CASE("search prints the matching bookmark in the add format and no other", "[cli][search]") {
     const Fixture fixture;
-    add(fixture, "https://a.example", "Pen review");
-    add(fixture, "https://b.example", "Opens soon");
+    add(fixture, "https://a.example", {.title = "Pen review"});
+    add(fixture, "https://b.example", {.title = "Opens soon"});
 
     const Result result = fixture.bucu({"search", "pen"});
 
@@ -76,10 +81,10 @@ TEST_CASE("search prints the matching bookmark in the add format and no other", 
 TEST_CASE("search finds a keyword in the URL, title, description, or a tag", "[cli][search]") {
     const Fixture fixture;
     add(fixture, "https://rust.example/");
-    add(fixture, "https://b.example", "Rust");
-    add(fixture, "https://c.example", "", "", "all about rust");
-    add(fixture, "https://d.example", "", "rust");
-    add(fixture, "https://e.example", "Go");
+    add(fixture, "https://b.example", {.title = "Rust"});
+    add(fixture, "https://c.example", {.description = "all about rust"});
+    add(fixture, "https://d.example", {.tags = "rust"});
+    add(fixture, "https://e.example", {.title = "Go"});
 
     const Result result = fixture.bucu({"search", "rust"});
 
@@ -89,7 +94,7 @@ TEST_CASE("search finds a keyword in the URL, title, description, or a tag", "[c
 
 TEST_CASE("search is case-insensitive by the Unicode lowercase mapping", "[cli][search]") {
     const Fixture fixture;
-    add(fixture, "https://a.example", "Été à Paris");
+    add(fixture, "https://a.example", {.title = "Été à Paris"});
 
     CHECK(fixture.bucu({"search", "ÉTÉ"}).out == record(fixture, 1));
     CHECK(fixture.bucu({"search", "paris"}).out == record(fixture, 1));
@@ -98,9 +103,9 @@ TEST_CASE("search is case-insensitive by the Unicode lowercase mapping", "[cli][
 TEST_CASE("search ranks by keywords matched, then ID, with an empty line between records",
           "[cli][search]") {
     const Fixture fixture;
-    add(fixture, "https://a.example", "web");
-    add(fixture, "https://b.example", "docs");
-    add(fixture, "https://c.example", "web docs");
+    add(fixture, "https://a.example", {.title = "web"});
+    add(fixture, "https://b.example", {.title = "docs"});
+    add(fixture, "https://c.example", {.title = "web docs"});
 
     const Result result = fixture.bucu({"--color", "never", "search", "web", "docs"});
 
@@ -111,8 +116,8 @@ TEST_CASE("search ranks by keywords matched, then ID, with an empty line between
 
 TEST_CASE("search matches whole words: e is a word character and - is not", "[cli][search]") {
     const Fixture fixture;
-    add(fixture, "https://a.example", "café-bar");
-    add(fixture, "https://b.example", "cafébar");
+    add(fixture, "https://a.example", {.title = "café-bar"});
+    add(fixture, "https://b.example", {.title = "cafébar"});
 
     CHECK(fixture.bucu({"search", "café"}).out == record(fixture, 1));
 }
@@ -124,7 +129,7 @@ TEST_CASE("search with no match, or no bookmark stored, prints nothing and exits
     CHECK(empty.code == 0);
     CHECK(empty.out.empty());
     CHECK(empty.err.empty());
-    add(fixture, "https://a.example", "Pen");
+    add(fixture, "https://a.example", {.title = "Pen"});
 
     const Result result = fixture.bucu({"search", "nothing"});
 
@@ -136,8 +141,8 @@ TEST_CASE("search with no match, or no bookmark stored, prints nothing and exits
 TEST_CASE("search takes each argument as one keyword: trimmed, repeats counted once",
           "[cli][search]") {
     const Fixture fixture;
-    add(fixture, "https://a.example", "web dev");
-    add(fixture, "https://b.example", "web");
+    add(fixture, "https://a.example", {.title = "web dev"});
+    add(fixture, "https://b.example", {.title = "web"});
 
     CHECK(fixture.bucu({"search", "  web  dev "}).out == record(fixture, 1));
     // The same keyword twice scores once, so the IDs keep their order.
@@ -148,9 +153,9 @@ TEST_CASE("search takes each argument as one keyword: trimmed, repeats counted o
 TEST_CASE("search takes the words after -- as keywords, even ones that look like options",
           "[cli][search]") {
     const Fixture fixture;
-    add(fixture, "https://a.example", "use --all here");
-    add(fixture, "https://b.example", "web x -x");
-    add(fixture, "https://c.example", "only web");
+    add(fixture, "https://a.example", {.title = "use --all here"});
+    add(fixture, "https://b.example", {.title = "web x -x"});
+    add(fixture, "https://c.example", {.title = "only web"});
 
     CHECK(fixture.bucu({"search", "--", "--all"}).out == record(fixture, 1));
     CHECK(fixture.bucu({"search", "--", "-x"}).out == record(fixture, 2));
@@ -159,7 +164,7 @@ TEST_CASE("search takes the words after -- as keywords, even ones that look like
 
 TEST_CASE("search does not ask for confirmation or change the database", "[cli][search]") {
     Fixture fixture;
-    add(fixture, "https://a.example", "Pen");
+    add(fixture, "https://a.example", {.title = "Pen"});
     const auto before = fixture.bookmarks();
     fixture.terminals = bucu::test::cli::kTerminal;
 
@@ -173,7 +178,7 @@ TEST_CASE("search does not ask for confirmation or change the database", "[cli][
 TEST_CASE("search accepts no other option, and a global option after it is a usage error",
           "[cli][search]") {
     const Fixture fixture;
-    add(fixture, "https://a.example", "Pen");
+    add(fixture, "https://a.example", {.title = "Pen"});
 
     for (const char* option : {"--bogus", "--yes", "--last", "--db", "-x"}) {
         CAPTURE(option);
@@ -186,7 +191,7 @@ TEST_CASE("search accepts no other option, and a global option after it is a usa
 
 TEST_CASE("search exits 1 when writing standard output fails", "[cli][search]") {
     const Fixture fixture;
-    add(fixture, "https://a.example", "Pen");
+    add(fixture, "https://a.example", {.title = "Pen"});
     std::istringstream in;
     std::ostringstream out;
     out.setstate(std::ios::badbit);
@@ -207,7 +212,7 @@ TEST_CASE("search exits 1 when writing standard output fails", "[cli][search]") 
 
 TEST_CASE("search writes control characters of a stored title as escapes", "[cli][search]") {
     const Fixture fixture;
-    add(fixture, "https://a.example", "Pen\x1b[31m red");
+    add(fixture, "https://a.example", {.title = "Pen\x1b[31m red"});
 
     const Result result = fixture.bucu({"search", "pen"});
 
@@ -218,7 +223,7 @@ TEST_CASE("search writes control characters of a stored title as escapes", "[cli
 
 TEST_CASE("search --color always colours the records like list", "[cli][search]") {
     const Fixture fixture;
-    add(fixture, "https://a.example", "Pen");
+    add(fixture, "https://a.example", {.title = "Pen"});
 
     const Result searched = fixture.bucu({"--color", "always", "search", "pen"});
     const Result listed = fixture.bucu({"--color", "always", "list", "1"});
@@ -231,7 +236,7 @@ TEST_CASE("search --color always colours the records like list", "[cli][search]"
 TEST_CASE("search with no keyword is a usage error: exit 2, nothing on standard output",
           "[cli][search]") {
     const Fixture fixture;
-    add(fixture, "https://a.example", "Pen");
+    add(fixture, "https://a.example", {.title = "Pen"});
     const std::string message =
         "bucu: search needs at least one keyword. Run 'bucu --help' for usage.\n";
 
@@ -259,7 +264,7 @@ TEST_CASE("search with no keyword fails the same on an empty database", "[cli][s
 TEST_CASE("search with a keyword that is not valid UTF-8 is a validation error: exit 3",
           "[cli][search]") {
     const Fixture fixture;
-    add(fixture, "https://a.example", "Pen");
+    add(fixture, "https://a.example", {.title = "Pen"});
 
     for (const char* keyword : {"\xFF", "pen\xC3", "\xED\xA0\x80"}) {
         CAPTURE(keyword);
@@ -283,8 +288,8 @@ TEST_CASE("search reports an option error before a keyword error", "[cli][search
 
 TEST_CASE("search --all prints only bookmarks that match every keyword", "[cli][search]") {
     const Fixture fixture;
-    add(fixture, "https://a.example", "web docs");
-    add(fixture, "https://b.example", "web");
+    add(fixture, "https://a.example", {.title = "web docs"});
+    add(fixture, "https://b.example", {.title = "web"});
 
     const Result result = fixture.bucu({"search", "--all", "web", "docs"});
 
@@ -295,8 +300,8 @@ TEST_CASE("search --all prints only bookmarks that match every keyword", "[cli][
 
 TEST_CASE("search --all lets each keyword match in a different field", "[cli][search]") {
     const Fixture fixture;
-    add(fixture, "https://a.example", "web", "docs");
-    add(fixture, "https://b.example", "web");
+    add(fixture, "https://a.example", {.title = "web", .tags = "docs"});
+    add(fixture, "https://b.example", {.title = "web"});
 
     CHECK(fixture.bucu({"search", "--all", "web", "docs"}).out == record(fixture, 1));
     CHECK(fixture.bucu({"search", "--all", "web", "docs", "api"}).out.empty());
@@ -304,7 +309,7 @@ TEST_CASE("search --all lets each keyword match in a different field", "[cli][se
 
 TEST_CASE("search --deep matches inside words", "[cli][search]") {
     const Fixture fixture;
-    add(fixture, "https://a.example", "Opens soon");
+    add(fixture, "https://a.example", {.title = "Opens soon"});
 
     CHECK(fixture.bucu({"search", "pen"}).out.empty());
     CHECK(fixture.bucu({"search", "--deep", "pen"}).out == record(fixture, 1));
@@ -314,15 +319,15 @@ TEST_CASE("search --deep matches inside words", "[cli][search]") {
 
 TEST_CASE("search --deep ranks by keywords matched like the whole-word search", "[cli][search]") {
     const Fixture fixture;
-    add(fixture, "https://a.example", "opens");
-    add(fixture, "https://b.example", "opens soon");
+    add(fixture, "https://a.example", {.title = "opens"});
+    add(fixture, "https://b.example", {.title = "opens soon"});
 
     CHECK(fixture.bucu({"search", "--deep", "pen", "soo"}).out == records(fixture, {2, 1}));
 }
 
 TEST_CASE("search takes --all and --deep after the command only", "[cli][search]") {
     const Fixture fixture;
-    add(fixture, "https://a.example", "web");
+    add(fixture, "https://a.example", {.title = "web"});
 
     CHECK(fixture.bucu({"--all", "search", "web"}).code == 2);
     CHECK(fixture.bucu({"--deep", "search", "web"}).code == 2);

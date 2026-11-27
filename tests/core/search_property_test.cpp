@@ -13,7 +13,6 @@ namespace {
 
 using bucu::core::count_matching_keywords;
 using bucu::core::parse_search_query;
-using bucu::core::SearchQuery;
 using bucu::core::test::encode;
 
 // How large the generated keyword and field texts get (the generator size, not a rule).

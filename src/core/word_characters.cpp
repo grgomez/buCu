@@ -27,7 +27,8 @@ bool is_word_character(char32_t code_point) {
     if (code_point == kUnderscore) {
         return true;
     }
-    const auto it = std::ranges::upper_bound(kWordRanges, code_point, {}, &CodePointRange::first);
+    const auto* const it =
+        std::ranges::upper_bound(kWordRanges, code_point, {}, &CodePointRange::first);
     return it != std::begin(kWordRanges) && code_point <= std::prev(it)->last;
 }
 

@@ -7,6 +7,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
+#include <iterator>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -67,14 +68,14 @@ extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t size
     const unsigned control = data[0];
     // libFuzzer passes bytes as uint8_t; std::string_view takes char.
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
-    const std::string_view text(reinterpret_cast<const char*>(data) + 1, size - 1);
+    const std::string_view whole_input(reinterpret_cast<const char*>(data), size);
+    const std::string_view text = whole_input.substr(1);
     const std::vector<std::string_view> pieces = split_at_nul(text);
     const std::size_t keyword_count =
-        ((control >> kKeywordCountShift) & kKeywordCountMask) % pieces.size() + 1;
-    const std::vector<std::string> arguments(
-        pieces.begin(), pieces.begin() + static_cast<std::ptrdiff_t>(keyword_count));
-    const std::vector<std::string_view> fields(
-        pieces.begin() + static_cast<std::ptrdiff_t>(keyword_count), pieces.end());
+        (((control >> kKeywordCountShift) & kKeywordCountMask) % pieces.size()) + 1;
+    const auto split = std::next(pieces.begin(), static_cast<std::ptrdiff_t>(keyword_count));
+    const std::vector<std::string> arguments(pieces.begin(), split);
+    const std::vector<std::string_view> fields(split, pieces.end());
 
     const bool all = (control & kAllBit) != 0;
     const auto whole = bucu::core::parse_search_query(arguments, all, false);
